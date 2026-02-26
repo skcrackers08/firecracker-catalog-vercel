@@ -1,27 +1,26 @@
-import { useParams, Link, useLocation } from "wouter";
-import { motion } from "framer-motion";
-import { ArrowLeft, CheckCircle2, PlayCircle, ShoppingCart } from "lucide-react";
-import { useProduct } from "@/hooks/use-products";
+import { useQuery } from "@tanstack/react-query";
+import { useRoute, Link } from "wouter";
+import { Product } from "@shared/schema";
+import { api, buildUrl } from "@shared/routes";
 import { Layout } from "@/components/Layout";
-import { Button, Card } from "@/components/ui-custom";
+import { Button } from "@/components/ui-custom";
+import { ArrowLeft, ShoppingCart, Video, Sparkles, ShieldCheck, Truck } from "lucide-react";
+import { motion } from "framer-motion";
 
 export default function ProductDetails() {
-  const { id } = useParams();
-  const [, setLocation] = useLocation();
-  const productId = parseInt(id || "0");
-  const { data: product, isLoading, error } = useProduct(productId);
+  const [, params] = useRoute("/product/:id");
+  const id = params?.id;
+
+  const { data: product, isLoading, error } = useQuery<Product>({
+    queryKey: [buildUrl(api.products.get.path, { id: id! })],
+    enabled: !!id,
+  });
 
   if (isLoading) {
     return (
       <Layout>
-        <div className="animate-pulse flex flex-col md:flex-row gap-12">
-          <div className="flex-1 h-[500px] bg-white/5 rounded-3xl" />
-          <div className="flex-1 space-y-6 py-8">
-            <div className="h-10 bg-white/5 rounded w-3/4" />
-            <div className="h-6 bg-white/5 rounded w-1/4" />
-            <div className="h-32 bg-white/5 rounded w-full" />
-            <div className="h-14 bg-white/5 rounded w-1/2" />
-          </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       </Layout>
     );
@@ -30,107 +29,100 @@ export default function ProductDetails() {
   if (error || !product) {
     return (
       <Layout>
-        <div className="p-12 text-center bg-red-500/10 rounded-3xl border border-red-500/20">
-          <h2 className="text-2xl font-display text-red-400 mb-4">Product Not Found</h2>
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-4">
+          <h2 className="text-3xl font-display mb-4 text-red-400">Product Not Found</h2>
+          <p className="text-muted-foreground mb-8">The cracker you're looking for doesn't exist or has been removed.</p>
           <Link href="/">
-            <Button variant="outline">Return to Catalog</Button>
+            <Button variant="outline">Back to Catalog</Button>
           </Link>
         </div>
       </Layout>
     );
   }
 
-  const hasVideo = !!product.videoUrl && product.videoUrl.length > 5;
-
   return (
     <Layout>
-      <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-white mb-8 transition-colors">
-        <ArrowLeft className="w-4 h-4 mr-2" /> Back to Catalog
-      </Link>
+      <div className="max-w-6xl mx-auto w-full">
+        <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8 group">
+          <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+          Back to Catalog
+        </Link>
 
-      <motion.div 
-        className="flex flex-col lg:flex-row gap-12"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        {/* Media Section */}
-        <div className="flex-1 space-y-6">
-          <Card className="aspect-square lg:aspect-[4/3] flex items-center justify-center p-8 bg-black/40 relative group overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-radial from-primary/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <img 
-              src={product.imageUrl} 
-              alt={product.name} 
-              className="w-full h-full object-contain filter drop-shadow-2xl z-10 relative"
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-16">
+          {/* Product Image */}
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative aspect-square rounded-3xl bg-white/5 p-8 flex items-center justify-center overflow-hidden border border-white/10 shadow-fire-glow"
+          >
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
+            <img
+              src={product.imageUrl}
+              alt={product.name}
+              className="w-full h-full object-contain filter drop-shadow-2xl relative z-10"
               onError={(e) => {
                 (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=800&h=800&fit=crop";
               }}
             />
-          </Card>
+          </motion.div>
 
-          {hasVideo && (
-            <Card className="aspect-video bg-black/60 overflow-hidden relative">
-              <div className="absolute top-4 left-4 z-10 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10 flex items-center gap-2">
-                <PlayCircle className="w-4 h-4 text-primary" />
-                <span className="text-xs font-bold tracking-wider">PREVIEW</span>
+          {/* Product Info */}
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="flex flex-col"
+          >
+            <div className="mb-6">
+              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-widest mb-4">
+                <Sparkles className="w-3 h-3" /> PREMIUM QUALITY
+              </span>
+              <h2 className="text-4xl md:text-5xl font-display mb-4 leading-tight">{product.name}</h2>
+              <div className="text-3xl font-bold text-primary mb-6">₹{Number(product.price).toFixed(2)}</div>
+            </div>
+
+            <div className="space-y-6 mb-8">
+              <p className="text-lg text-muted-foreground leading-relaxed">
+                {product.description}
+              </p>
+              
+              {product.videoUrl && (
+                <div className="mt-8">
+                  <h3 className="text-xl font-display mb-4 flex items-center gap-2">
+                    <Video className="w-5 h-5 text-primary" />
+                    SEE IT IN ACTION
+                  </h3>
+                  <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
+                    <iframe
+                      src={product.videoUrl.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
+                      title={`${product.name} video`}
+                      className="w-full h-full"
+                      allowFullScreen
+                    ></iframe>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 mb-8">
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                <ShieldCheck className="w-6 h-6 text-primary" />
+                <span className="text-sm font-semibold">Quality Checked</span>
               </div>
-              <iframe
-                src={product.videoUrl}
-                title={`${product.name} video`}
-                className="w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
-              />
-            </Card>
-          )}
-        </div>
+              <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
+                <Truck className="w-6 h-6 text-primary" />
+                <span className="text-sm font-semibold">Fast Delivery</span>
+              </div>
+            </div>
 
-        {/* Details Section */}
-        <div className="flex-1 flex flex-col py-4">
-          <div className="mb-2 flex flex-wrap gap-2">
-            <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-full text-xs font-bold tracking-wider text-muted-foreground flex items-center">
-              <CheckCircle2 className="w-3 h-3 mr-1 text-green-400" /> In Stock
-            </span>
-          </div>
-          
-          <h1 className="text-4xl md:text-6xl font-display text-white mb-4 leading-none">
-            {product.name}
-          </h1>
-          
-          <div className="text-3xl font-bold text-primary mb-8 flex items-end gap-2">
-            ₹{Number(product.price).toFixed(2)}
-            <span className="text-sm text-muted-foreground font-normal mb-1">excl. GST</span>
-          </div>
-          
-          <div className="prose prose-invert max-w-none mb-10">
-            <p className="text-lg leading-relaxed text-white/80">
-              {product.description}
-            </p>
-          </div>
-          
-          <div className="mt-auto space-y-6 p-6 bg-white/5 border border-white/10 rounded-2xl">
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Category</span>
-              <span className="font-semibold text-white">Premium Crackers</span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">GST Applicable</span>
-              <span className="font-semibold text-white">18%</span>
-            </div>
-            
-            <div className="pt-6 border-t border-white/10">
-              <Button 
-                size="lg" 
-                className="w-full text-xl h-16 group/btn"
-                onClick={() => setLocation(`/checkout/${product.id}`)}
-              >
-                <ShoppingCart className="w-6 h-6 mr-3 transition-transform group-hover/btn:-rotate-12" />
+            <Link href={`/checkout/${product.id}`} className="w-full">
+              <Button className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group">
+                <ShoppingCart className="w-6 h-6 mr-3 transition-transform group-hover:scale-110" />
                 BUY NOW
               </Button>
-            </div>
-          </div>
+            </Link>
+          </motion.div>
         </div>
-      </motion.div>
+      </div>
     </Layout>
   );
 }

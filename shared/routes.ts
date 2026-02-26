@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { insertProductSchema, insertOrderSchema, products, orders } from './schema';
+import { insertProductSchema, updateProductSchema, insertOrderSchema, products, orders } from './schema';
 
 export const errorSchemas = {
   validation: z.object({
@@ -30,7 +30,34 @@ export const api = {
         200: z.custom<typeof products.$inferSelect>(),
         404: errorSchemas.notFound,
       },
-    }
+    },
+    create: {
+      method: 'POST' as const,
+      path: '/api/products' as const,
+      input: insertProductSchema,
+      responses: {
+        201: z.custom<typeof products.$inferSelect>(),
+        400: errorSchemas.validation,
+      },
+    },
+    update: {
+      method: 'PATCH' as const,
+      path: '/api/products/:id' as const,
+      input: updateProductSchema,
+      responses: {
+        200: z.custom<typeof products.$inferSelect>(),
+        400: errorSchemas.validation,
+        404: errorSchemas.notFound,
+      },
+    },
+    delete: {
+      method: 'DELETE' as const,
+      path: '/api/products/:id' as const,
+      responses: {
+        204: z.null(),
+        404: errorSchemas.notFound,
+      },
+    },
   },
   orders: {
     create: {

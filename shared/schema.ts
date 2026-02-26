@@ -22,10 +22,12 @@ export const orders = pgTable("orders", {
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });
+export const updateProductSchema = createInsertSchema(products).partial().omit({ id: true });
 export const insertOrderSchema = createInsertSchema(orders).omit({ id: true });
 
 export type Product = typeof products.$inferSelect;
 export type InsertProduct = z.infer<typeof insertProductSchema>;
+export type UpdateProduct = z.infer<typeof updateProductSchema>;
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;

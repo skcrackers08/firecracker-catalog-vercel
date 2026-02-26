@@ -3,13 +3,20 @@ import { motion } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Sparkles, ArrowRight } from "lucide-react";
+import { Sparkles, ArrowRight, Settings } from "lucide-react";
 
 export default function Home() {
   const { data: products, isLoading, error } = useProducts();
 
   return (
     <Layout>
+      <div className="absolute top-4 right-4 z-50">
+        <Link href="/admin">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+            <Settings className="w-5 h-5" />
+          </Button>
+        </Link>
+      </div>
       {/* Hero Section */}
       <section className="mb-16 relative rounded-3xl overflow-hidden shadow-gold-glow">
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
@@ -45,6 +52,11 @@ export default function Home() {
           <span className="w-2 h-8 bg-primary rounded-full inline-block"></span>
           OUR CRACKERS
         </h3>
+        <Link href="/admin">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+            Admin Access
+          </Button>
+        </Link>
       </div>
 
       {isLoading ? (

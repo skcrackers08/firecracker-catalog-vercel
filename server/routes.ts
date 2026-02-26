@@ -82,5 +82,38 @@ export async function registerRoutes(
     res.json(order);
   });
 
+  app.post(api.products.create.path, async (req, res) => {
+    try {
+      const input = api.products.create.input.parse(req.body);
+      const product = await storage.createProduct(input);
+      res.status(201).json(product);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.patch(api.products.update.path, async (req, res) => {
+    try {
+      const input = api.products.update.input.parse(req.body);
+      const product = await storage.updateProduct(Number(req.params.id), input);
+      if (!product) return res.status(404).json({ message: 'Product not found' });
+      res.json(product);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  app.delete(api.products.delete.path, async (req, res) => {
+    const success = await storage.deleteProduct(Number(req.params.id));
+    if (!success) return res.status(404).json({ message: 'Product not found' });
+    res.status(204).end();
+  });
+
   return httpServer;
 }
