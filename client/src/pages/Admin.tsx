@@ -241,9 +241,11 @@ function ProductForm({
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
+      console.log("File loaded, length:", base64String.length);
       field.onChange(base64String);
     };
     reader.onerror = (error) => {
+      console.error("FileReader error:", error);
       toast({ title: "Error", description: "Failed to read file", variant: "destructive" });
     };
     reader.readAsDataURL(file);
@@ -284,9 +286,11 @@ function ProductForm({
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
+      console.log("File loaded, length:", base64String.length);
       field.onChange(base64String);
     };
     reader.onerror = (error) => {
+      console.error("FileReader error:", error);
       toast({ title: "Error", description: "Failed to read file", variant: "destructive" });
     };
     reader.readAsDataURL(file);
