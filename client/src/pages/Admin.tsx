@@ -238,13 +238,15 @@ function ProductForm({
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        // In a real app, you'd upload to a server/S3
-                        // For now, we'll use a data URL to demonstrate
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          field.onChange(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      field.onChange(base64String);
+    };
+    reader.onerror = (error) => {
+      toast({ title: "Error", description: "Failed to read file", variant: "destructive" });
+    };
+    reader.readAsDataURL(file);
                       }
                     }}
                   />
@@ -279,11 +281,15 @@ function ProductForm({
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          field.onChange(reader.result as string);
-                        };
-                        reader.readAsDataURL(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const base64String = reader.result as string;
+      field.onChange(base64String);
+    };
+    reader.onerror = (error) => {
+      toast({ title: "Error", description: "Failed to read file", variant: "destructive" });
+    };
+    reader.readAsDataURL(file);
                       }
                     }}
                   />
