@@ -17,11 +17,14 @@ export function Layout({ children }: LayoutProps) {
               <Sparkles className="w-5 h-5 text-white" />
             </div>
             <h1 className="text-3xl md:text-4xl font-display text-gradient-gold drop-shadow-sm tracking-widest mt-1">
-              TOP S K CRACKERS
+              S K CRACKERS
             </h1>
           </Link>
           
           <nav className="flex items-center gap-6">
+            <Link href="/admin" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+              ADMIN
+            </Link>
             <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
               CATALOG
             </Link>
@@ -39,7 +42,7 @@ export function Layout({ children }: LayoutProps) {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="font-display text-xl tracking-wider text-muted-foreground">TOP S K CRACKERS</span>
+            <span className="font-display text-xl tracking-wider text-muted-foreground">S K CRACKERS</span>
           </div>
           <p className="text-sm text-muted-foreground">
             © {new Date().getFullYear()} Top S K Crackers. All rights reserved.

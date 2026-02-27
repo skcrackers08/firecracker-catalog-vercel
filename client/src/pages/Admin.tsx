@@ -229,8 +229,31 @@ function ProductForm({
               <FormLabel>Image URL</FormLabel>
               <FormControl>
                 <div className="flex gap-2">
-                  <Input {...field} data-testid="input-image-url" />
-                  <Button type="button" variant="outline" size="icon">
+                  <Input {...field} data-testid="input-image-url" placeholder="Paste image URL here" />
+                  <Input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    id="image-upload"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        // In a real app, you'd upload to a server/S3
+                        // For now, we'll use a data URL to demonstrate
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          field.onChange(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => document.getElementById('image-upload')?.click()}
+                  >
                     <ImageIcon className="h-4 w-4" />
                   </Button>
                 </div>
@@ -247,8 +270,29 @@ function ProductForm({
               <FormLabel>Video URL (Optional)</FormLabel>
               <FormControl>
                 <div className="flex gap-2">
-                  <Input {...field} data-testid="input-video-url" />
-                  <Button type="button" variant="outline" size="icon">
+                  <Input {...field} data-testid="input-video-url" placeholder="Paste YouTube URL here" />
+                  <Input
+                    type="file"
+                    accept="video/*"
+                    className="hidden"
+                    id="video-upload"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          field.onChange(reader.result as string);
+                        };
+                        reader.readAsDataURL(file);
+                      }
+                    }}
+                  />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="icon"
+                    onClick={() => document.getElementById('video-upload')?.click()}
+                  >
                     <Video className="h-4 w-4" />
                   </Button>
                 </div>

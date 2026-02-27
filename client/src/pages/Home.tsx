@@ -12,7 +12,7 @@ export default function Home() {
     <Layout>
       <div className="absolute top-4 right-4 z-50">
         <Link href="/admin">
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary">
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary" data-testid="button-admin-settings">
             <Settings className="w-5 h-5" />
           </Button>
         </Link>
