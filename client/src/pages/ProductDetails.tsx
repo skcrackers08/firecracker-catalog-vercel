@@ -92,12 +92,12 @@ export default function ProductDetails() {
                     SEE IT IN ACTION
                   </h3>
                   <div className="aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black/40">
-                    <iframe
-                      src={product.videoUrl.replace("watch?v=", "embed/").replace("youtu.be/", "youtube.com/embed/")}
-                      title={`${product.name} video`}
-                      className="w-full h-full"
-                      allowFullScreen
-                    ></iframe>
+                    <video
+                      src={product.videoUrl}
+                      className="w-full h-full object-cover"
+                      controls
+                      preload="metadata"
+                    />
                   </div>
                 </div>
               )}

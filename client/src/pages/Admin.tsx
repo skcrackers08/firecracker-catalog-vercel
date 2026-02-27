@@ -241,8 +241,23 @@ function ProductForm({
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      console.log("File loaded, length:", base64String.length);
-      field.onChange(base64String);
+      // Simple compression for images if they are too large
+      if (file.type.startsWith('image/') && base64String.length > 1024 * 1024) {
+        const img = new Image();
+        img.src = base64String;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const maxWidth = 1200;
+          const scale = Math.min(1, maxWidth / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          field.onChange(canvas.toDataURL('image/jpeg', 0.7));
+        };
+      } else {
+        field.onChange(base64String);
+      }
     };
     reader.onerror = (error) => {
       console.error("FileReader error:", error);
@@ -286,8 +301,23 @@ function ProductForm({
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = reader.result as string;
-      console.log("File loaded, length:", base64String.length);
-      field.onChange(base64String);
+      // Simple compression for images if they are too large
+      if (file.type.startsWith('image/') && base64String.length > 1024 * 1024) {
+        const img = new Image();
+        img.src = base64String;
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          const maxWidth = 1200;
+          const scale = Math.min(1, maxWidth / img.width);
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
+          field.onChange(canvas.toDataURL('image/jpeg', 0.7));
+        };
+      } else {
+        field.onChange(base64String);
+      }
     };
     reader.onerror = (error) => {
       console.error("FileReader error:", error);
