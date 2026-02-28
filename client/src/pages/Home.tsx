@@ -1,12 +1,27 @@
 import { Link } from "wouter";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Sparkles, ArrowRight, Settings } from "lucide-react";
+import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const { data: products, isLoading, error } = useProducts();
+  const [currentIdx, setCurrentIdx] = useState(0);
+
+  // Auto-scroll logic for top selling products
+  useEffect(() => {
+    if (!products || products.length === 0) return;
+    
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % products.length);
+    }, 5000); // Scroll every 5 seconds
+
+    return () => clearInterval(timer);
+  }, [products]);
+
+  const topProduct = products?.[currentIdx];
 
   return (
     <Layout>
@@ -17,32 +32,101 @@ export default function Home() {
           </Button>
         </Link>
       </div>
-      {/* Hero Section */}
-      <section className="mb-16 relative rounded-3xl overflow-hidden shadow-gold-glow">
+
+      {/* Top Selling Product Auto-Slider */}
+      {!isLoading && !error && products && products.length > 0 && (
+        <section className="mb-12 relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={topProduct?.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              className="absolute inset-0 flex flex-col md:flex-row"
+            >
+              {/* Image Side */}
+              <div className="relative w-full md:w-1/2 h-1/2 md:h-full bg-gradient-to-br from-black/60 to-black/20 overflow-hidden">
+                <img 
+                  src={topProduct?.imageUrl} 
+                  alt={topProduct?.name}
+                  className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)]"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r" />
+              </div>
+
+              {/* Content Side */}
+              <div className="w-full md:w-1/2 h-1/2 md:h-full p-8 md:p-12 flex flex-col justify-center bg-black/40 backdrop-blur-sm border-l border-white/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-widest uppercase">
+                    Top Selling
+                  </span>
+                </div>
+                <h2 className="text-4xl md:text-6xl font-display text-white mb-4 leading-tight">
+                  {topProduct?.name}
+                </h2>
+                <p className="text-lg text-white/70 mb-8 max-w-md line-clamp-3">
+                  {topProduct?.description}
+                </p>
+                <div className="flex items-center gap-6 mt-auto md:mt-0">
+                  <div className="text-3xl font-display text-primary">
+                    ₹{Number(topProduct?.price).toFixed(2)}
+                  </div>
+                  <Link href={`/product/${topProduct?.id}`}>
+                    <Button className="group/btn">
+                      Shop Now
+                      <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover/btn:translate-x-1" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation Controls */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30">
+            {products.map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIdx(idx)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  idx === currentIdx ? "w-8 bg-primary" : "bg-white/30 hover:bg-white/50"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+
+          <button 
+            onClick={() => setCurrentIdx((prev) => (prev - 1 + products.length) % products.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setCurrentIdx((prev) => (prev + 1) % products.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </section>
+      )}
+
+      {/* Hero Section (Keep as a secondary banner or remove if it overlaps too much - let's keep it below but smaller) */}
+      <section className="mb-16 relative rounded-3xl overflow-hidden shadow-gold-glow h-60">
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
-        {/* landing page hero fireworks celebration */}
         <img 
           src="https://images.unsplash.com/photo-1498622205843-3b0ac17f8ba4?w=1920&h=600&fit=crop" 
           alt="Fireworks Hero" 
-          className="w-full h-[400px] object-cover"
+          className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 z-20 flex flex-col justify-center px-8 md:px-16 max-w-3xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-sm font-bold tracking-wider mb-4">
-              <Sparkles className="w-4 h-4" /> DIWALI SPECIALS
-            </span>
-            <h2 className="text-5xl md:text-7xl font-display text-white mb-4 leading-tight">
-              LIGHT UP YOUR <br/>
-              <span className="text-gradient-fire">CELEBRATION</span>
-            </h2>
-            <p className="text-lg md:text-xl text-white/80 mb-8 max-w-xl">
-              Explore our premium collection of spectacular fireworks. Safe, vibrant, and guaranteed to make your night unforgettable.
-            </p>
-          </motion.div>
+        <div className="absolute inset-0 z-20 flex flex-col justify-center px-8 md:px-16">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-wider mb-2">
+            <Sparkles className="w-4 h-4" /> DIWALI SPECIALS
+          </span>
+          <h2 className="text-3xl md:text-5xl font-display text-white">
+            CELEBRATE WITH <span className="text-gradient-fire">FIREWORKS</span>
+          </h2>
         </div>
       </section>
 
