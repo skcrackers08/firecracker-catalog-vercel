@@ -171,35 +171,30 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
             >
-              <Card className="h-full flex flex-col group hover:-translate-y-1 bg-black/40">
-                <div className="relative aspect-square overflow-hidden bg-white/5 p-4">
-                  <img 
-                    src={product.imageUrl} 
-                    alt={product.name}
-                    className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=400&h=400&fit=crop";
-                    }}
-                  />
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                    <span className="font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
+              <Link href={`/product/${product.id}`}>
+                <Card className="h-full flex flex-col group hover:-translate-y-1 bg-black/40 cursor-pointer">
+                  <div className="relative aspect-square overflow-hidden bg-white/5 p-4">
+                    <img 
+                      src={product.imageUrl} 
+                      alt={product.name}
+                      className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=400&h=400&fit=crop";
+                      }}
+                    />
+                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                      <span className="font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
+                    </div>
                   </div>
-                </div>
-                
-                <div className="p-6 flex flex-col flex-1">
-                  <h4 className="text-xl font-display tracking-wide mb-2 line-clamp-1">{product.name}</h4>
-                  <p className="text-sm text-muted-foreground line-clamp-2 mb-6 flex-1">
-                    {product.description}
-                  </p>
                   
-                  <Link href={`/product/${product.id}`} className="w-full mt-auto block">
-                    <Button variant="outline" className="w-full group/btn">
-                      View Details
-                      <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover/btn:translate-x-1" />
-                    </Button>
-                  </Link>
-                </div>
-              </Card>
+                  <div className="p-4 md:p-6 flex flex-col flex-1">
+                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1">{product.name}</h4>
+                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 flex-1">
+                      {product.description}
+                    </p>
+                  </div>
+                </Card>
+              </Link>
             </motion.div>
           ))}
         </motion.div>
