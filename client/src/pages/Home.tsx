@@ -31,6 +31,16 @@ export default function Home() {
     }));
   };
 
+  const handleDragEnd = (event: any, info: any) => {
+    if (!products) return;
+    const swipeThreshold = 50;
+    if (info.offset.x < -swipeThreshold) {
+      setCurrentIdx((prev) => (prev + 1) % products.length);
+    } else if (info.offset.x > swipeThreshold) {
+      setCurrentIdx((prev) => (prev - 1 + products.length) % products.length);
+    }
+  };
+
   const topProduct = products?.[currentIdx];
 
   return (
@@ -45,7 +55,7 @@ export default function Home() {
 
       {/* Top Selling Product Auto-Slider */}
       {!isLoading && !error && products && products.length > 0 && (
-        <section className="mb-12 relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10 group">
+        <section className="mb-12 relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10 group touch-none">
           <AnimatePresence mode="wait">
             <motion.div
               key={topProduct?.id}
@@ -53,7 +63,10 @@ export default function Home() {
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.7, ease: "easeOut" }}
-              className="absolute inset-0 flex flex-col md:flex-row"
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={handleDragEnd}
+              className="absolute inset-0 flex flex-col md:flex-row cursor-grab active:cursor-grabbing"
             >
               {/* Image Side */}
               <div className="relative w-full md:w-1/2 h-1/2 md:h-full bg-gradient-to-br from-black/60 to-black/20 overflow-hidden">
@@ -61,7 +74,7 @@ export default function Home() {
                   <img 
                     src={topProduct?.imageUrl} 
                     alt={topProduct?.name}
-                    className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)] transition-transform duration-500 hover:scale-105"
+                    className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)] transition-transform duration-500 hover:scale-105 pointer-events-none"
                   />
                 </Link>
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r pointer-events-none" />
