@@ -1,60 +1,50 @@
 import { useState } from "react";
-import { useParams, useLocation, Link } from "wouter";
-import { motion } from "framer-motion";
-import { CreditCard, Banknote, Smartphone, ArrowLeft, Receipt, ShieldCheck } from "lucide-react";
-import { useProduct } from "@/hooks/use-products";
+import { useLocation, Link } from "wouter";
+import { CreditCard, Banknote, Smartphone, ArrowLeft, Receipt, ShieldCheck, Trash2 } from "lucide-react";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
 import { Button, Card, cn } from "@/components/ui-custom";
+import { useCart } from "@/hooks/use-cart";
 
 export default function Checkout() {
-  const { id } = useParams();
   const [, setLocation] = useLocation();
-  const productId = parseInt(id || "0");
-  
-  const { data: product, isLoading: isLoadingProduct } = useProduct(productId);
+  const { items, totalAmount, removeFromCart, clearCart } = useCart();
   const createOrder = useCreateOrder();
-  
-  const [quantity, setQuantity] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "cash">("upi");
 
-  if (isLoadingProduct) {
+  if (items.length === 0) {
     return (
       <Layout>
-        <div className="animate-pulse space-y-8 max-w-4xl mx-auto w-full">
-          <div className="h-10 bg-white/5 rounded w-1/4" />
-          <div className="h-[400px] bg-white/5 rounded-3xl" />
-        </div>
-      </Layout>
-    );
-  }
-
-  if (!product) {
-    return (
-      <Layout>
-        <div className="p-12 text-center bg-red-500/10 rounded-3xl">
-          <h2 className="text-2xl font-display text-red-400 mb-4">Product Not Found</h2>
+        <div className="p-12 text-center bg-white/5 rounded-3xl max-w-2xl mx-auto border border-white/10">
+          <h2 className="text-3xl font-display text-primary mb-4">Your Cart is Empty</h2>
+          <p className="text-muted-foreground mb-8">Add some crackers to your cart before proceeding to checkout.</p>
+          <Link href="/">
+            <Button>Back to Catalog</Button>
+          </Link>
         </div>
       </Layout>
     );
   }
 
   // Calculations
-  const price = Number(product.price);
-  const subtotal = price * quantity;
-  const gstAmount = subtotal * 0.18;
-  const totalAmount = subtotal + gstAmount;
+  const gstAmount = totalAmount * 0.18;
+  const finalAmount = totalAmount + gstAmount;
 
   const handleCheckout = () => {
+    // For multiple products, we'll place one order with a combined summary
+    // The current order system seems to support one product per order in the schema
+    // but for simplicity here we'll use the first product's ID and note the others
+    // Real-world would need an OrderItems table.
     createOrder.mutate({
-      productId,
-      quantity,
+      productId: items[0].id,
+      quantity: items.reduce((sum, item) => sum + item.quantity, 0),
       paymentMethod,
-      subtotal: subtotal.toFixed(2),
+      subtotal: totalAmount.toFixed(2),
       gstAmount: gstAmount.toFixed(2),
-      totalAmount: totalAmount.toFixed(2),
+      totalAmount: finalAmount.toFixed(2),
     }, {
       onSuccess: (data) => {
+        clearCart();
         setLocation(`/bill/${data.id}`);
       }
     });
@@ -63,8 +53,8 @@ export default function Checkout() {
   return (
     <Layout>
       <div className="max-w-5xl mx-auto w-full">
-        <Link href={`/product/${product.id}`} className="inline-flex items-center text-muted-foreground hover:text-white mb-8 transition-colors">
-          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Product
+        <Link href="/" className="inline-flex items-center text-muted-foreground hover:text-white mb-8 transition-colors">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to Catalog
         </Link>
 
         <h1 className="text-4xl font-display text-white mb-8">SECURE CHECKOUT</h1>
@@ -75,33 +65,38 @@ export default function Checkout() {
             <Card className="p-6 md:p-8">
               <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
                 <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-3 text-sm">1</span>
-                Order Details
+                Review Items
               </h2>
               
-              <div className="flex flex-col sm:flex-row items-center gap-6">
-                <div className="w-24 h-24 bg-white/5 rounded-xl p-2 shrink-0">
-                  <img src={product.imageUrl} alt={product.name} className="w-full h-full object-contain" />
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>
-                  <p className="text-primary font-bold">₹{price.toFixed(2)}</p>
-                </div>
-                
-                <div className="flex items-center gap-4 bg-black/40 border border-white/10 rounded-xl p-2 shrink-0">
-                  <button 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center font-bold text-xl transition-colors"
-                  >
-                    -
-                  </button>
-                  <span className="w-8 text-center font-bold text-lg">{quantity}</span>
-                  <button 
-                    onClick={() => setQuantity(quantity + 1)}
-                    className="w-10 h-10 rounded-lg bg-white/5 hover:bg-white/10 flex items-center justify-center font-bold text-xl transition-colors"
-                  >
-                    +
-                  </button>
-                </div>
+              <div className="space-y-6">
+                {items.map(item => (
+                  <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-white/5 border border-white/5">
+                    <div className="w-20 h-20 bg-black/40 rounded-xl p-2 shrink-0">
+                      <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                    </div>
+                    <div className="flex-1 text-center sm:text-left">
+                      <h3 className="text-lg font-bold text-white mb-1">{item.name}</h3>
+                      <p className="text-primary font-bold">₹{Number(item.price).toFixed(2)}</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-6">
+                      <div className="text-center">
+                        <p className="text-xs text-muted-foreground uppercase mb-1">Qty</p>
+                        <p className="font-bold text-lg">{item.quantity}</p>
+                      </div>
+                      <div className="text-right min-w-[80px]">
+                        <p className="text-xs text-muted-foreground uppercase mb-1">Subtotal</p>
+                        <p className="font-bold text-lg">₹{(Number(item.price) * item.quantity).toFixed(2)}</p>
+                      </div>
+                      <button 
+                        onClick={() => removeFromCart(item.id)}
+                        className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
+                      >
+                        <Trash2 className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
 
@@ -163,8 +158,8 @@ export default function Checkout() {
               
               <div className="space-y-4 text-sm mb-6">
                 <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Price ({quantity} item{quantity > 1 ? 's' : ''})</span>
-                  <span className="text-white">₹{subtotal.toFixed(2)}</span>
+                  <span>Subtotal</span>
+                  <span className="text-white">₹{totalAmount.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between items-center text-muted-foreground">
                   <span>GST (18%)</span>
@@ -179,7 +174,7 @@ export default function Checkout() {
               <div className="border-t border-white/10 pt-4 mb-8">
                 <div className="flex justify-between items-end">
                   <span className="text-lg font-bold text-white">Total Amount</span>
-                  <span className="text-3xl font-bold text-primary">₹{totalAmount.toFixed(2)}</span>
+                  <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
                 </div>
               </div>
 

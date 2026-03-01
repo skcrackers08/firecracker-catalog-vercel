@@ -3,12 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight, Plus, Minus, ShoppingCart } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useCart } from "@/hooks/use-cart";
 
 export default function Home() {
   const { data: products, isLoading, error } = useProducts();
+  const { addToCart } = useCart();
   const [currentIdx, setCurrentIdx] = useState(0);
+  const [quantities, setQuantities] = useState<Record<number, number>>({});
 
   // Auto-scroll logic for top selling products
   useEffect(() => {
@@ -20,6 +23,13 @@ export default function Home() {
 
     return () => clearInterval(timer);
   }, [products]);
+
+  const updateQuantity = (id: number, delta: number) => {
+    setQuantities(prev => ({
+      ...prev,
+      [id]: Math.max(1, (prev[id] || 1) + delta)
+    }));
+  };
 
   const topProduct = products?.[currentIdx];
 
@@ -47,12 +57,14 @@ export default function Home() {
             >
               {/* Image Side */}
               <div className="relative w-full md:w-1/2 h-1/2 md:h-full bg-gradient-to-br from-black/60 to-black/20 overflow-hidden">
-                <img 
-                  src={topProduct?.imageUrl} 
-                  alt={topProduct?.name}
-                  className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)]"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r" />
+                <Link href={`/product/${topProduct?.id}`} className="block w-full h-full cursor-pointer">
+                  <img 
+                    src={topProduct?.imageUrl} 
+                    alt={topProduct?.name}
+                    className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)] transition-transform duration-500 hover:scale-105"
+                  />
+                </Link>
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r pointer-events-none" />
               </div>
 
               {/* Content Side */}
@@ -62,22 +74,47 @@ export default function Home() {
                     Top Selling
                   </span>
                 </div>
-                <h2 className="text-4xl md:text-6xl font-display text-white mb-4 leading-tight">
-                  {topProduct?.name}
-                </h2>
+                <Link href={`/product/${topProduct?.id}`}>
+                  <h2 className="text-4xl md:text-6xl font-display text-white mb-4 leading-tight hover:text-primary transition-colors cursor-pointer">
+                    {topProduct?.name}
+                  </h2>
+                </Link>
                 <p className="text-lg text-white/70 mb-8 max-w-md line-clamp-3">
                   {topProduct?.description}
                 </p>
-                <div className="flex items-center gap-6 mt-auto md:mt-0">
+                <div className="flex flex-wrap items-center gap-6 mt-auto md:mt-0">
                   <div className="text-3xl font-display text-primary">
                     ₹{Number(topProduct?.price).toFixed(2)}
                   </div>
-                  <Link href={`/product/${topProduct?.id}`}>
-                    <Button className="group/btn">
-                      Shop Now
-                      <ArrowRight className="w-5 h-5 ml-2 transition-transform group-hover/btn:translate-x-1" />
+                  
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center bg-black/40 border border-white/10 rounded-xl p-1">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, -1); }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                      >
+                        <Minus className="w-4 h-4" />
+                      </button>
+                      <span className="w-10 text-center font-bold">{quantities[topProduct!.id] || 1}</span>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, 1); }}
+                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+                    </div>
+                    
+                    <Button 
+                      onClick={(e) => { 
+                        e.stopPropagation(); 
+                        if (topProduct) addToCart(topProduct, quantities[topProduct.id] || 1); 
+                      }}
+                      className="group/btn"
+                    >
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      Add to Cart
                     </Button>
-                  </Link>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -99,20 +136,20 @@ export default function Home() {
 
           <button 
             onClick={() => setCurrentIdx((prev) => (prev - 1 + products.length) % products.length)}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20 z-30"
           >
             <ChevronLeft className="w-6 h-6" />
           </button>
           <button 
             onClick={() => setCurrentIdx((prev) => (prev + 1) % products.length)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20"
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20 z-30"
           >
             <ChevronRight className="w-6 h-6" />
           </button>
         </section>
       )}
 
-      {/* Hero Section (Keep as a secondary banner or remove if it overlaps too much - let's keep it below but smaller) */}
+      {/* Hero Section */}
       <section className="mb-16 relative rounded-3xl overflow-hidden shadow-gold-glow h-60">
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
         <img 
@@ -171,30 +208,56 @@ export default function Home() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: idx * 0.1 }}
             >
-              <Link href={`/product/${product.id}`}>
-                <Card className="h-full flex flex-col group hover:-translate-y-1 bg-black/40 cursor-pointer">
-                  <div className="relative aspect-square overflow-hidden bg-white/5 p-4">
-                    <img 
-                      src={product.imageUrl} 
-                      alt={product.name}
-                      className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=400&h=400&fit=crop";
-                      }}
-                    />
-                    <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                      <span className="font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
-                    </div>
+              <Card className="h-full flex flex-col group bg-black/40 border border-white/5 hover:border-primary/30 transition-all duration-300">
+                <Link href={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-white/5 p-4 cursor-pointer">
+                  <img 
+                    src={product.imageUrl} 
+                    alt={product.name}
+                    className="w-full h-full object-contain filter drop-shadow-2xl transition-transform duration-500 group-hover:scale-110"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=400&h=400&fit=crop";
+                    }}
+                  />
+                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
+                    <span className="font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
                   </div>
+                </Link>
+                
+                <div className="p-4 md:p-6 flex flex-col flex-1">
+                  <Link href={`/product/${product.id}`}>
+                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1 hover:text-primary transition-colors cursor-pointer">{product.name}</h4>
+                  </Link>
+                  <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 mb-6 flex-1">
+                    {product.description}
+                  </p>
                   
-                  <div className="p-4 md:p-6 flex flex-col flex-1">
-                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1">{product.name}</h4>
-                    <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 flex-1">
-                      {product.description}
-                    </p>
+                  <div className="flex items-center justify-between gap-3 mt-auto">
+                    <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-1">
+                      <button 
+                        onClick={() => updateQuantity(product.id, -1)}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                      >
+                        <Minus className="w-3 h-3" />
+                      </button>
+                      <span className="w-8 text-center text-sm font-bold">{quantities[product.id] || 1}</span>
+                      <button 
+                        onClick={() => updateQuantity(product.id, 1)}
+                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => addToCart(product, quantities[product.id] || 1)}
+                      variant="primary" 
+                      className="flex-1 h-9 px-3 text-xs"
+                    >
+                      ADD
+                    </Button>
                   </div>
-                </Card>
-              </Link>
+                </div>
+              </Card>
             </motion.div>
           ))}
         </motion.div>
