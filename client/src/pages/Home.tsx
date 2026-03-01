@@ -88,32 +88,46 @@ export default function Home() {
                   </div>
                   
                   <div className="flex items-center gap-4">
-                    <div className="flex items-center bg-black/40 border border-white/10 rounded-xl p-1">
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, -1); }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                    {quantities[topProduct!.id] === undefined ? (
+                      <Button 
+                        onClick={(e) => { 
+                          e.stopPropagation(); 
+                          setQuantities(prev => ({ ...prev, [topProduct!.id]: 1 }));
+                        }}
+                        className="group/btn"
                       >
-                        <Minus className="w-4 h-4" />
-                      </button>
-                      <span className="w-10 text-center font-bold">{quantities[topProduct!.id] || 1}</span>
-                      <button 
-                        onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, 1); }}
-                        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
-                      >
-                        <Plus className="w-4 h-4" />
-                      </button>
-                    </div>
-                    
-                    <Button 
-                      onClick={(e) => { 
-                        e.stopPropagation(); 
-                        if (topProduct) addToCart(topProduct, quantities[topProduct.id] || 1); 
-                      }}
-                      className="group/btn"
-                    >
-                      <ShoppingCart className="w-5 h-5 mr-2" />
-                      Add to Cart
-                    </Button>
+                        <ShoppingCart className="w-5 h-5 mr-2" />
+                        Add to Cart
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="flex items-center bg-black/40 border border-white/10 rounded-xl p-1">
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, -1); }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                          >
+                            <Minus className="w-4 h-4" />
+                          </button>
+                          <span className="w-10 text-center font-bold">{quantities[topProduct!.id]}</span>
+                          <button 
+                            onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, 1); }}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                        
+                        <Button 
+                          onClick={(e) => { 
+                            e.stopPropagation(); 
+                            if (topProduct) addToCart(topProduct, quantities[topProduct.id]); 
+                          }}
+                          className="group/btn"
+                        >
+                          Confirm
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </div>
@@ -232,29 +246,41 @@ export default function Home() {
                   </p>
                   
                   <div className="flex items-center justify-between gap-3 mt-auto">
-                    <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-1">
-                      <button 
-                        onClick={() => updateQuantity(product.id, -1)}
-                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                    {quantities[product.id] === undefined ? (
+                      <Button 
+                        onClick={() => setQuantities(prev => ({ ...prev, [product.id]: 1 }))}
+                        variant="primary" 
+                        className="w-full h-9 px-3 text-xs"
                       >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="w-8 text-center text-sm font-bold">{quantities[product.id] || 1}</span>
-                      <button 
-                        onClick={() => updateQuantity(product.id, 1)}
-                        className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                    
-                    <Button 
-                      onClick={() => addToCart(product, quantities[product.id] || 1)}
-                      variant="primary" 
-                      className="flex-1 h-9 px-3 text-xs"
-                    >
-                      ADD
-                    </Button>
+                        ADD
+                      </Button>
+                    ) : (
+                      <>
+                        <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-1">
+                          <button 
+                            onClick={() => updateQuantity(product.id, -1)}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-8 text-center text-sm font-bold">{quantities[product.id]}</span>
+                          <button 
+                            onClick={() => updateQuantity(product.id, 1)}
+                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+                        
+                        <Button 
+                          onClick={() => addToCart(product, quantities[product.id])}
+                          variant="primary" 
+                          className="flex-1 h-9 px-3 text-xs"
+                        >
+                          CONFIRM
+                        </Button>
+                      </>
+                    )}
                   </div>
                 </div>
               </Card>
