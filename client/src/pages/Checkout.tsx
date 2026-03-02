@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import { CreditCard, Banknote, Smartphone, ArrowLeft, Receipt, ShieldCheck, Trash2, User, Phone, ArrowRight, MapPin } from "lucide-react";
+import { SiPhonepe, SiGooglepay, SiPaytm } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
 import { Button, Card, cn, Input, Label, Textarea } from "@/components/ui-custom";
@@ -283,8 +284,12 @@ export default function Checkout() {
                             : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
                         )}
                       >
-                        <Smartphone className={cn("w-8 h-8", paymentMethod === "upi" ? "text-primary" : "")} />
-                        <span className="font-bold tracking-wide">UPI</span>
+                        <div className="flex gap-2 mb-1">
+                          <SiPhonepe className="w-6 h-6 text-[#5f259f]" />
+                          <SiGooglepay className="w-6 h-6 text-[#4285F4]" />
+                          <SiPaytm className="w-6 h-6 text-[#00BAF2]" />
+                        </div>
+                        <span className="font-bold tracking-wide text-sm">UPI (PhonePe / GPay / Paytm)</span>
                       </button>
                       
                       <button
