@@ -25,7 +25,62 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2 } from "lucide-react";
+
+const DEFAULT_UPI = "9344468937@axl";
+
+function PaymentSettings() {
+  const { toast } = useToast();
+  const [upiId, setUpiId] = useState(() => localStorage.getItem("sk-merchant-upi") || DEFAULT_UPI);
+  const [saved, setSaved] = useState(false);
+
+  function handleSave() {
+    const trimmed = upiId.trim();
+    if (!trimmed) return;
+    localStorage.setItem("sk-merchant-upi", trimmed);
+    setSaved(true);
+    toast({ title: "Saved", description: `UPI ID updated to ${trimmed}` });
+    setTimeout(() => setSaved(false), 2500);
+  }
+
+  return (
+    <Card className="mb-8">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <IndianRupee className="h-5 w-5 text-primary" />
+          Payment Settings
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+          <div className="flex-1">
+            <label className="text-sm font-medium mb-1 block text-muted-foreground">
+              Company UPI ID
+            </label>
+            <Input
+              data-testid="input-upi-id"
+              value={upiId}
+              onChange={(e) => { setUpiId(e.target.value); setSaved(false); }}
+              placeholder="e.g. yourname@upi"
+              className="max-w-sm"
+            />
+            <p className="text-xs text-muted-foreground mt-1">
+              This UPI ID will be pre-filled when customers pay via PhonePe, GPay or Paytm.
+            </p>
+          </div>
+          <Button
+            data-testid="button-save-upi"
+            onClick={handleSave}
+            className="flex items-center gap-2"
+          >
+            {saved ? <CheckCircle2 className="h-4 w-4" /> : null}
+            {saved ? "Saved!" : "Save UPI ID"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 export default function Admin() {
   const { toast } = useToast();
@@ -72,8 +127,12 @@ export default function Admin() {
 
   return (
     <div className="container mx-auto p-8">
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold">Admin Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-8">Admin Dashboard</h1>
+
+      <PaymentSettings />
+
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Products</h2>
         <Dialog>
           <DialogTrigger asChild>
             <Button data-testid="button-add-product">

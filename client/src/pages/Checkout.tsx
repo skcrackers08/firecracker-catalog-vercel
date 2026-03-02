@@ -10,8 +10,12 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-const MERCHANT_UPI = "9344468937@axl";
+const DEFAULT_MERCHANT_UPI = "9344468937@axl";
 const MERCHANT_NAME = "SK+Crackers";
+
+function getMerchantUPI() {
+  return localStorage.getItem("sk-merchant-upi") || DEFAULT_MERCHANT_UPI;
+}
 
 const customerDetailsSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -24,7 +28,7 @@ type UpiApp = "phonepe" | "gpay" | "paytm";
 
 function buildUpiLink(app: UpiApp, amount: string): string {
   const note = "SK+Crackers+Order+Payment";
-  const base = `pa=${MERCHANT_UPI}&pn=${MERCHANT_NAME}&am=${amount}&cu=INR&tn=${note}`;
+  const base = `pa=${getMerchantUPI()}&pn=${MERCHANT_NAME}&am=${amount}&cu=INR&tn=${note}`;
   switch (app) {
     case "phonepe": return `phonepe://pay?${base}`;
     case "gpay":    return `tez://upi/pay?${base}`;
