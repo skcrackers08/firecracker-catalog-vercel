@@ -4,15 +4,17 @@ import { Product } from "@shared/schema";
 import { api, buildUrl } from "@shared/routes";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui-custom";
-import { ArrowLeft, ShoppingCart, Video, Sparkles, ShieldCheck, Truck, Plus, Minus } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Video, Sparkles, ShieldCheck, Truck, Plus, Minus, Heart } from "lucide-react";
 import { motion } from "framer-motion";
 import { useState } from "react";
 import { useCart } from "@/hooks/use-cart";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 export default function ProductDetails() {
   const [, params] = useRoute("/product/:id");
   const id = params?.id;
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const [quantity, setQuantity] = useState(0);
 
   const { data: product, isLoading, error } = useQuery<Product>({
@@ -108,6 +110,14 @@ export default function ProductDetails() {
             </div>
 
             <div className="flex flex-col gap-4 mt-auto">
+              <button
+                onClick={() => toggleWishlist(product)}
+                className={`flex items-center gap-2 text-sm font-medium transition-colors w-fit ${isInWishlist(product.id) ? "text-pink-400" : "text-muted-foreground hover:text-pink-400"}`}
+              >
+                <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? "fill-pink-400" : ""}`} />
+                {isInWishlist(product.id) ? "Saved to Wishlist" : "Add to Wishlist"}
+              </button>
+
               {quantity === 0 ? (
                 <Button 
                   onClick={() => setQuantity(1)}

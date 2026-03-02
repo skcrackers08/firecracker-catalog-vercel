@@ -3,13 +3,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight, Plus, Minus, ShoppingCart } from "lucide-react";
+import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight, Plus, Minus, ShoppingCart, Heart } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/use-cart";
+import { useWishlist } from "@/hooks/use-wishlist";
 
 export default function Home() {
   const { data: products, isLoading, error } = useProducts();
   const { addToCart } = useCart();
+  const { isInWishlist, toggleWishlist } = useWishlist();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
@@ -204,8 +206,8 @@ export default function Home() {
                     <span className="text-xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex items-center justify-center mt-auto">
-                    <Link href={`/product/${product.id}`} className="w-full">
+                  <div className="flex items-center gap-2 mt-auto">
+                    <Link href={`/product/${product.id}`} className="flex-1">
                       <Button 
                         variant="primary" 
                         className="w-full h-10 px-6 text-sm font-bold uppercase tracking-wider"
@@ -213,6 +215,13 @@ export default function Home() {
                         BUY NOW
                       </Button>
                     </Link>
+                    <button
+                      onClick={() => toggleWishlist(product)}
+                      className="w-10 h-10 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center hover:bg-pink-500/10 hover:border-pink-500/30 transition-colors shrink-0"
+                      title={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
+                    >
+                      <Heart className={`w-4 h-4 transition-colors ${isInWishlist(product.id) ? "text-pink-500 fill-pink-500" : "text-muted-foreground"}`} />
+                    </button>
                   </div>
                 </div>
               </Card>

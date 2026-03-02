@@ -1,8 +1,9 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Sparkles, ShoppingBag, X, ShoppingCart, ArrowRight } from "lucide-react";
+import { Sparkles, ShoppingBag, X, ShoppingCart, ArrowRight, Heart } from "lucide-react";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
+import { useWishlist } from "@/hooks/use-wishlist";
 import { Button, Card, cn } from "@/components/ui-custom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -12,6 +13,7 @@ interface LayoutProps {
 
 export function Layout({ children }: LayoutProps) {
   const { items, totalItems, totalAmount, removeFromCart } = useCart();
+  const { wishlist } = useWishlist();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [location, setLocation] = useLocation();
 
@@ -32,11 +34,19 @@ export function Layout({ children }: LayoutProps) {
           </Link>
           
           <nav className="flex items-center gap-6">
-            <Link href="/admin" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/admin" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block">
               ADMIN
             </Link>
-            <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
+            <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block">
               CATALOG
+            </Link>
+            <Link href="/wishlist" className="relative p-2 text-muted-foreground hover:text-pink-400 transition-colors">
+              <Heart className="w-6 h-6" />
+              {wishlist.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background">
+                  {wishlist.length}
+                </span>
+              )}
             </Link>
             {!isCheckoutPage && (
               <button 
