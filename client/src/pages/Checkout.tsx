@@ -185,11 +185,6 @@ export default function Checkout() {
               >
                 Place Order
               </Button>
-
-              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-4">
-                <ShieldCheck className="w-4 h-4 text-green-500" />
-                100% Secure Checkout
-              </div>
             </Card>
           </div>
         </div>

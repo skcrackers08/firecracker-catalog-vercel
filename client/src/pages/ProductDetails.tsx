@@ -107,17 +107,6 @@ export default function ProductDetails() {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-8">
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                <ShieldCheck className="w-6 h-6 text-primary" />
-                <span className="text-sm font-semibold">Quality Checked</span>
-              </div>
-              <div className="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/10">
-                <Truck className="w-6 h-6 text-primary" />
-                <span className="text-sm font-semibold">Fast Delivery</span>
-              </div>
-            </div>
-
             <div className="flex flex-col gap-4 mt-auto">
               {quantity === 0 ? (
                 <Button 
