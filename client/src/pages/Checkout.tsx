@@ -60,6 +60,45 @@ export default function Checkout() {
         <h1 className="text-4xl font-display text-white mb-8">SECURE CHECKOUT</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Summary Side */}
+          <div className="lg:col-span-1">
+            <Card className="p-6 md:p-8 sticky top-28 bg-gradient-to-b from-card to-black/80">
+              <h3 className="text-xl font-display tracking-wider mb-6 flex items-center">
+                <Receipt className="w-5 h-5 mr-2 text-primary" /> Order Summary
+              </h3>
+              
+              <div className="space-y-4 text-sm mb-6">
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Subtotal</span>
+                  <span className="text-white">₹{totalAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>GST (18%)</span>
+                  <span className="text-white">₹{gstAmount.toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between items-center text-muted-foreground">
+                  <span>Delivery</span>
+                  <span className="text-green-400">Free</span>
+                </div>
+              </div>
+              
+              <div className="border-t border-white/10 pt-4 mb-8">
+                <div className="flex justify-between items-end">
+                  <span className="text-lg font-bold text-white">Total Amount</span>
+                  <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
+                </div>
+              </div>
+
+              <Button 
+                className="w-full h-14 text-lg mb-4" 
+                onClick={handleCheckout}
+                isLoading={createOrder.isPending}
+              >
+                Place Order
+              </Button>
+            </Card>
+          </div>
+
           {/* Form / Options Side */}
           <div className="lg:col-span-2 space-y-8">
             <Card className="p-6 md:p-8">
@@ -146,45 +185,6 @@ export default function Checkout() {
                   <span className="font-bold tracking-wide">Cash</span>
                 </button>
               </div>
-            </Card>
-          </div>
-
-          {/* Summary Side */}
-          <div className="lg:col-span-1">
-            <Card className="p-6 md:p-8 sticky top-28 bg-gradient-to-b from-card to-black/80">
-              <h3 className="text-xl font-display tracking-wider mb-6 flex items-center">
-                <Receipt className="w-5 h-5 mr-2 text-primary" /> Order Summary
-              </h3>
-              
-              <div className="space-y-4 text-sm mb-6">
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Subtotal</span>
-                  <span className="text-white">₹{totalAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>GST (18%)</span>
-                  <span className="text-white">₹{gstAmount.toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Delivery</span>
-                  <span className="text-green-400">Free</span>
-                </div>
-              </div>
-              
-              <div className="border-t border-white/10 pt-4 mb-8">
-                <div className="flex justify-between items-end">
-                  <span className="text-lg font-bold text-white">Total Amount</span>
-                  <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
-                </div>
-              </div>
-
-              <Button 
-                className="w-full h-14 text-lg mb-4" 
-                onClick={handleCheckout}
-                isLoading={createOrder.isPending}
-              >
-                Place Order
-              </Button>
             </Card>
           </div>
         </div>
