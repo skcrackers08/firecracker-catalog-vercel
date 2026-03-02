@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, Banknote, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark } from "lucide-react";
+import { CreditCard, Banknote, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar } from "lucide-react";
 import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
@@ -48,6 +48,9 @@ export default function Checkout() {
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
   const [selectedCardType, setSelectedCardType] = useState<CardType | null>(null);
+  const [cardPaid, setCardPaid] = useState(false);
+  const [cardForm, setCardForm] = useState({ number: "", name: "", expiry: "", cvv: "" });
+  const [cardError, setCardError] = useState("");
 
   const form = useForm<CustomerDetails>({
     resolver: zodResolver(customerDetailsSchema),
@@ -267,7 +270,7 @@ export default function Checkout() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <button
-                      onClick={() => { setPaymentMethod("upi"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
+                      onClick={() => { setPaymentMethod("upi"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); setCardPaid(false); setCardForm({ number: "", name: "", expiry: "", cvv: "" }); setCardError(""); }}
                       className={cn(
                         "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                         paymentMethod === "upi"
@@ -284,7 +287,7 @@ export default function Checkout() {
                     </button>
 
                     <button
-                      onClick={() => { setPaymentMethod("card"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
+                      onClick={() => { setPaymentMethod("card"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); setCardPaid(false); setCardForm({ number: "", name: "", expiry: "", cvv: "" }); setCardError(""); }}
                       className={cn(
                         "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                         paymentMethod === "card"
@@ -351,17 +354,15 @@ export default function Checkout() {
                       <div className="grid grid-cols-2 gap-4">
                         <button
                           data-testid="button-debit-card"
-                          onClick={() => setSelectedCardType("debit")}
+                          onClick={() => { setSelectedCardType("debit"); setCardPaid(false); setCardForm({ number: "", name: "", expiry: "", cvv: "" }); setCardError(""); }}
                           className={cn(
                             "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                             selectedCardType === "debit"
-                              ? "border-blue-500 bg-blue-500/10 text-white scale-[0.98]"
+                              ? "border-blue-500 bg-blue-500/10 text-white"
                               : "border-white/10 bg-white/5 text-muted-foreground hover:border-blue-500/40 hover:bg-blue-500/5 hover:scale-105"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <Landmark className={cn("w-6 h-6", selectedCardType === "debit" ? "text-blue-400" : "")} />
-                          </div>
+                          <Landmark className={cn("w-6 h-6", selectedCardType === "debit" ? "text-blue-400" : "")} />
                           <span className="font-bold text-sm">Debit Card</span>
                           <div className="flex gap-2 opacity-70">
                             <SiVisa className="w-5 h-5 text-blue-300" />
@@ -371,17 +372,15 @@ export default function Checkout() {
 
                         <button
                           data-testid="button-credit-card"
-                          onClick={() => setSelectedCardType("credit")}
+                          onClick={() => { setSelectedCardType("credit"); setCardPaid(false); setCardForm({ number: "", name: "", expiry: "", cvv: "" }); setCardError(""); }}
                           className={cn(
                             "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                             selectedCardType === "credit"
-                              ? "border-purple-500 bg-purple-500/10 text-white scale-[0.98]"
+                              ? "border-purple-500 bg-purple-500/10 text-white"
                               : "border-white/10 bg-white/5 text-muted-foreground hover:border-purple-500/40 hover:bg-purple-500/5 hover:scale-105"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <CreditCard className={cn("w-6 h-6", selectedCardType === "credit" ? "text-purple-400" : "")} />
-                          </div>
+                          <CreditCard className={cn("w-6 h-6", selectedCardType === "credit" ? "text-purple-400" : "")} />
                           <span className="font-bold text-sm">Credit Card</span>
                           <div className="flex gap-2 opacity-70">
                             <SiVisa className="w-5 h-5 text-blue-300" />
@@ -390,16 +389,134 @@ export default function Checkout() {
                         </button>
                       </div>
 
-                      {selectedCardType && (
-                        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center animate-in fade-in duration-300">
-                          <p className="text-green-400 text-sm font-medium">
-                            ✓ {selectedCardType === "debit" ? "Debit" : "Credit"} Card selected — click below to generate invoice
+                      {!selectedCardType && (
+                        <p className="text-xs text-muted-foreground text-center mt-3">Select Debit or Credit Card above to continue</p>
+                      )}
+
+                      {selectedCardType && !cardPaid && (
+                        <div className="mt-5 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className={cn(
+                            "flex items-center gap-2 text-sm font-semibold pb-2 border-b border-white/10",
+                            selectedCardType === "debit" ? "text-blue-400" : "text-purple-400"
+                          )}>
+                            {selectedCardType === "debit"
+                              ? <><Landmark className="w-4 h-4" /> Enter Debit Card Details</>
+                              : <><CreditCard className="w-4 h-4" /> Enter Credit Card Details</>
+                            }
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Card Number</Label>
+                            <div className="relative">
+                              <Input
+                                data-testid="input-card-number"
+                                value={cardForm.number}
+                                maxLength={19}
+                                placeholder="0000 0000 0000 0000"
+                                className="bg-white/5 border-white/10 pl-4 pr-16 h-12 font-mono text-base tracking-widest"
+                                onChange={(e) => {
+                                  const raw = e.target.value.replace(/\D/g, "").slice(0, 16);
+                                  const formatted = raw.replace(/(.{4})/g, "$1 ").trim();
+                                  setCardForm(f => ({ ...f, number: formatted }));
+                                  setCardError("");
+                                }}
+                              />
+                              <div className="absolute right-3 top-1/2 -translate-y-1/2 flex gap-1 opacity-60">
+                                <SiVisa className="w-5 h-5 text-blue-300" />
+                                <SiMastercard className="w-5 h-5 text-red-400" />
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground uppercase tracking-wider">Cardholder Name</Label>
+                            <Input
+                              data-testid="input-card-name"
+                              value={cardForm.name}
+                              placeholder="Name on card"
+                              className="bg-white/5 border-white/10 h-12"
+                              onChange={(e) => { setCardForm(f => ({ ...f, name: e.target.value })); setCardError(""); }}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground uppercase tracking-wider">Expiry Date</Label>
+                              <div className="relative">
+                                <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  data-testid="input-card-expiry"
+                                  value={cardForm.expiry}
+                                  maxLength={5}
+                                  placeholder="MM/YY"
+                                  className="bg-white/5 border-white/10 pl-9 h-12 font-mono"
+                                  onChange={(e) => {
+                                    const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+                                    const formatted = raw.length > 2 ? `${raw.slice(0,2)}/${raw.slice(2)}` : raw;
+                                    setCardForm(f => ({ ...f, expiry: formatted }));
+                                    setCardError("");
+                                  }}
+                                />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <Label className="text-xs text-muted-foreground uppercase tracking-wider">CVV</Label>
+                              <div className="relative">
+                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                                <Input
+                                  data-testid="input-card-cvv"
+                                  value={cardForm.cvv}
+                                  maxLength={4}
+                                  placeholder="•••"
+                                  type="password"
+                                  className="bg-white/5 border-white/10 pl-9 h-12 font-mono tracking-widest"
+                                  onChange={(e) => { setCardForm(f => ({ ...f, cvv: e.target.value.replace(/\D/g, "").slice(0,4) })); setCardError(""); }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {cardError && (
+                            <p className="text-red-400 text-sm text-center">{cardError}</p>
+                          )}
+
+                          <button
+                            data-testid="button-verify-card"
+                            onClick={() => {
+                              const digits = cardForm.number.replace(/\s/g, "");
+                              if (digits.length < 16) { setCardError("Please enter a valid 16-digit card number."); return; }
+                              if (!cardForm.name.trim()) { setCardError("Please enter the cardholder name."); return; }
+                              if (cardForm.expiry.length < 5) { setCardError("Please enter a valid expiry date (MM/YY)."); return; }
+                              if (cardForm.cvv.length < 3) { setCardError("Please enter a valid CVV."); return; }
+                              setCardPaid(true);
+                              setCardError("");
+                            }}
+                            className={cn(
+                              "w-full h-12 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all duration-200",
+                              selectedCardType === "debit"
+                                ? "bg-blue-600 hover:bg-blue-500 text-white"
+                                : "bg-purple-600 hover:bg-purple-500 text-white"
+                            )}
+                          >
+                            <Lock className="w-4 h-4" />
+                            Verify & Pay ₹{finalAmount.toFixed(2)}
+                          </button>
+
+                          <p className="text-xs text-muted-foreground text-center flex items-center justify-center gap-1">
+                            <Lock className="w-3 h-3" /> Secured payment — your card details are encrypted
                           </p>
                         </div>
                       )}
 
-                      {!selectedCardType && (
-                        <p className="text-xs text-muted-foreground text-center mt-3">Select Debit or Credit Card to proceed</p>
+                      {cardPaid && (
+                        <div className="mt-4 p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-center animate-in fade-in duration-300 space-y-1">
+                          <p className="text-green-400 font-bold flex items-center justify-center gap-2">
+                            <CheckCircle2 className="w-5 h-5" /> Payment Verified
+                          </p>
+                          <p className="text-green-300 text-sm">
+                            {selectedCardType === "debit" ? "Debit" : "Credit"} card ending in {cardForm.number.replace(/\s/g, "").slice(-4)} — click below to generate your invoice
+                          </p>
+                        </div>
                       )}
                     </div>
                   )}
@@ -413,11 +530,11 @@ export default function Checkout() {
                       <Button
                         className={cn(
                           "h-16 px-10 text-lg font-bold shadow-fire-glow w-full sm:w-auto gap-2",
-                          ((paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !selectedCardType)) && "opacity-50 cursor-not-allowed"
+                          ((paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !cardPaid)) && "opacity-50 cursor-not-allowed"
                         )}
                         onClick={handleCheckout}
                         isLoading={createOrder.isPending}
-                        disabled={(paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !selectedCardType)}
+                        disabled={(paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !cardPaid)}
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         {paymentMethod === "upi" ? "Payment Done – Generate Invoice" : "Pay Now & Generate Invoice"}
@@ -426,8 +543,10 @@ export default function Checkout() {
                     {paymentMethod === "upi" && !upiLaunched && (
                       <p className="text-xs text-muted-foreground text-center mt-3">Select a UPI app above to enable this button</p>
                     )}
-                    {paymentMethod === "card" && !selectedCardType && (
-                      <p className="text-xs text-muted-foreground text-center mt-3">Select Debit or Credit Card above to enable this button</p>
+                    {paymentMethod === "card" && !cardPaid && (
+                      <p className="text-xs text-muted-foreground text-center mt-3">
+                        {!selectedCardType ? "Select a card type above to continue" : "Fill in your card details and click Verify & Pay"}
+                      </p>
                     )}
                   </div>
                 </Card>
