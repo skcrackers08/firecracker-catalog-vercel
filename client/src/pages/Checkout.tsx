@@ -10,7 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
-const MERCHANT_UPI = "skcrackers@upi";
+const MERCHANT_UPI = "9344468937@axl";
 const MERCHANT_NAME = "SK+Crackers";
 
 const customerDetailsSchema = z.object({
