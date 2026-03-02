@@ -515,26 +515,13 @@ export default function Checkout() {
                         <p className="text-4xl font-bold text-primary text-center sm:text-left">₹{finalAmount.toFixed(2)}</p>
                       </div>
                       <Button
-                        className={cn(
-                          "h-16 px-10 text-lg font-bold shadow-fire-glow w-full sm:w-auto gap-2",
-                          ((paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !cardPaid)) && "opacity-50 cursor-not-allowed"
-                        )}
+                        className="h-16 px-10 text-lg font-bold shadow-fire-glow w-full sm:w-auto gap-2"
                         onClick={handleCheckout}
                         isLoading={createOrder.isPending}
-                        disabled={(paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !cardPaid)}
                       >
                         <CheckCircle2 className="w-5 h-5" />
-                        {paymentMethod === "upi" ? "Payment Done – Generate Invoice" : "Pay Now & Generate Invoice"}
+                        Generate Invoice
                       </Button>
-                    </div>
-                    {paymentMethod === "upi" && !upiLaunched && (
-                      <p className="text-xs text-muted-foreground text-center mt-3">Select a UPI app above to enable this button</p>
-                    )}
-                    {paymentMethod === "card" && !cardPaid && (
-                      <p className="text-xs text-muted-foreground text-center mt-3">
-                        {!selectedCardType ? "Select a card type above to continue" : "Fill in your card details and click Verify & Pay"}
-                      </p>
-                    )}
                   </div>
                 </Card>
               )}
