@@ -17,6 +17,7 @@ export const orders = pgTable("orders", {
   quantity: integer("quantity").notNull(),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
+  customerAddress: text("customer_address").notNull(),
   paymentMethod: text("payment_method").notNull(), // 'cash', 'card', 'upi'
   subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),
   gstAmount: numeric("gst_amount", { precision: 10, scale: 2 }).notNull(),

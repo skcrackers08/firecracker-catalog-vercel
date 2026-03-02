@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, Banknote, Smartphone, ArrowLeft, Receipt, ShieldCheck, Trash2, User, Phone, ArrowRight } from "lucide-react";
+import { CreditCard, Banknote, Smartphone, ArrowLeft, Receipt, ShieldCheck, Trash2, User, Phone, ArrowRight, MapPin } from "lucide-react";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
-import { Button, Card, cn, Input, Label } from "@/components/ui-custom";
+import { Button, Card, cn, Input, Label, Textarea } from "@/components/ui-custom";
 import { useCart } from "@/hooks/use-cart";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,6 +12,7 @@ import { z } from "zod";
 const customerDetailsSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long"),
+  address: z.string().min(10, "Address must be at least 10 characters"),
 });
 
 type CustomerDetails = z.infer<typeof customerDetailsSchema>;
@@ -29,6 +30,7 @@ export default function Checkout() {
     defaultValues: {
       name: "",
       phone: "",
+      address: "",
     },
   });
 
@@ -63,6 +65,7 @@ export default function Checkout() {
       quantity: items.reduce((sum, item) => sum + item.quantity, 0),
       customerName: customerDetails.name,
       customerPhone: customerDetails.phone,
+      customerAddress: customerDetails.address,
       paymentMethod,
       subtotal: totalAmount.toFixed(2),
       gstAmount: gstAmount.toFixed(2),
@@ -102,7 +105,7 @@ export default function Checkout() {
                 <Card className="p-6 md:p-8">
                   <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
                     <User className="w-5 h-5 mr-3 text-primary" />
-                    Enter Your Information
+                    Enter Delivery Information
                   </h2>
                   <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
                     <div className="space-y-2">
@@ -135,6 +138,22 @@ export default function Checkout() {
                       </div>
                       {form.formState.errors.phone && (
                         <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="address">Delivery Address</Label>
+                      <div className="relative">
+                        <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                        <Textarea 
+                          id="address" 
+                          placeholder="Enter your full delivery address" 
+                          className="pl-10 min-h-[100px] bg-white/5 border-white/10"
+                          {...form.register("address")}
+                        />
+                      </div>
+                      {form.formState.errors.address && (
+                        <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>
                       )}
                     </div>
 
@@ -245,9 +264,9 @@ export default function Checkout() {
 
                 <Card className="p-6 md:p-8 bg-white/5">
                   <h3 className="text-lg font-bold mb-4 flex items-center">
-                    <User className="w-5 h-5 mr-2 text-primary" /> Delivery Contact
+                    <MapPin className="w-5 h-5 mr-2 text-primary" /> Delivery Information
                   </h3>
-                  <div className="flex flex-wrap gap-8 text-muted-foreground">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-muted-foreground">
                     <div>
                       <p className="text-xs uppercase tracking-wider mb-1">Customer Name</p>
                       <p className="text-white font-medium">{customerDetails?.name}</p>
@@ -255,6 +274,10 @@ export default function Checkout() {
                     <div>
                       <p className="text-xs uppercase tracking-wider mb-1">Phone Number</p>
                       <p className="text-white font-medium">{customerDetails?.phone}</p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <p className="text-xs uppercase tracking-wider mb-1">Delivery Address</p>
+                      <p className="text-white font-medium">{customerDetails?.address}</p>
                     </div>
                   </div>
                 </Card>
