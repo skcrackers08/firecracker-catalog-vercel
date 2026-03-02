@@ -53,34 +53,6 @@ export default function Home() {
         </Link>
       </div>
 
-      {/* Hero Section */}
-      <section className="mb-12 relative rounded-3xl overflow-hidden shadow-gold-glow h-[300px] md:h-[400px]">
-        <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
-        <img 
-          src="https://images.unsplash.com/photo-1498622205843-3b0ac17f8ba4?w=1920&h=600&fit=crop" 
-          alt="Fireworks Hero" 
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 z-20 flex flex-col justify-center px-8 md:px-16 max-w-3xl">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-wider mb-4">
-              <Sparkles className="w-4 h-4" /> DIWALI SPECIALS
-            </span>
-            <h2 className="text-4xl md:text-6xl font-display text-white mb-4 leading-tight">
-              LIGHT UP YOUR <br/>
-              <span className="text-gradient-fire">CELEBRATION</span>
-            </h2>
-            <p className="text-sm md:text-lg text-white/80 max-w-xl">
-              Explore our premium collection of spectacular fireworks. Safe, vibrant, and guaranteed to make your night unforgettable.
-            </p>
-          </motion.div>
-        </div>
-      </section>
-
       {/* Top Selling Product Slider */}
       {!isLoading && !error && products && products.length > 0 && (
         <section className="mb-16 relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10 group touch-none">
