@@ -95,19 +95,88 @@ export default function Checkout() {
         </div>
 
         <h1 className="text-4xl font-display text-white mb-8">
-          {step === 1 ? "CUSTOMER DETAILS" : "SECURE CHECKOUT"}
+          {step === 1 ? "SECURE CHECKOUT" : "PAYMENT OPTIONS"}
         </h1>
 
         <div className="flex flex-col gap-8">
           {step === 1 ? (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <Card className="p-6 md:p-8">
-                  <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
-                    <User className="w-5 h-5 mr-3 text-primary" />
-                    Enter Delivery Information
-                  </h2>
-                  <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
+            <>
+              {/* 1. Review Items */}
+              <Card className="p-6 md:p-8">
+                <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
+                  <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-3 text-sm">1</span>
+                  Review Items
+                </h2>
+                
+                <div className="space-y-6">
+                  {items.map(item => (
+                    <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-white/5 border border-white/5">
+                      <div className="w-20 h-20 bg-black/40 rounded-xl p-2 shrink-0">
+                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                      </div>
+                      <div className="flex-1 text-center sm:text-left">
+                        <h3 className="text-lg font-bold text-white mb-1">{item.name}</h3>
+                        <p className="text-primary font-bold">₹{Number(item.price).toFixed(2)}</p>
+                      </div>
+                      
+                      <div className="flex items-center gap-6">
+                        <div className="text-center">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Qty</p>
+                          <p className="font-bold text-lg">{item.quantity}</p>
+                        </div>
+                        <div className="text-right min-w-[80px]">
+                          <p className="text-xs text-muted-foreground uppercase mb-1">Subtotal</p>
+                          <p className="font-bold text-lg">₹{(Number(item.price) * item.quantity).toFixed(2)}</p>
+                        </div>
+                        <button 
+                          onClick={() => removeFromCart(item.id)}
+                          className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
+                        >
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+              {/* 2. Order Summary */}
+              <Card className="p-6 md:p-8 bg-gradient-to-b from-card to-black/80">
+                <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
+                  <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-3 text-sm">2</span>
+                  Order Summary
+                </h2>
+                
+                <div className="space-y-4 text-sm mb-6 max-w-md">
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Subtotal</span>
+                    <span className="text-white">₹{totalAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>GST (18%)</span>
+                    <span className="text-white">₹{gstAmount.toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between items-center text-muted-foreground">
+                    <span>Delivery</span>
+                    <span className="text-green-400">Free</span>
+                  </div>
+                  <div className="border-t border-white/10 pt-4">
+                    <div className="flex justify-between items-end">
+                      <span className="text-lg font-bold text-white">Total Amount</span>
+                      <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* 3. Customer Details */}
+              <Card className="p-6 md:p-8">
+                <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
+                  <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-3 text-sm">3</span>
+                  Enter Delivery Information
+                </h2>
+                <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-2">
                       <Label htmlFor="name">Full Name</Label>
                       <div className="relative">
@@ -140,79 +209,31 @@ export default function Checkout() {
                         <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>
                       )}
                     </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="address">Delivery Address</Label>
-                      <div className="relative">
-                        <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                        <Textarea 
-                          id="address" 
-                          placeholder="Enter your full delivery address" 
-                          className="pl-10 min-h-[100px] bg-white/5 border-white/10"
-                          {...form.register("address")}
-                        />
-                      </div>
-                      {form.formState.errors.address && (
-                        <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>
-                      )}
-                    </div>
-
-                    <Button type="submit" className="w-full h-14 text-lg font-bold group">
-                      Continue to Payment
-                      <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
-                    </Button>
-                  </form>
-                </Card>
-
-                <Card className="p-6 md:p-8">
-                  <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4">
-                    Review Items
-                  </h2>
-                  <div className="space-y-4">
-                    {items.map(item => (
-                      <div key={item.id} className="flex items-center gap-4 p-3 rounded-xl bg-white/5 border border-white/5">
-                        <div className="w-12 h-12 bg-black/40 rounded-lg p-1 shrink-0">
-                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
-                        </div>
-                        <div className="flex-1">
-                          <h4 className="text-sm font-bold text-white">{item.name}</h4>
-                          <p className="text-xs text-muted-foreground">{item.quantity} x ₹{Number(item.price).toFixed(2)}</p>
-                        </div>
-                        <div className="text-sm font-bold text-primary">₹{(Number(item.price) * item.quantity).toFixed(2)}</div>
-                      </div>
-                    ))}
                   </div>
-                </Card>
-              </div>
 
-              <div className="lg:col-span-1">
-                <Card className="p-6 md:p-8 bg-gradient-to-b from-card to-black/80">
-                  <h3 className="text-xl font-display tracking-wider mb-6 flex items-center">
-                    <Receipt className="w-5 h-5 mr-2 text-primary" /> Order Summary
-                  </h3>
-                  <div className="space-y-4 text-sm">
-                    <div className="flex justify-between items-center text-muted-foreground">
-                      <span>Subtotal</span>
-                      <span className="text-white">₹{totalAmount.toFixed(2)}</span>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Delivery Address</Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
+                      <Textarea 
+                        id="address" 
+                        placeholder="Enter your full delivery address" 
+                        className="pl-10 min-h-[100px] bg-white/5 border-white/10"
+                        {...form.register("address")}
+                      />
                     </div>
-                    <div className="flex justify-between items-center text-muted-foreground">
-                      <span>GST (18%)</span>
-                      <span className="text-white">₹{gstAmount.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-muted-foreground">
-                      <span>Delivery</span>
-                      <span className="text-green-400">Free</span>
-                    </div>
-                    <div className="border-t border-white/10 pt-4">
-                      <div className="flex justify-between items-end">
-                        <span className="text-lg font-bold text-white">Total</span>
-                        <span className="text-2xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
-                      </div>
-                    </div>
+                    {form.formState.errors.address && (
+                      <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>
+                    )}
                   </div>
-                </Card>
-              </div>
-            </div>
+
+                  <Button type="submit" className="w-full h-14 text-lg font-bold group">
+                    Continue to Payment
+                    <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </form>
+              </Card>
+            </>
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 space-y-8">
