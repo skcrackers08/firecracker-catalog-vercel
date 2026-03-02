@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, Banknote, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink } from "lucide-react";
-import { SiPhonepe, SiGooglepay, SiPaytm } from "react-icons/si";
+import { CreditCard, Banknote, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark } from "lucide-react";
+import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
 import { Button, Card, cn, Input, Label, Textarea } from "@/components/ui-custom";
@@ -25,6 +25,7 @@ const customerDetailsSchema = z.object({
 
 type CustomerDetails = z.infer<typeof customerDetailsSchema>;
 type UpiApp = "phonepe" | "gpay" | "paytm";
+type CardType = "debit" | "credit";
 
 function buildUpiLink(app: UpiApp, amount: string): string {
   const note = "SK+Crackers+Order+Payment";
@@ -46,6 +47,7 @@ export default function Checkout() {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
+  const [selectedCardType, setSelectedCardType] = useState<CardType | null>(null);
 
   const form = useForm<CustomerDetails>({
     resolver: zodResolver(customerDetailsSchema),
@@ -81,7 +83,11 @@ export default function Checkout() {
 
   const handleCheckout = () => {
     if (!customerDetails) return;
-    const pm = paymentMethod === "upi" && selectedUpiApp ? `upi-${selectedUpiApp}` : paymentMethod;
+    const pm = paymentMethod === "upi" && selectedUpiApp
+    ? `upi-${selectedUpiApp}`
+    : paymentMethod === "card" && selectedCardType
+    ? `card-${selectedCardType}`
+    : paymentMethod;
 
     createOrder.mutate({
       productId: items[0].id,
@@ -261,7 +267,7 @@ export default function Checkout() {
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
                     <button
-                      onClick={() => { setPaymentMethod("upi"); setSelectedUpiApp(null); setUpiLaunched(false); }}
+                      onClick={() => { setPaymentMethod("upi"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
                       className={cn(
                         "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                         paymentMethod === "upi"
@@ -278,7 +284,7 @@ export default function Checkout() {
                     </button>
 
                     <button
-                      onClick={() => { setPaymentMethod("card"); setSelectedUpiApp(null); setUpiLaunched(false); }}
+                      onClick={() => { setPaymentMethod("card"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
                       className={cn(
                         "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                         paymentMethod === "card"
@@ -291,7 +297,7 @@ export default function Checkout() {
                     </button>
 
                     <button
-                      onClick={() => { setPaymentMethod("cash"); setSelectedUpiApp(null); setUpiLaunched(false); }}
+                      onClick={() => { setPaymentMethod("cash"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
                       className={cn(
                         "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
                         paymentMethod === "cash"
@@ -339,6 +345,65 @@ export default function Checkout() {
                     </div>
                   )}
 
+                  {paymentMethod === "card" && (
+                    <div className="mb-6 p-5 bg-white/5 rounded-xl border border-white/10 animate-in fade-in duration-300">
+                      <p className="text-sm text-muted-foreground mb-4 font-medium">Select your card type to pay ₹{finalAmount.toFixed(2)}:</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <button
+                          data-testid="button-debit-card"
+                          onClick={() => setSelectedCardType("debit")}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
+                            selectedCardType === "debit"
+                              ? "border-blue-500 bg-blue-500/10 text-white scale-[0.98]"
+                              : "border-white/10 bg-white/5 text-muted-foreground hover:border-blue-500/40 hover:bg-blue-500/5 hover:scale-105"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <Landmark className={cn("w-6 h-6", selectedCardType === "debit" ? "text-blue-400" : "")} />
+                          </div>
+                          <span className="font-bold text-sm">Debit Card</span>
+                          <div className="flex gap-2 opacity-70">
+                            <SiVisa className="w-5 h-5 text-blue-300" />
+                            <SiMastercard className="w-5 h-5 text-red-400" />
+                          </div>
+                        </button>
+
+                        <button
+                          data-testid="button-credit-card"
+                          onClick={() => setSelectedCardType("credit")}
+                          className={cn(
+                            "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
+                            selectedCardType === "credit"
+                              ? "border-purple-500 bg-purple-500/10 text-white scale-[0.98]"
+                              : "border-white/10 bg-white/5 text-muted-foreground hover:border-purple-500/40 hover:bg-purple-500/5 hover:scale-105"
+                          )}
+                        >
+                          <div className="flex items-center gap-2">
+                            <CreditCard className={cn("w-6 h-6", selectedCardType === "credit" ? "text-purple-400" : "")} />
+                          </div>
+                          <span className="font-bold text-sm">Credit Card</span>
+                          <div className="flex gap-2 opacity-70">
+                            <SiVisa className="w-5 h-5 text-blue-300" />
+                            <SiMastercard className="w-5 h-5 text-red-400" />
+                          </div>
+                        </button>
+                      </div>
+
+                      {selectedCardType && (
+                        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center animate-in fade-in duration-300">
+                          <p className="text-green-400 text-sm font-medium">
+                            ✓ {selectedCardType === "debit" ? "Debit" : "Credit"} Card selected — click below to generate invoice
+                          </p>
+                        </div>
+                      )}
+
+                      {!selectedCardType && (
+                        <p className="text-xs text-muted-foreground text-center mt-3">Select Debit or Credit Card to proceed</p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="pt-6 border-t border-white/10">
                     <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
                       <div>
@@ -348,11 +413,11 @@ export default function Checkout() {
                       <Button
                         className={cn(
                           "h-16 px-10 text-lg font-bold shadow-fire-glow w-full sm:w-auto gap-2",
-                          paymentMethod === "upi" && !upiLaunched && "opacity-50 cursor-not-allowed"
+                          ((paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !selectedCardType)) && "opacity-50 cursor-not-allowed"
                         )}
                         onClick={handleCheckout}
                         isLoading={createOrder.isPending}
-                        disabled={paymentMethod === "upi" && !upiLaunched}
+                        disabled={(paymentMethod === "upi" && !upiLaunched) || (paymentMethod === "card" && !selectedCardType)}
                       >
                         <CheckCircle2 className="w-5 h-5" />
                         {paymentMethod === "upi" ? "Payment Done – Generate Invoice" : "Pay Now & Generate Invoice"}
@@ -360,6 +425,9 @@ export default function Checkout() {
                     </div>
                     {paymentMethod === "upi" && !upiLaunched && (
                       <p className="text-xs text-muted-foreground text-center mt-3">Select a UPI app above to enable this button</p>
+                    )}
+                    {paymentMethod === "card" && !selectedCardType && (
+                      <p className="text-xs text-muted-foreground text-center mt-3">Select Debit or Credit Card above to enable this button</p>
                     )}
                   </div>
                 </Card>
