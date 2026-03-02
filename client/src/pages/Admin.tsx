@@ -25,8 +25,52 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package } from "lucide-react";
 import { z } from "zod";
+
+function SectionPanel({
+  icon,
+  title,
+  badge,
+  children,
+  defaultOpen = false,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  badge?: string;
+  children: React.ReactNode;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <Card className="mb-4 overflow-hidden">
+      <button
+        type="button"
+        data-testid={`section-toggle-${title.toLowerCase().replace(/\s+/g, "-")}`}
+        onClick={() => setOpen((o) => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 text-left hover:bg-muted/40 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-primary">{icon}</span>
+          <span className="font-semibold text-base">{title}</span>
+          {badge && (
+            <span className="ml-1 text-xs bg-primary/10 text-primary font-medium px-2 py-0.5 rounded-full">
+              {badge}
+            </span>
+          )}
+        </div>
+        {open ? <ChevronDown className="h-5 w-5 text-muted-foreground" /> : <ChevronRight className="h-5 w-5 text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="border-t border-border">
+          <CardContent className="pt-5 pb-6">
+            {children}
+          </CardContent>
+        </div>
+      )}
+    </Card>
+  );
+}
 
 const DEFAULT_UPI = "9344468937@axl";
 const CREDS_KEY = "sk-admin-creds";
@@ -138,41 +182,31 @@ function PaymentSettings() {
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <IndianRupee className="h-5 w-5 text-primary" />
-          Payment Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-1 block text-muted-foreground">
-              Company UPI ID
-            </label>
-            <Input
-              data-testid="input-upi-id"
-              value={upiId}
-              onChange={(e) => { setUpiId(e.target.value); setSaved(false); }}
-              placeholder="e.g. yourname@upi"
-              className="max-w-sm"
-            />
-            <p className="text-xs text-muted-foreground mt-1">
-              Pre-filled when customers pay via PhonePe, GPay or Paytm.
-            </p>
-          </div>
-          <Button
-            data-testid="button-save-upi"
-            onClick={handleSave}
-            className="flex items-center gap-2"
-          >
-            {saved ? <CheckCircle2 className="h-4 w-4" /> : null}
-            {saved ? "Saved!" : "Save UPI ID"}
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+      <div className="flex-1">
+        <label className="text-sm font-medium mb-1 block text-muted-foreground">
+          Company UPI ID
+        </label>
+        <Input
+          data-testid="input-upi-id"
+          value={upiId}
+          onChange={(e) => { setUpiId(e.target.value); setSaved(false); }}
+          placeholder="e.g. yourname@upi"
+          className="max-w-sm"
+        />
+        <p className="text-xs text-muted-foreground mt-1">
+          Pre-filled when customers pay via PhonePe, GPay or Paytm.
+        </p>
+      </div>
+      <Button
+        data-testid="button-save-upi"
+        onClick={handleSave}
+        className="flex items-center gap-2"
+      >
+        {saved ? <CheckCircle2 className="h-4 w-4" /> : null}
+        {saved ? "Saved!" : "Save UPI ID"}
+      </Button>
+    </div>
   );
 }
 
@@ -209,16 +243,8 @@ function SecuritySettings() {
   }
 
   return (
-    <Card className="mb-6">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <ShieldCheck className="h-5 w-5 text-primary" />
-          Security Settings
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-sm">
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-w-sm">
             <FormField
               control={form.control}
               name="username"
@@ -290,9 +316,7 @@ function SecuritySettings() {
               Update Credentials
             </Button>
           </form>
-        </Form>
-      </CardContent>
-    </Card>
+    </Form>
   );
 }
 
@@ -365,30 +389,40 @@ export default function Admin() {
         </Button>
       </div>
 
-      <PaymentSettings />
-      <SecuritySettings />
+      <SectionPanel icon={<IndianRupee className="h-5 w-5" />} title="Payment Settings">
+        <PaymentSettings />
+      </SectionPanel>
 
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-xl font-semibold">Products</h2>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button data-testid="button-add-product">
-              <Plus className="mr-2 h-4 w-4" /> Add Product
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add New Product</DialogTitle>
-            </DialogHeader>
-            <ProductForm
-              onSubmit={(data) => createMutation.mutate(data)}
-              isPending={createMutation.isPending}
-            />
-          </DialogContent>
-        </Dialog>
-      </div>
+      <SectionPanel icon={<ShieldCheck className="h-5 w-5" />} title="Security Settings">
+        <SecuritySettings />
+      </SectionPanel>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      <SectionPanel
+        icon={<Package className="h-5 w-5" />}
+        title="Products"
+        badge={products ? String(products.length) : undefined}
+        defaultOpen
+      >
+        <div className="flex justify-end mb-4">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button data-testid="button-add-product">
+                <Plus className="mr-2 h-4 w-4" /> Add Product
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add New Product</DialogTitle>
+              </DialogHeader>
+              <ProductForm
+                onSubmit={(data) => createMutation.mutate(data)}
+                isPending={createMutation.isPending}
+              />
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         {products?.map((product) => (
           <Card key={product.id} data-testid={`card-product-${product.id}`}>
             <CardHeader>
@@ -450,7 +484,8 @@ export default function Admin() {
             </CardContent>
           </Card>
         ))}
-      </div>
+        </div>
+      </SectionPanel>
     </div>
   );
 }
