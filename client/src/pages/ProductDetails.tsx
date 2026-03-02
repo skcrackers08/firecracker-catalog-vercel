@@ -13,7 +13,7 @@ export default function ProductDetails() {
   const [, params] = useRoute("/product/:id");
   const id = params?.id;
   const { addToCart } = useCart();
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(0);
 
   const { data: product, isLoading, error } = useQuery<Product>({
     queryKey: [buildUrl(api.products.get.path, { id: id! })],
@@ -119,29 +119,41 @@ export default function ProductDetails() {
             </div>
 
             <div className="flex flex-col gap-4 mt-auto">
-              <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-2xl w-fit">
-                <button 
-                  onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
-                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+              {quantity === 0 ? (
+                <Button 
+                  onClick={() => setQuantity(1)}
+                  className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group"
                 >
-                  <Minus className="w-4 h-4" />
-                </button>
-                <span className="w-12 text-center text-xl font-bold">{quantity}</span>
-                <button 
-                  onClick={() => setQuantity(prev => prev + 1)}
-                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
-                >
-                  <Plus className="w-4 h-4" />
-                </button>
-              </div>
+                  <Plus className="w-6 h-6 mr-3 transition-transform group-hover:scale-110" />
+                  ADD
+                </Button>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-2xl w-fit">
+                    <button 
+                      onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                      className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    >
+                      <Minus className="w-4 h-4" />
+                    </button>
+                    <span className="w-12 text-center text-xl font-bold">{quantity}</span>
+                    <button 
+                      onClick={() => setQuantity(prev => prev + 1)}
+                      className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+                  </div>
 
-              <Button 
-                onClick={() => addToCart(product, quantity)}
-                className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group"
-              >
-                <ShoppingCart className="w-6 h-6 mr-3 transition-transform group-hover:scale-110" />
-                ADD TO CART
-              </Button>
+                  <Button 
+                    onClick={() => addToCart(product, quantity)}
+                    className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group"
+                  >
+                    <ShoppingCart className="w-6 h-6 mr-3 transition-transform group-hover:scale-110" />
+                    CONFIRM
+                  </Button>
+                </>
+              )}
             </div>
           </motion.div>
         </div>
