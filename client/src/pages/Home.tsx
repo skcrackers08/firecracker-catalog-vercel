@@ -252,11 +252,11 @@ export default function Home() {
                 
                 <div className="p-4 md:p-6 flex flex-col flex-1">
                   <Link href={`/product/${product.id}`}>
-                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1 hover:text-primary transition-colors cursor-pointer">{product.name}</h4>
+                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1 hover:text-primary transition-colors cursor-pointer text-center">{product.name}</h4>
                   </Link>
-                  <p className="text-xs md:text-sm text-muted-foreground line-clamp-2 mb-6 flex-1">
-                    {product.description}
-                  </p>
+                  <div className="text-center mb-6">
+                    <span className="text-xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
+                  </div>
                   
                   <div className="flex items-center justify-between gap-3 mt-auto">
                     {quantities[product.id] === undefined ? (
