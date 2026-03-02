@@ -4,12 +4,16 @@ import { Product } from "@shared/schema";
 import { api, buildUrl } from "@shared/routes";
 import { Layout } from "@/components/Layout";
 import { Button } from "@/components/ui-custom";
-import { ArrowLeft, ShoppingCart, Video, Sparkles, ShieldCheck, Truck } from "lucide-react";
+import { ArrowLeft, ShoppingCart, Video, Sparkles, ShieldCheck, Truck, Plus, Minus } from "lucide-react";
 import { motion } from "framer-motion";
+import { useState } from "react";
+import { useCart } from "@/hooks/use-cart";
 
 export default function ProductDetails() {
   const [, params] = useRoute("/product/:id");
   const id = params?.id;
+  const { addToCart } = useCart();
+  const [quantity, setQuantity] = useState(1);
 
   const { data: product, isLoading, error } = useQuery<Product>({
     queryKey: [buildUrl(api.products.get.path, { id: id! })],
@@ -114,12 +118,31 @@ export default function ProductDetails() {
               </div>
             </div>
 
-            <Link href={`/checkout/${product.id}`} className="w-full">
-              <Button className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group">
+            <div className="flex flex-col gap-4 mt-auto">
+              <div className="flex items-center gap-4 bg-white/5 border border-white/10 p-2 rounded-2xl w-fit">
+                <button 
+                  onClick={() => setQuantity(prev => Math.max(1, prev - 1))}
+                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                >
+                  <Minus className="w-4 h-4" />
+                </button>
+                <span className="w-12 text-center text-xl font-bold">{quantity}</span>
+                <button 
+                  onClick={() => setQuantity(prev => prev + 1)}
+                  className="w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 flex items-center justify-center transition-colors"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+              </div>
+
+              <Button 
+                onClick={() => addToCart(product, quantity)}
+                className="w-full h-16 text-xl font-bold rounded-2xl shadow-gold-glow group"
+              >
                 <ShoppingCart className="w-6 h-6 mr-3 transition-transform group-hover:scale-110" />
-                BUY NOW
+                ADD TO CART
               </Button>
-            </Link>
+            </div>
           </motion.div>
         </div>
       </div>
