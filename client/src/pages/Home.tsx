@@ -100,48 +100,12 @@ export default function Home() {
                     ₹{Number(topProduct?.price).toFixed(2)}
                   </div>
                   
-                  <div className="flex items-center gap-4">
-                    {quantities[topProduct!.id] === undefined ? (
-                      <Button 
-                        onClick={(e) => { 
-                          e.stopPropagation(); 
-                          setQuantities(prev => ({ ...prev, [topProduct!.id]: 1 }));
-                        }}
-                        className="group/btn"
-                      >
-                        <ShoppingCart className="w-5 h-5 mr-2" />
-                        Add to Cart
-                      </Button>
-                    ) : (
-                      <>
-                        <div className="flex items-center bg-black/40 border border-white/10 rounded-xl p-1">
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, -1); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </button>
-                          <span className="w-10 text-center font-bold">{quantities[topProduct!.id]}</span>
-                          <button 
-                            onClick={(e) => { e.stopPropagation(); updateQuantity(topProduct!.id, 1); }}
-                            className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/10 transition-colors"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </button>
-                        </div>
-                        
-                        <Button 
-                          onClick={(e) => { 
-                            e.stopPropagation(); 
-                            if (topProduct) addToCart(topProduct, quantities[topProduct.id]); 
-                          }}
-                          className="group/btn"
-                        >
-                          Confirm
-                        </Button>
-                      </>
-                    )}
-                  </div>
+                  <Link href={`/product/${topProduct?.id}`}>
+                    <Button className="group/btn h-12 px-8 text-lg">
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      BUY NOW
+                    </Button>
+                  </Link>
                 </div>
               </div>
             </motion.div>
@@ -258,42 +222,15 @@ export default function Home() {
                     <span className="text-xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex items-center justify-between gap-3 mt-auto">
-                    {quantities[product.id] === undefined ? (
+                  <div className="flex items-center justify-center mt-auto">
+                    <Link href={`/product/${product.id}`} className="w-full">
                       <Button 
-                        onClick={() => setQuantities(prev => ({ ...prev, [product.id]: 1 }))}
                         variant="primary" 
-                        className="w-full h-9 px-3 text-xs"
+                        className="w-full h-10 px-6 text-sm font-bold uppercase tracking-wider"
                       >
-                        ADD
+                        BUY NOW
                       </Button>
-                    ) : (
-                      <>
-                        <div className="flex items-center bg-black/40 border border-white/10 rounded-lg p-1">
-                          <button 
-                            onClick={() => updateQuantity(product.id, -1)}
-                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                          >
-                            <Minus className="w-3 h-3" />
-                          </button>
-                          <span className="w-8 text-center text-sm font-bold">{quantities[product.id]}</span>
-                          <button 
-                            onClick={() => updateQuantity(product.id, 1)}
-                            className="w-7 h-7 flex items-center justify-center rounded hover:bg-white/10 transition-colors"
-                          >
-                            <Plus className="w-3 h-3" />
-                          </button>
-                        </div>
-                        
-                        <Button 
-                          onClick={() => addToCart(product, quantities[product.id])}
-                          variant="primary" 
-                          className="flex-1 h-9 px-3 text-xs"
-                        >
-                          CONFIRM
-                        </Button>
-                      </>
-                    )}
+                    </Link>
                   </div>
                 </div>
               </Card>
