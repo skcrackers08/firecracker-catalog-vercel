@@ -13,10 +13,16 @@ export default function Home() {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
 
-  // No auto-scroll logic needed as per user request
+  // Auto-scroll logic for top selling products
   useEffect(() => {
-    // Disabled auto-scroll
-  }, []);
+    if (!products || products.length === 0) return;
+    
+    const timer = setInterval(() => {
+      setCurrentIdx((prev) => (prev + 1) % products.length);
+    }, 5000); // Scroll every 5 seconds
+
+    return () => clearInterval(timer);
+  }, [products]);
 
   const updateQuantity = (id: number, delta: number) => {
     setQuantities(prev => ({
@@ -48,7 +54,7 @@ export default function Home() {
       </div>
 
       {/* Hero Section */}
-      <section className="mb-16 relative rounded-3xl overflow-hidden shadow-gold-glow h-[400px]">
+      <section className="mb-12 relative rounded-3xl overflow-hidden shadow-gold-glow h-[300px] md:h-[400px]">
         <div className="absolute inset-0 bg-gradient-to-r from-background via-background/80 to-transparent z-10" />
         <img 
           src="https://images.unsplash.com/photo-1498622205843-3b0ac17f8ba4?w=1920&h=600&fit=crop" 
@@ -64,16 +70,103 @@ export default function Home() {
             <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-wider mb-4">
               <Sparkles className="w-4 h-4" /> DIWALI SPECIALS
             </span>
-            <h2 className="text-5xl md:text-7xl font-display text-white mb-4 leading-tight">
+            <h2 className="text-4xl md:text-6xl font-display text-white mb-4 leading-tight">
               LIGHT UP YOUR <br/>
               <span className="text-gradient-fire">CELEBRATION</span>
             </h2>
-            <p className="text-lg md:text-xl text-white/80 mb-8 max-w-xl">
+            <p className="text-sm md:text-lg text-white/80 max-w-xl">
               Explore our premium collection of spectacular fireworks. Safe, vibrant, and guaranteed to make your night unforgettable.
             </p>
           </motion.div>
         </div>
       </section>
+
+      {/* Top Selling Product Slider */}
+      {!isLoading && !error && products && products.length > 0 && (
+        <section className="mb-16 relative h-[400px] md:h-[500px] rounded-3xl overflow-hidden shadow-2xl border border-white/10 group touch-none">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={topProduct?.id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.7, ease: "easeOut" }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              onDragEnd={handleDragEnd}
+              className="absolute inset-0 flex flex-col md:flex-row cursor-grab active:cursor-grabbing"
+            >
+              {/* Image Side */}
+              <div className="relative w-full md:w-1/2 h-1/2 md:h-full bg-gradient-to-br from-black/60 to-black/20 overflow-hidden">
+                <Link href={`/product/${topProduct?.id}`} className="block w-full h-full cursor-pointer">
+                  <img 
+                    src={topProduct?.imageUrl} 
+                    alt={topProduct?.name}
+                    className="w-full h-full object-contain p-8 drop-shadow-[0_0_30px_rgba(255,184,76,0.3)] transition-transform duration-500 hover:scale-105 pointer-events-none"
+                  />
+                </Link>
+                <div className="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent md:bg-gradient-to-r pointer-events-none" />
+              </div>
+
+              {/* Content Side */}
+              <div className="w-full md:w-1/2 h-1/2 md:h-full p-8 md:p-12 flex flex-col justify-center bg-black/40 backdrop-blur-sm border-l border-white/5">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="px-3 py-1 rounded-full bg-primary/20 border border-primary/30 text-primary text-xs font-bold tracking-widest uppercase">
+                    Top Selling
+                  </span>
+                </div>
+                <Link href={`/product/${topProduct?.id}`}>
+                  <h2 className="text-3xl md:text-5xl font-display text-white mb-4 leading-tight hover:text-primary transition-colors cursor-pointer">
+                    {topProduct?.name}
+                  </h2>
+                </Link>
+                <p className="text-sm md:text-lg text-white/70 mb-8 max-w-md line-clamp-3">
+                  {topProduct?.description}
+                </p>
+                <div className="flex flex-wrap items-center gap-6 mt-auto md:mt-0">
+                  <div className="text-2xl md:text-3xl font-display text-primary">
+                    ₹{Number(topProduct?.price).toFixed(2)}
+                  </div>
+                  
+                  <Link href={`/product/${topProduct?.id}`}>
+                    <Button className="group/btn h-10 md:h-12 px-6 md:px-8 text-base md:text-lg">
+                      <ShoppingCart className="w-5 h-5 mr-2" />
+                      BUY NOW
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </motion.div>
+          </AnimatePresence>
+
+          {/* Navigation Controls */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-3 z-30">
+            {products.slice(0, 5).map((_, idx) => (
+              <button
+                key={idx}
+                onClick={() => setCurrentIdx(idx)}
+                className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                  idx === currentIdx ? "w-8 bg-primary" : "bg-white/30 hover:bg-white/50"
+                }`}
+                aria-label={`Go to slide ${idx + 1}`}
+              />
+            ))}
+          </div>
+
+          <button 
+            onClick={() => setCurrentIdx((prev) => (prev - 1 + products.length) % products.length)}
+            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20 z-30"
+          >
+            <ChevronLeft className="w-6 h-6" />
+          </button>
+          <button 
+            onClick={() => setCurrentIdx((prev) => (prev + 1) % products.length)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/40 border border-white/10 flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition-opacity hover:bg-primary/20 z-30"
+          >
+            <ChevronRight className="w-6 h-6" />
+          </button>
+        </section>
+      )}
 
       {/* Catalog Grid */}
       <div className="flex items-center justify-between mb-8">
