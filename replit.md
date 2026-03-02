@@ -8,8 +8,9 @@ S K Crackers is a festive e-commerce web application for buying firecrackers/spa
 - **Product detail pages** — with image/video, add-to-cart, and wishlist
 - **Shopping cart** — in-memory client-side cart with quantity management
 - **Wishlist** — persisted in `localStorage`, shareable via URL query params
-- **Checkout flow** — two-step form (customer details → payment) supporting UPI (PhonePe/GPay/Paytm deep links), card, and cash
+- **Checkout flow** — two-step form (customer details → payment) supporting UPI (PhonePe/GPay/Paytm deep links) and card (debit/credit with form validation)
 - **Bill/Invoice page** — post-purchase celebration page with confetti and printable invoice
+- **Customer accounts** — register with username/password + phone OTP verification; login/logout; view full order history at `/account`
 - **Admin panel** — password-protected CRUD for products (name, description, price, image URL, video URL)
 
 The app is a full-stack TypeScript monorepo with a React SPA frontend and an Express backend, sharing types and schema through a `shared/` directory.
@@ -91,7 +92,8 @@ Preferred communication style: Simple, everyday language.
 | Table | Key Columns |
 |-------|-------------|
 | `products` | `id`, `name`, `description`, `price` (numeric 10,2), `imageUrl`, `videoUrl` |
-| `orders` | `id`, `productId`, `quantity`, `customerName`, `customerPhone`, `customerAddress`, `paymentMethod`, `subtotal`, `gstAmount`, `totalAmount` |
+| `orders` | `id`, `productId`, `quantity`, `customerName`, `customerPhone`, `customerAddress`, `paymentMethod`, `subtotal`, `gstAmount`, `totalAmount`, `customerId` (nullable FK) |
+| `customers` | `id`, `username` (unique), `passwordHash`, `phone` (unique), `phoneVerified` |
 
 **Zod schemas** are auto-generated from Drizzle table definitions using `drizzle-zod`, then re-exported for use on both client and server.
 
@@ -106,7 +108,14 @@ A typed `api` manifest object defines each endpoint with its HTTP method, path, 
 
 ### Authentication
 
-No user authentication system is present. The admin panel is accessible at `/admin` — it appears to use a simple client-side password check (not a full auth system). No session management or JWT is wired up in the visible code.
+**Admin panel:** Simple client-side password check stored in localStorage (`sk-admin-creds`), not a full auth system.
+
+**Customer accounts:** Full session-based auth using `express-session` + `memorystore`.
+- Passwords hashed with Node.js `crypto.scryptSync` (salt:hash format)
+- Sessions stored in memory, cookie-based (`sk-crackers-secret-key`)
+- Phone OTP verification: 6-digit code generated server-side, stored in a Map with 10-minute expiry; returned in API response (displayed on screen — no SMS gateway integrated yet)
+- New pages: `/login` (register/login), `/account` (order history)
+- `CustomerAuthProvider` wraps the entire app in `App.tsx`
 
 ---
 

@@ -6,6 +6,12 @@ import { z } from "zod";
 import { db } from "./db";
 import { products } from "@shared/schema";
 
+const otpStore = new Map<string, { otp: string; expiresAt: number }>();
+
+function generateOtp(): string {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
 async function seedDatabase() {
   const existingProducts = await storage.getProducts();
   if (existingProducts.length === 0) {
@@ -42,7 +48,6 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Seed the database with initial products
   seedDatabase().catch(console.error);
 
   app.get(api.products.list.path, async (req, res) => {
@@ -61,7 +66,8 @@ export async function registerRoutes(
   app.post(api.orders.create.path, async (req, res) => {
     try {
       const input = api.orders.create.input.parse(req.body);
-      const order = await storage.createOrder(input);
+      const customerId = req.session.customerId ?? null;
+      const order = await storage.createOrder({ ...input, customerId });
       res.status(201).json(order);
     } catch (err) {
       if (err instanceof z.ZodError) {
@@ -113,6 +119,114 @@ export async function registerRoutes(
     const success = await storage.deleteProduct(Number(req.params.id));
     if (!success) return res.status(404).json({ message: 'Product not found' });
     res.status(204).end();
+  });
+
+  app.post("/api/customers/send-otp", async (req, res) => {
+    try {
+      const { phone } = z.object({ phone: z.string().min(10) }).parse(req.body);
+      const otp = generateOtp();
+      otpStore.set(phone, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+      res.json({ success: true, otp });
+    } catch (err) {
+      res.status(400).json({ message: "Invalid phone number" });
+    }
+  });
+
+  app.post("/api/customers/verify-otp", async (req, res) => {
+    try {
+      const { phone, otp } = z.object({ phone: z.string(), otp: z.string() }).parse(req.body);
+      const stored = otpStore.get(phone);
+      if (!stored || stored.otp !== otp || Date.now() > stored.expiresAt) {
+        return res.status(400).json({ message: "Invalid or expired OTP" });
+      }
+      otpStore.delete(phone);
+      const customer = await storage.getCustomerByPhone(phone);
+      if (customer) {
+        await storage.verifyCustomerPhone(customer.id);
+      }
+      res.json({ success: true });
+    } catch (err) {
+      res.status(400).json({ message: "Verification failed" });
+    }
+  });
+
+  app.post("/api/customers/register", async (req, res) => {
+    try {
+      const { username, password, phone } = z.object({
+        username: z.string().min(3),
+        password: z.string().min(6),
+        phone: z.string().min(10),
+      }).parse(req.body);
+
+      const existingByUsername = await storage.getCustomerByUsername(username);
+      if (existingByUsername) {
+        return res.status(400).json({ message: "Username already taken" });
+      }
+
+      const existingByPhone = await storage.getCustomerByPhone(phone);
+      if (existingByPhone) {
+        return res.status(400).json({ message: "Phone number already registered" });
+      }
+
+      const customer = await storage.createCustomer({ username, password, phone });
+      const { passwordHash: _, ...safeCustomer } = customer;
+      req.session.customerId = customer.id;
+      res.status(201).json(safeCustomer);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/customers/login", async (req, res) => {
+    try {
+      const { username, password } = z.object({
+        username: z.string(),
+        password: z.string(),
+      }).parse(req.body);
+
+      const customer = await storage.validateCustomerPassword(username, password);
+      if (!customer) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+
+      const { passwordHash: _, ...safeCustomer } = customer;
+      req.session.customerId = customer.id;
+      res.json(safeCustomer);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.post("/api/customers/logout", (req, res) => {
+    req.session.destroy(() => {
+      res.json({ success: true });
+    });
+  });
+
+  app.get("/api/customers/me", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
+    const customer = await storage.getCustomerById(req.session.customerId);
+    if (!customer) {
+      return res.status(404).json({ message: "Customer not found" });
+    }
+    const { passwordHash: _, ...safeCustomer } = customer;
+    res.json(safeCustomer);
+  });
+
+  app.get("/api/customers/orders", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
+    const customerOrders = await storage.getOrdersByCustomer(req.session.customerId);
+    res.json(customerOrders);
   });
 
   return httpServer;

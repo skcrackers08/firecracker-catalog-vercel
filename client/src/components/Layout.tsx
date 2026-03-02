@@ -1,9 +1,10 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Sparkles, ShoppingBag, X, ShoppingCart, ArrowRight, Heart } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User } from "lucide-react";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -14,6 +15,7 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { items, totalItems, totalAmount, removeFromCart } = useCart();
   const { wishlist } = useWishlist();
+  const { customer } = useCustomerAuth();
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [location, setLocation] = useLocation();
 
@@ -39,6 +41,17 @@ export function Layout({ children }: LayoutProps) {
             </Link>
             <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block">
               CATALOG
+            </Link>
+            <Link
+              href={customer ? "/account" : "/login"}
+              data-testid="link-account"
+              className={cn(
+                "flex items-center gap-1.5 text-sm font-semibold transition-colors hidden sm:flex",
+                customer ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-primary"
+              )}
+            >
+              <User className="w-4 h-4" />
+              {customer ? customer.username : "LOGIN"}
             </Link>
             <Link href="/wishlist" className="relative p-2 text-muted-foreground hover:text-pink-400 transition-colors">
               <Heart className="w-6 h-6" />

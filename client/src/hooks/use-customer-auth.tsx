@@ -1,0 +1,104 @@
+import { createContext, useContext, ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+
+interface Customer {
+  id: number;
+  username: string;
+  phone: string;
+  phoneVerified: boolean;
+}
+
+interface CustomerAuthContextType {
+  customer: Customer | null;
+  isLoading: boolean;
+  login: (username: string, password: string) => Promise<boolean>;
+  register: (username: string, password: string, phone: string) => Promise<boolean>;
+  logout: () => Promise<void>;
+  sendOtp: (phone: string) => Promise<string | null>;
+  verifyOtp: (phone: string, otp: string) => Promise<boolean>;
+}
+
+const CustomerAuthContext = createContext<CustomerAuthContextType | null>(null);
+
+export function CustomerAuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+
+  const { data: customer, isLoading } = useQuery<Customer | null>({
+    queryKey: ["/api/customers/me"],
+    queryFn: async () => {
+      try {
+        const res = await fetch("/api/customers/me");
+        if (res.status === 401) return null;
+        if (!res.ok) return null;
+        return res.json();
+      } catch {
+        return null;
+      }
+    },
+    retry: false,
+    staleTime: 30000,
+  });
+
+  const login = async (username: string, password: string): Promise<boolean> => {
+    try {
+      const res = await apiRequest("POST", "/api/customers/login", { username, password });
+      const data = await res.json();
+      queryClient.setQueryData(["/api/customers/me"], data);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const register = async (username: string, password: string, phone: string): Promise<boolean> => {
+    try {
+      const res = await apiRequest("POST", "/api/customers/register", { username, password, phone });
+      const data = await res.json();
+      queryClient.setQueryData(["/api/customers/me"], data);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const logout = async (): Promise<void> => {
+    try {
+      await apiRequest("POST", "/api/customers/logout", {});
+    } catch {}
+    queryClient.setQueryData(["/api/customers/me"], null);
+    queryClient.removeQueries({ queryKey: ["/api/customers/orders"] });
+  };
+
+  const sendOtp = async (phone: string): Promise<string | null> => {
+    try {
+      const res = await apiRequest("POST", "/api/customers/send-otp", { phone });
+      const data = await res.json();
+      return data.otp as string;
+    } catch {
+      return null;
+    }
+  };
+
+  const verifyOtp = async (phone: string, otp: string): Promise<boolean> => {
+    try {
+      await apiRequest("POST", "/api/customers/verify-otp", { phone, otp });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/me"] });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  return (
+    <CustomerAuthContext.Provider value={{ customer: customer ?? null, isLoading, login, register, logout, sendOtp, verifyOtp }}>
+      {children}
+    </CustomerAuthContext.Provider>
+  );
+}
+
+export function useCustomerAuth() {
+  const ctx = useContext(CustomerAuthContext);
+  if (!ctx) throw new Error("useCustomerAuth must be used within CustomerAuthProvider");
+  return ctx;
+}

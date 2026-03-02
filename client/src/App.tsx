@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { CartProvider } from "@/hooks/use-cart";
 import { WishlistProvider } from "@/hooks/use-wishlist";
+import { CustomerAuthProvider } from "@/hooks/use-customer-auth";
 
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
@@ -12,6 +13,8 @@ import ProductDetails from "@/pages/ProductDetails";
 import Checkout from "@/pages/Checkout";
 import Bill from "@/pages/Bill";
 import Wishlist from "@/pages/Wishlist";
+import CustomerLogin from "@/pages/CustomerLogin";
+import CustomerAccount from "@/pages/CustomerAccount";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -24,6 +27,8 @@ function Router() {
       <Route path="/checkout" component={Checkout} />
       <Route path="/bill/:id" component={Bill} />
       <Route path="/wishlist" component={Wishlist} />
+      <Route path="/login" component={CustomerLogin} />
+      <Route path="/account" component={CustomerAccount} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -32,14 +37,16 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <CartProvider>
-        <WishlistProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
-        </WishlistProvider>
-      </CartProvider>
+      <CustomerAuthProvider>
+        <CartProvider>
+          <WishlistProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </WishlistProvider>
+        </CartProvider>
+      </CustomerAuthProvider>
     </QueryClientProvider>
   );
 }

@@ -2,12 +2,28 @@ import { db } from "./db";
 import {
   products,
   orders,
+  customers,
   type Product,
   type Order,
+  type Customer,
   type InsertProduct,
-  type InsertOrder
+  type InsertOrder,
+  type InsertCustomer
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(password, salt, 64).toString("hex");
+  return `${salt}:${hash}`;
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(":");
+  const inputHash = scryptSync(password, salt, 64).toString("hex");
+  return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(inputHash, "hex"));
+}
 
 export interface IStorage {
   getProducts(): Promise<Product[]>;
@@ -17,6 +33,14 @@ export interface IStorage {
   deleteProduct(id: number): Promise<boolean>;
   createOrder(order: InsertOrder): Promise<Order>;
   getOrder(id: number): Promise<Order | undefined>;
+  getOrdersByCustomer(customerId: number): Promise<Order[]>;
+  getOrdersByPhone(phone: string): Promise<Order[]>;
+  createCustomer(data: { username: string; password: string; phone: string }): Promise<Customer>;
+  getCustomerByUsername(username: string): Promise<Customer | undefined>;
+  getCustomerByPhone(phone: string): Promise<Customer | undefined>;
+  getCustomerById(id: number): Promise<Customer | undefined>;
+  verifyCustomerPhone(customerId: number): Promise<void>;
+  validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -56,6 +80,49 @@ export class DatabaseStorage implements IStorage {
   async getOrder(id: number): Promise<Order | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     return order;
+  }
+
+  async getOrdersByCustomer(customerId: number): Promise<Order[]> {
+    return await db.select().from(orders).where(eq(orders.customerId, customerId));
+  }
+
+  async getOrdersByPhone(phone: string): Promise<Order[]> {
+    return await db.select().from(orders).where(eq(orders.customerPhone, phone));
+  }
+
+  async createCustomer(data: { username: string; password: string; phone: string }): Promise<Customer> {
+    const passwordHash = hashPassword(data.password);
+    const [customer] = await db
+      .insert(customers)
+      .values({ username: data.username, passwordHash, phone: data.phone })
+      .returning();
+    return customer;
+  }
+
+  async getCustomerByUsername(username: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.username, username));
+    return customer;
+  }
+
+  async getCustomerByPhone(phone: string): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.phone, phone));
+    return customer;
+  }
+
+  async getCustomerById(id: number): Promise<Customer | undefined> {
+    const [customer] = await db.select().from(customers).where(eq(customers.id, id));
+    return customer;
+  }
+
+  async verifyCustomerPhone(customerId: number): Promise<void> {
+    await db.update(customers).set({ phoneVerified: true }).where(eq(customers.id, customerId));
+  }
+
+  async validateCustomerPassword(username: string, password: string): Promise<Customer | null> {
+    const customer = await this.getCustomerByUsername(username);
+    if (!customer) return null;
+    if (!verifyPassword(password, customer.passwordHash)) return null;
+    return customer;
   }
 }
 

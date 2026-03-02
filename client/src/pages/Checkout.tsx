@@ -522,6 +522,7 @@ export default function Checkout() {
                         <CheckCircle2 className="w-5 h-5" />
                         Generate Invoice
                       </Button>
+                    </div>
                   </div>
                 </Card>
               )}
