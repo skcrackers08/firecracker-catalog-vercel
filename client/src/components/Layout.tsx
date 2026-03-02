@@ -13,7 +13,9 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const { items, totalItems, totalAmount, removeFromCart } = useCart();
   const [isCartOpen, setIsCartOpen] = useState(false);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
+
+  const isCheckoutPage = location === "/checkout";
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -36,17 +38,19 @@ export function Layout({ children }: LayoutProps) {
             <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors">
               CATALOG
             </Link>
-            <button 
-              onClick={() => setIsCartOpen(!isCartOpen)}
-              className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <ShoppingBag className="w-6 h-6" />
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background">
-                  {totalItems}
-                </span>
-              )}
-            </button>
+            {!isCheckoutPage && (
+              <button 
+                onClick={() => setIsCartOpen(!isCartOpen)}
+                className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
+              >
+                <ShoppingBag className="w-6 h-6" />
+                {totalItems > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background">
+                    {totalItems}
+                  </span>
+                )}
+              </button>
+            )}
           </nav>
         </div>
       </header>
@@ -58,7 +62,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Cart Popup Icon (Visible when items are added) */}
       <AnimatePresence>
-        {totalItems > 0 && !isCartOpen && (
+        {totalItems > 0 && !isCartOpen && !isCheckoutPage && (
           <motion.div
             initial={{ scale: 0, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
