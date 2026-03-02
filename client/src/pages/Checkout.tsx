@@ -237,77 +237,27 @@ export default function Checkout() {
             </>
           ) : (
             <div className="max-w-2xl mx-auto w-full space-y-8">
-              {showPaymentOptions && (
-                <Card className="p-6 md:p-8 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
-                  <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4 text-primary">
-                    <CreditCard className="w-6 h-6 mr-3" />
-                    Select Payment Method
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <button
-                      onClick={() => setPaymentMethod("upi")}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
-                        paymentMethod === "upi" 
-                          ? "border-primary bg-primary/10 text-white" 
-                          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
-                      )}
-                    >
-                      <Smartphone className={cn("w-8 h-8", paymentMethod === "upi" ? "text-primary" : "")} />
-                      <span className="font-bold tracking-wide">UPI</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setPaymentMethod("card")}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
-                        paymentMethod === "card" 
-                          ? "border-primary bg-primary/10 text-white" 
-                          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
-                      )}
-                    >
-                      <CreditCard className={cn("w-8 h-8", paymentMethod === "card" ? "text-primary" : "")} />
-                      <span className="font-bold tracking-wide">Card</span>
-                    </button>
-                    
-                    <button
-                      onClick={() => setPaymentMethod("cash")}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
-                        paymentMethod === "cash" 
-                          ? "border-primary bg-primary/10 text-white" 
-                          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
-                      )}
-                    >
-                      <Banknote className={cn("w-8 h-8", paymentMethod === "cash" ? "text-primary" : "")} />
-                      <span className="font-bold tracking-wide">Cash</span>
-                    </button>
-                  </div>
-                </Card>
-              )}
-
-              <Card className="p-6 md:p-8 bg-gradient-to-b from-card to-black/80">
-                <h3 className="text-xl font-display tracking-wider mb-6 flex items-center">
-                  <Receipt className="w-5 h-5 mr-2 text-primary" /> Final Summary
-                </h3>
-                <div className="space-y-4 mb-8">
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span>Subtotal</span>
-                    <span className="text-white">₹{totalAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between items-center text-muted-foreground">
-                    <span>GST (18%)</span>
-                    <span className="text-white">₹{gstAmount.toFixed(2)}</span>
-                  </div>
-                  <div className="border-t border-white/10 pt-4">
-                    <div className="flex justify-between items-end">
-                      <span className="text-lg font-bold text-white">Total</span>
-                      <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
+              {!showPaymentOptions ? (
+                <Card className="p-6 md:p-8 bg-gradient-to-b from-card to-black/80">
+                  <h3 className="text-xl font-display tracking-wider mb-6 flex items-center">
+                    <Receipt className="w-5 h-5 mr-2 text-primary" /> Final Summary
+                  </h3>
+                  <div className="space-y-4 mb-8">
+                    <div className="flex justify-between items-center text-muted-foreground">
+                      <span>Subtotal</span>
+                      <span className="text-white">₹{totalAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between items-center text-muted-foreground">
+                      <span>GST (18%)</span>
+                      <span className="text-white">₹{gstAmount.toFixed(2)}</span>
+                    </div>
+                    <div className="border-t border-white/10 pt-4">
+                      <div className="flex justify-between items-end">
+                        <span className="text-lg font-bold text-white">Total</span>
+                        <span className="text-3xl font-bold text-primary">₹{finalAmount.toFixed(2)}</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                {!showPaymentOptions ? (
                   <Button 
                     className="w-full h-16 text-xl font-bold shadow-fire-glow group" 
                     onClick={() => setShowPaymentOptions(true)}
@@ -315,16 +265,73 @@ export default function Checkout() {
                     Proceed to Payment
                     <ArrowRight className="w-6 h-6 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
-                ) : (
-                  <Button 
-                    className="w-full h-16 text-xl font-bold shadow-fire-glow" 
-                    onClick={handleCheckout}
-                    isLoading={createOrder.isPending}
-                  >
-                    Pay Now & Generate Invoice
-                  </Button>
-                )}
-              </Card>
+                </Card>
+              ) : (
+                <>
+                  <Card className="p-6 md:p-8 border-primary/20 animate-in fade-in slide-in-from-top-4 duration-500">
+                    <h2 className="text-xl font-bold mb-6 flex items-center border-b border-white/10 pb-4 text-primary">
+                      <CreditCard className="w-6 h-6 mr-3" />
+                      Select Payment Method
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <button
+                        onClick={() => setPaymentMethod("upi")}
+                        className={cn(
+                          "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
+                          paymentMethod === "upi" 
+                            ? "border-primary bg-primary/10 text-white" 
+                            : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
+                        )}
+                      >
+                        <Smartphone className={cn("w-8 h-8", paymentMethod === "upi" ? "text-primary" : "")} />
+                        <span className="font-bold tracking-wide">UPI</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setPaymentMethod("card")}
+                        className={cn(
+                          "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
+                          paymentMethod === "card" 
+                            ? "border-primary bg-primary/10 text-white" 
+                            : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
+                        )}
+                      >
+                        <CreditCard className={cn("w-8 h-8", paymentMethod === "card" ? "text-primary" : "")} />
+                        <span className="font-bold tracking-wide">Card</span>
+                      </button>
+                      
+                      <button
+                        onClick={() => setPaymentMethod("cash")}
+                        className={cn(
+                          "flex flex-col items-center justify-center gap-3 p-6 rounded-xl border-2 transition-all duration-200",
+                          paymentMethod === "cash" 
+                            ? "border-primary bg-primary/10 text-white" 
+                            : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
+                        )}
+                      >
+                        <Banknote className={cn("w-8 h-8", paymentMethod === "cash" ? "text-primary" : "")} />
+                        <span className="font-bold tracking-wide">Cash</span>
+                      </button>
+                    </div>
+
+                    <div className="mt-8 pt-8 border-t border-white/10">
+                      <div className="flex flex-col sm:flex-row justify-between items-center gap-6">
+                        <div>
+                          <p className="text-sm text-muted-foreground mb-1 uppercase tracking-wider text-center sm:text-left">Final Total</p>
+                          <p className="text-4xl font-bold text-primary text-center sm:text-left">₹{finalAmount.toFixed(2)}</p>
+                        </div>
+                        <Button 
+                          className="h-16 px-12 text-xl font-bold shadow-fire-glow w-full sm:w-auto" 
+                          onClick={handleCheckout}
+                          isLoading={createOrder.isPending}
+                        >
+                          Pay Now & Generate Invoice
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </>
+              )}
             </div>
           )}
         </div>
