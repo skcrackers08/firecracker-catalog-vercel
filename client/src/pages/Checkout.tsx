@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, Banknote, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar } from "lucide-react";
+import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar } from "lucide-react";
 import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
@@ -43,7 +43,7 @@ export default function Checkout() {
   const createOrder = useCreateOrder();
   const [step, setStep] = useState<1 | 2>(1);
   const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null);
-  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card" | "cash">("upi");
+  const [paymentMethod, setPaymentMethod] = useState<"upi" | "card">("upi");
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
@@ -268,7 +268,7 @@ export default function Checkout() {
                     Select Payment Method
                   </h2>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                  <div className="grid grid-cols-2 gap-4 mb-6">
                     <button
                       onClick={() => { setPaymentMethod("upi"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); setCardPaid(false); setCardForm({ number: "", name: "", expiry: "", cvv: "" }); setCardError(""); }}
                       className={cn(
@@ -297,19 +297,6 @@ export default function Checkout() {
                     >
                       <CreditCard className={cn("w-7 h-7", paymentMethod === "card" ? "text-primary" : "")} />
                       <span className="font-bold text-sm">Card</span>
-                    </button>
-
-                    <button
-                      onClick={() => { setPaymentMethod("cash"); setSelectedUpiApp(null); setUpiLaunched(false); setSelectedCardType(null); }}
-                      className={cn(
-                        "flex flex-col items-center justify-center gap-3 p-5 rounded-xl border-2 transition-all duration-200",
-                        paymentMethod === "cash"
-                          ? "border-primary bg-primary/10 text-white"
-                          : "border-white/10 bg-white/5 text-muted-foreground hover:border-white/30 hover:bg-white/10"
-                      )}
-                    >
-                      <Banknote className={cn("w-7 h-7", paymentMethod === "cash" ? "text-primary" : "")} />
-                      <span className="font-bold text-sm">Cash</span>
                     </button>
                   </div>
 
