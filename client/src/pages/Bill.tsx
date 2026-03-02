@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import Confetti from "react-confetti";
 import { motion } from "framer-motion";
-import { CheckCircle, Printer, Download, Home, Sparkles } from "lucide-react";
+import { CheckCircle, Printer, Download, Home, Sparkles, User, Phone, MapPin } from "lucide-react";
 import { useOrder } from "@/hooks/use-orders";
 import { useProduct } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
@@ -75,15 +75,34 @@ export default function Bill() {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-2 border-gray-200 pb-8 mb-8 gap-6">
             <div>
               <h2 className="text-3xl font-display text-red-600 tracking-wider mb-1 flex items-center gap-2">
-                <Sparkles className="w-6 h-6" /> TOP S K CRACKERS
+                <Sparkles className="w-6 h-6" /> S K CRACKERS
               </h2>
-              <p className="text-sm text-gray-500">123 Festival Street, Celebration City</p>
+              <p className="text-sm text-gray-500 italic mb-1">Light up your celebrations!</p>
               <p className="text-sm text-gray-500">GSTIN: 33ABCDE1234F1Z5</p>
             </div>
             <div className="text-left sm:text-right">
               <h3 className="text-xl font-bold text-gray-800 mb-1">TAX INVOICE</h3>
               <p className="text-sm font-semibold text-gray-600">Order #{order.id.toString().padStart(6, '0')}</p>
               <p className="text-sm text-gray-500">Date: {new Date().toLocaleDateString('en-IN')}</p>
+            </div>
+          </div>
+
+          {/* Billing & Shipping Details */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-100">
+            <div>
+              <h4 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-3 flex items-center">
+                <User className="w-3 h-3 mr-1" /> Customer Details
+              </h4>
+              <p className="font-bold text-gray-900">{order.customerName}</p>
+              <p className="text-gray-600 flex items-center gap-1 mt-1">
+                <Phone className="w-3 h-3" /> {order.customerPhone}
+              </p>
+            </div>
+            <div>
+              <h4 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-3 flex items-center">
+                <MapPin className="w-3 h-3 mr-1" /> Delivery Address
+              </h4>
+              <p className="text-gray-600 leading-relaxed">{order.customerAddress}</p>
             </div>
           </div>
 
@@ -124,12 +143,8 @@ export default function Bill() {
                 <span className="font-semibold">₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>CGST (9%):</span>
-                <span>₹{(Number(order.gstAmount)/2).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span>SGST (9%):</span>
-                <span>₹{(Number(order.gstAmount)/2).toFixed(2)}</span>
+                <span>GST (18%):</span>
+                <span>₹{Number(order.gstAmount).toFixed(2)}</span>
               </div>
               <div className="flex justify-between border-t-2 border-gray-800 pt-3 text-xl font-bold text-black mt-3">
                 <span>Grand Total:</span>
@@ -139,7 +154,7 @@ export default function Bill() {
           </div>
           
           <div className="mt-12 text-center text-sm text-gray-500 font-medium">
-            Thank you for shopping with Top S K Crackers!<br/>
+            Thank you for shopping with S K Crackers!<br/>
             Wishing you a safe and joyful celebration.
           </div>
         </Card>
