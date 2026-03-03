@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Sparkles, ArrowRight, Settings, ChevronLeft, ChevronRight, Plus, Minus, ShoppingCart, Heart } from "lucide-react";
+import { Settings, ChevronLeft, ChevronRight, ShoppingCart, Heart, Search, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -14,6 +14,7 @@ export default function Home() {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Auto-scroll logic for top selling products
   useEffect(() => {
@@ -44,6 +45,13 @@ export default function Home() {
   };
 
   const topProduct = products?.[currentIdx];
+
+  const filteredProducts = searchQuery.trim()
+    ? products?.filter(p =>
+        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : products;
 
   return (
     <Layout>
@@ -143,17 +151,47 @@ export default function Home() {
       )}
 
       {/* Catalog Grid */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <h3 className="text-3xl font-display tracking-wider flex items-center gap-3">
           <span className="w-2 h-8 bg-primary rounded-full inline-block"></span>
           OUR CRACKERS
         </h3>
         <Link href="/admin">
-          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary">
+          <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-primary hidden sm:flex">
             Admin Access
           </Button>
         </Link>
       </div>
+
+      {/* Search Bar */}
+      <div className="relative mb-6">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+        <input
+          type="text"
+          placeholder="Search crackers by name..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          data-testid="input-search"
+          className="w-full h-11 pl-11 pr-10 rounded-xl bg-white/5 border border-white/10 text-white placeholder:text-muted-foreground text-sm focus:outline-none focus:border-primary/50 focus:bg-white/8 transition-colors"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
+            data-testid="button-clear-search"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      {searchQuery && (
+        <p className="text-sm text-muted-foreground mb-4">
+          {filteredProducts?.length === 0
+            ? "No products found"
+            : `${filteredProducts?.length} result${filteredProducts?.length === 1 ? "" : "s"} for "${searchQuery}"`}
+        </p>
+      )}
 
       {isLoading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
@@ -165,9 +203,16 @@ export default function Home() {
         <div className="p-8 text-center bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400">
           Failed to load products. Please try again later.
         </div>
-      ) : products?.length === 0 ? (
+      ) : filteredProducts?.length === 0 ? (
         <div className="p-12 text-center bg-white/5 rounded-2xl">
-          <p className="text-xl text-muted-foreground">No crackers available right now.</p>
+          <p className="text-xl text-muted-foreground">
+            {searchQuery ? `No crackers found for "${searchQuery}"` : "No crackers available right now."}
+          </p>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="mt-4 text-primary text-sm underline">
+              Clear search
+            </button>
+          )}
         </div>
       ) : (
         <motion.div 
@@ -176,7 +221,7 @@ export default function Home() {
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.1 }}
         >
-          {products?.map((product, idx) => (
+          {filteredProducts?.map((product, idx) => (
             <motion.div
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
