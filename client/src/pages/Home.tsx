@@ -156,9 +156,9 @@ export default function Home() {
       </div>
 
       {isLoading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="h-80 bg-white/5 animate-pulse rounded-2xl" />
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+          {[...Array(10)].map((_, i) => (
+            <div key={i} className="h-56 bg-white/5 animate-pulse rounded-2xl" />
           ))}
         </div>
       ) : error ? (
@@ -171,7 +171,7 @@ export default function Home() {
         </div>
       ) : (
         <motion.div 
-          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8"
+          className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ staggerChildren: 0.1 }}
@@ -184,7 +184,7 @@ export default function Home() {
               transition={{ delay: idx * 0.1 }}
             >
               <Card className="h-full flex flex-col group bg-black/40 border border-white/5 hover:border-primary/30 transition-all duration-300">
-                <Link href={`/product/${product.id}`} className="block relative aspect-square overflow-hidden bg-white/5 p-4 cursor-pointer">
+                <Link href={`/product/${product.id}`} className="block relative h-36 sm:h-40 overflow-hidden bg-white/5 p-3 cursor-pointer">
                   <img 
                     src={product.imageUrl} 
                     alt={product.name}
@@ -193,34 +193,34 @@ export default function Home() {
                       (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1542282088-fe8426682b8f?w=400&h=400&fit=crop";
                     }}
                   />
-                  <div className="absolute top-4 right-4 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
-                    <span className="font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
+                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-md px-2 py-0.5 rounded-full border border-white/10">
+                    <span className="font-bold text-primary text-xs">₹{Number(product.price).toFixed(0)}</span>
                   </div>
                 </Link>
                 
-                <div className="p-4 md:p-6 flex flex-col flex-1">
+                <div className="p-3 flex flex-col flex-1">
                   <Link href={`/product/${product.id}`}>
-                    <h4 className="text-lg md:text-xl font-display tracking-wide mb-2 line-clamp-1 hover:text-primary transition-colors cursor-pointer text-center">{product.name}</h4>
+                    <h4 className="text-sm font-display tracking-wide mb-1 line-clamp-1 hover:text-primary transition-colors cursor-pointer text-center">{product.name}</h4>
                   </Link>
-                  <div className="text-center mb-6">
-                    <span className="text-xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
+                  <div className="text-center mb-3">
+                    <span className="text-base font-bold text-primary">₹{Number(product.price).toFixed(2)}</span>
                   </div>
                   
-                  <div className="flex items-center gap-2 mt-auto">
+                  <div className="flex items-center gap-1.5 mt-auto">
                     <Link href={`/product/${product.id}`} className="flex-1">
                       <Button 
                         variant="primary" 
-                        className="w-full h-10 px-6 text-sm font-bold uppercase tracking-wider"
+                        className="w-full h-8 px-3 text-xs font-bold uppercase tracking-wider"
                       >
                         BUY NOW
                       </Button>
                     </Link>
                     <button
                       onClick={() => toggleWishlist(product)}
-                      className="w-10 h-10 rounded-xl border border-white/10 bg-white/5 flex items-center justify-center hover:bg-pink-500/10 hover:border-pink-500/30 transition-colors shrink-0"
+                      className="w-8 h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center hover:bg-pink-500/10 hover:border-pink-500/30 transition-colors shrink-0"
                       title={isInWishlist(product.id) ? "Remove from wishlist" : "Add to wishlist"}
                     >
-                      <Heart className={`w-4 h-4 transition-colors ${isInWishlist(product.id) ? "text-pink-500 fill-pink-500" : "text-muted-foreground"}`} />
+                      <Heart className={`w-3.5 h-3.5 transition-colors ${isInWishlist(product.id) ? "text-pink-500 fill-pink-500" : "text-muted-foreground"}`} />
                     </button>
                   </div>
                 </div>
