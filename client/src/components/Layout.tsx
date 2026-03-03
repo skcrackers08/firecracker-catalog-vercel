@@ -143,7 +143,7 @@ export function Layout({ children }: LayoutProps) {
                     items.map(item => (
                       <div key={item.id} className="flex items-center gap-4 bg-white/5 p-3 rounded-2xl group border border-white/5 hover:border-white/10 transition-colors">
                         <div className="w-16 h-16 bg-black/40 rounded-xl p-2 shrink-0">
-                          <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                          <img src={item.imageUrl ?? ""} alt={item.name} className="w-full h-full object-contain" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-sm font-bold truncate text-white">{item.name}</h4>

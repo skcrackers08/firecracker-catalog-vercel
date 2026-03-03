@@ -118,7 +118,7 @@ export default function Wishlist() {
                   <div className="flex gap-2">
                     <Button
                       className="flex-1 gap-2"
-                      onClick={() => addToCart({ ...product, quantity: 1 })}
+                      onClick={() => addToCart(product, 1)}
                     >
                       <ShoppingCart className="w-4 h-4" /> Add to Cart
                     </Button>

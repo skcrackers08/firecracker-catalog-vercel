@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar } from "lucide-react";
+import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar, Copy, Check, Smartphone } from "lucide-react";
 import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
@@ -11,7 +11,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 const DEFAULT_MERCHANT_UPI = "9344468937@axl";
-const MERCHANT_NAME = "SK+Crackers";
+const MERCHANT_NAME = "SK Crackers";
+const PAYMENT_NOTE = "SK Crackers Order Payment";
 
 function getMerchantUPI() {
   return localStorage.getItem("sk-merchant-upi") || DEFAULT_MERCHANT_UPI;
@@ -24,16 +25,19 @@ const customerDetailsSchema = z.object({
 });
 
 type CustomerDetails = z.infer<typeof customerDetailsSchema>;
-type UpiApp = "phonepe" | "gpay" | "paytm";
+type UpiApp = "phonepe" | "gpay" | "paytm" | "any";
 type CardType = "debit" | "credit";
 
 function buildUpiLink(app: UpiApp, amount: string): string {
-  const note = "SK+Crackers+Order+Payment";
-  const base = `pa=${getMerchantUPI()}&pn=${MERCHANT_NAME}&am=${amount}&cu=INR&tn=${note}`;
+  const pa = encodeURIComponent(getMerchantUPI());
+  const pn = encodeURIComponent(MERCHANT_NAME);
+  const tn = encodeURIComponent(PAYMENT_NOTE);
+  const params = `pa=${pa}&pn=${pn}&am=${amount}&cu=INR&tn=${tn}`;
   switch (app) {
-    case "phonepe": return `phonepe://pay?${base}`;
-    case "gpay":    return `tez://upi/pay?${base}`;
-    case "paytm":   return `paytm://upi/pay?${base}`;
+    case "phonepe": return `phonepe://pay?${params}`;
+    case "gpay":    return `tez://upi/pay?${params}`;
+    case "paytm":   return `paytm://upi/pay?${params}`;
+    case "any":     return `upi://pay?${params}`;
   }
 }
 
@@ -47,6 +51,7 @@ export default function Checkout() {
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
+  const [upiCopied, setUpiCopied] = useState(false);
   const [selectedCardType, setSelectedCardType] = useState<CardType | null>(null);
   const [cardPaid, setCardPaid] = useState(false);
   const [cardForm, setCardForm] = useState({ number: "", name: "", expiry: "", cvv: "" });
@@ -77,11 +82,23 @@ export default function Checkout() {
     setStep(2);
   };
 
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(getMerchantUPI()).then(() => {
+      setUpiCopied(true);
+      setTimeout(() => setUpiCopied(false), 2500);
+    });
+  };
+
   const openUpiApp = (app: UpiApp) => {
     setSelectedUpiApp(app);
+    setUpiLaunched(false);
     const link = buildUpiLink(app, finalAmount.toFixed(2));
-    window.location.href = link;
-    setTimeout(() => setUpiLaunched(true), 1500);
+    const a = document.createElement("a");
+    a.href = link;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => setUpiLaunched(true), 1200);
   };
 
   const handleCheckout = () => {
@@ -120,10 +137,11 @@ export default function Checkout() {
     });
   };
 
-  const upiApps = [
-    { id: "phonepe" as UpiApp, label: "PhonePe",  icon: SiPhonepe,  color: "text-[#5f259f]", bg: "hover:bg-[#5f259f]/10 border-[#5f259f]/30" },
-    { id: "gpay"    as UpiApp, label: "Google Pay", icon: SiGooglepay, color: "text-[#4285F4]", bg: "hover:bg-[#4285F4]/10 border-[#4285F4]/30" },
-    { id: "paytm"  as UpiApp, label: "Paytm",      icon: SiPaytm,    color: "text-[#00BAF2]", bg: "hover:bg-[#00BAF2]/10 border-[#00BAF2]/30" },
+  const upiApps: { id: UpiApp; label: string; icon?: (p: { className?: string }) => JSX.Element; color: string; bg: string }[] = [
+    { id: "phonepe", label: "PhonePe",     icon: SiPhonepe,   color: "text-[#5f259f]", bg: "hover:bg-[#5f259f]/10 border-[#5f259f]/30" },
+    { id: "gpay",    label: "Google Pay",  icon: SiGooglepay, color: "text-[#4285F4]", bg: "hover:bg-[#4285F4]/10 border-[#4285F4]/30" },
+    { id: "paytm",   label: "Paytm",       icon: SiPaytm,     color: "text-[#00BAF2]", bg: "hover:bg-[#00BAF2]/10 border-[#00BAF2]/30" },
+    { id: "any",     label: "Any UPI App", icon: undefined,   color: "text-green-400",  bg: "hover:bg-green-500/10 border-green-500/30" },
   ];
 
   return (
@@ -158,7 +176,7 @@ export default function Checkout() {
                   {items.map(item => (
                     <div key={item.id} className="flex flex-col sm:flex-row items-center gap-6 p-4 rounded-2xl bg-white/5 border border-white/5">
                       <div className="w-20 h-20 bg-black/40 rounded-xl p-2 shrink-0">
-                        <img src={item.imageUrl} alt={item.name} className="w-full h-full object-contain" />
+                        <img src={item.imageUrl ?? ""} alt={item.name} className="w-full h-full object-contain" />
                       </div>
                       <div className="flex-1 text-center sm:text-left">
                         <h3 className="text-lg font-bold text-white mb-1">{item.name}</h3>
@@ -311,22 +329,27 @@ export default function Checkout() {
                   </div>
 
                   {paymentMethod === "upi" && (
-                    <div className="mb-6 p-5 bg-white/5 rounded-xl border border-white/10 animate-in fade-in duration-300">
-                      <p className="text-sm text-muted-foreground mb-4 font-medium">Choose your UPI app to pay ₹{finalAmount.toFixed(2)}:</p>
-                      <div className="grid grid-cols-3 gap-3">
+                    <div className="mb-6 p-5 bg-white/5 rounded-xl border border-white/10 animate-in fade-in duration-300 space-y-4">
+                      <p className="text-sm text-muted-foreground font-medium">Choose your UPI app to pay <span className="text-white font-bold">₹{finalAmount.toFixed(2)}</span>:</p>
+
+                      <div className="grid grid-cols-2 gap-3">
                         {upiApps.map(app => (
                           <button
                             key={app.id}
+                            data-testid={`button-upi-${app.id}`}
                             onClick={() => openUpiApp(app.id)}
                             className={cn(
                               "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all duration-200 font-bold",
                               app.bg,
                               selectedUpiApp === app.id
-                                ? "border-current scale-95 opacity-90"
+                                ? "border-current scale-95 opacity-90 bg-white/10"
                                 : "border-white/10 bg-white/5 hover:scale-105"
                             )}
                           >
-                            <app.icon className={cn("w-9 h-9", app.color)} />
+                            {app.icon
+                              ? <app.icon className={cn("w-8 h-8", app.color)} />
+                              : <Smartphone className={cn("w-8 h-8", app.color)} />
+                            }
                             <span className="text-xs text-white">{app.label}</span>
                             <ExternalLink className="w-3 h-3 text-muted-foreground" />
                           </button>
@@ -334,14 +357,31 @@ export default function Checkout() {
                       </div>
 
                       {selectedUpiApp && (
-                        <div className="mt-4 p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center animate-in fade-in duration-300">
+                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center animate-in fade-in duration-300">
                           <p className="text-green-400 text-sm font-medium">
                             {upiLaunched
-                              ? "✓ UPI app launched — complete payment there, then click below"
-                              : `Opening ${upiApps.find(a => a.id === selectedUpiApp)?.label}...`}
+                              ? "✓ App launched — complete payment there, then click Confirm below"
+                              : `Opening ${upiApps.find(a => a.id === selectedUpiApp)?.label}…`}
                           </p>
                         </div>
                       )}
+
+                      <div className="border-t border-white/10 pt-3">
+                        <p className="text-xs text-muted-foreground mb-2">Or pay manually using UPI ID:</p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 bg-black/40 text-white text-sm font-mono px-3 py-2 rounded-lg border border-white/10 select-all">
+                            {getMerchantUPI()}
+                          </code>
+                          <button
+                            onClick={copyUpiId}
+                            className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-medium transition-colors border border-white/10"
+                          >
+                            {upiCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                            {upiCopied ? "Copied!" : "Copy"}
+                          </button>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5">Amount: <span className="text-white font-semibold">₹{finalAmount.toFixed(2)}</span></p>
+                      </div>
                     </div>
                   )}
 
