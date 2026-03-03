@@ -50,6 +50,7 @@ export const orders = pgTable("orders", {
   gstAmount: numeric("gst_amount", { precision: 10, scale: 2 }).notNull(),
   totalAmount: numeric("total_amount", { precision: 10, scale: 2 }).notNull(),
   customerId: integer("customer_id"),
+  cartItems: text("cart_items"),
 });
 
 export const insertProductSchema = createInsertSchema(products).omit({ id: true });

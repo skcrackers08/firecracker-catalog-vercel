@@ -92,6 +92,15 @@ export default function Checkout() {
     ? `card-${selectedCardType}`
     : paymentMethod;
 
+    const cartSnapshot = items.map(item => ({
+      id: item.id,
+      name: item.name,
+      price: item.price,
+      imageUrl: item.imageUrl,
+      quantity: item.quantity,
+      lineTotal: (Number(item.price) * item.quantity).toFixed(2),
+    }));
+
     createOrder.mutate({
       productId: items[0].id,
       quantity: items.reduce((sum, item) => sum + item.quantity, 0),
@@ -102,6 +111,7 @@ export default function Checkout() {
       subtotal: totalAmount.toFixed(2),
       gstAmount: gstAmount.toFixed(2),
       totalAmount: finalAmount.toFixed(2),
+      cartItems: JSON.stringify(cartSnapshot),
     }, {
       onSuccess: (data) => {
         clearCart();

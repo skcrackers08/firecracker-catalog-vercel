@@ -2,26 +2,68 @@ import { useEffect, useState } from "react";
 import { useParams, Link } from "wouter";
 import Confetti from "react-confetti";
 import { motion } from "framer-motion";
-import { CheckCircle, Printer, Download, Home, Sparkles, User, Phone, MapPin } from "lucide-react";
+import { CheckCircle, Printer, Home, Sparkles, User, Phone, MapPin } from "lucide-react";
 import { useOrder } from "@/hooks/use-orders";
 import { useProduct } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Button, Card } from "@/components/ui-custom";
 
+interface CartLineItem {
+  id: number;
+  name: string;
+  price: string;
+  imageUrl: string;
+  quantity: number;
+  lineTotal: string;
+}
+
+function paymentLabel(pm: string) {
+  if (pm.startsWith("upi-phonepe")) return "📱 PhonePe UPI";
+  if (pm.startsWith("upi-gpay"))    return "📱 Google Pay UPI";
+  if (pm.startsWith("upi-paytm"))   return "📱 Paytm UPI";
+  if (pm.startsWith("upi"))         return "📱 UPI";
+  if (pm.startsWith("card-debit"))  return "💳 Debit Card";
+  if (pm.startsWith("card-credit")) return "💳 Credit Card";
+  if (pm.startsWith("card"))        return "💳 Card";
+  return "💵 Cash";
+}
+
 export default function Bill() {
   const { id } = useParams();
   const orderId = parseInt(id || "0");
   const { data: order, isLoading: isOrderLoading } = useOrder(orderId);
-  const { data: product, isLoading: isProductLoading } = useProduct(order?.productId || 0);
-  
+  const { data: fallbackProduct, isLoading: isFallbackLoading } = useProduct(
+    order && !order.cartItems ? (order.productId || 0) : 0
+  );
+
   const [showConfetti, setShowConfetti] = useState(true);
-  
+
   useEffect(() => {
     const timer = setTimeout(() => setShowConfetti(false), 6000);
     return () => clearTimeout(timer);
   }, []);
 
-  if (isOrderLoading || (order && isProductLoading)) {
+  const cartLines: CartLineItem[] = (() => {
+    if (!order) return [];
+    if (order.cartItems) {
+      try { return JSON.parse(order.cartItems) as CartLineItem[]; } catch { /* fall through */ }
+    }
+    if (fallbackProduct) {
+      return [{
+        id: fallbackProduct.id,
+        name: fallbackProduct.name,
+        price: fallbackProduct.price,
+        imageUrl: fallbackProduct.imageUrl || "",
+        quantity: order.quantity,
+        lineTotal: Number(order.subtotal).toFixed(2),
+      }];
+    }
+    return [];
+  })();
+
+  const isLoading = isOrderLoading || (!order?.cartItems && isFallbackLoading);
+
+  if (isLoading) {
     return (
       <Layout>
         <div className="max-w-2xl mx-auto w-full mt-10 animate-pulse space-y-6">
@@ -31,7 +73,7 @@ export default function Bill() {
     );
   }
 
-  if (!order || !product) {
+  if (!order || cartLines.length === 0) {
     return (
       <Layout>
         <div className="p-12 text-center bg-red-500/10 rounded-3xl mt-10">
@@ -41,17 +83,13 @@ export default function Bill() {
     );
   }
 
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
     <Layout>
       {showConfetti && <Confetti recycle={false} numberOfPieces={500} colors={['#FF4B1F', '#FF9068', '#FFD700', '#FFFFFF']} />}
-      
+
       <div className="max-w-3xl mx-auto w-full pt-8 pb-16">
-        
-        <motion.div 
+
+        <motion.div
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: "spring", duration: 0.6 }}
@@ -64,13 +102,11 @@ export default function Bill() {
           <p className="text-muted-foreground text-lg">Thank you for your purchase. Your celebration is about to begin!</p>
         </motion.div>
 
-        {/* Invoice Card */}
         <Card className="bg-white text-black p-8 md:p-12 relative overflow-hidden print:shadow-none print:border-0 rounded-none md:rounded-2xl">
-          {/* Watermark */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-[0.03] pointer-events-none">
             <Sparkles className="w-96 h-96" />
           </div>
-          
+
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b-2 border-gray-200 pb-8 mb-8 gap-6">
             <div>
@@ -87,7 +123,7 @@ export default function Bill() {
             </div>
           </div>
 
-          {/* Billing & Shipping Details */}
+          {/* Customer & Delivery */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 pb-8 border-b border-gray-100">
             <div>
               <h4 className="text-xs uppercase tracking-wider text-gray-400 font-bold mb-3 flex items-center">
@@ -106,7 +142,7 @@ export default function Bill() {
             </div>
           </div>
 
-          {/* Table */}
+          {/* Items Table */}
           <div className="overflow-x-auto mb-8">
             <table className="w-full text-left border-collapse">
               <thead>
@@ -117,34 +153,38 @@ export default function Bill() {
                   <th className="py-3 px-4 text-right rounded-r-lg">Amount</th>
                 </tr>
               </thead>
-              <tbody className="text-gray-800 divide-y border-gray-200">
-                <tr>
-                  <td className="py-4 px-4 font-medium">{product.name}</td>
-                  <td className="py-4 px-4 text-center">{order.quantity}</td>
-                  <td className="py-4 px-4 text-right">₹{Number(product.price).toFixed(2)}</td>
-                  <td className="py-4 px-4 text-right">₹{Number(order.subtotal).toFixed(2)}</td>
-                </tr>
+              <tbody className="text-gray-800 divide-y divide-gray-100">
+                {cartLines.map((line, idx) => (
+                  <tr key={idx}>
+                    <td className="py-4 px-4 font-medium">{line.name}</td>
+                    <td className="py-4 px-4 text-center">{line.quantity}</td>
+                    <td className="py-4 px-4 text-right">₹{Number(line.price).toFixed(2)}</td>
+                    <td className="py-4 px-4 text-right">₹{Number(line.lineTotal).toFixed(2)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
 
           {/* Totals */}
-          <div className="flex flex-col sm:flex-row justify-between items-end gap-6 pt-4">
+          <div className="flex flex-col sm:flex-row justify-between items-end gap-6 pt-4 border-t border-gray-100">
             <div className="w-full sm:w-auto bg-gray-50 p-4 rounded-lg">
               <p className="text-sm font-semibold text-gray-700 mb-1">Payment Method:</p>
-              <p className="text-lg text-gray-900 capitalize flex items-center gap-2">
-                {order.paymentMethod === 'upi' ? '📱 UPI' : order.paymentMethod === 'card' ? '💳 Card' : '💵 Cash'}
-              </p>
+              <p className="text-lg text-gray-900 capitalize">{paymentLabel(order.paymentMethod)}</p>
             </div>
-            
+
             <div className="w-full sm:w-80 space-y-3 text-gray-700">
               <div className="flex justify-between">
-                <span>Subtotal:</span>
+                <span>Subtotal ({cartLines.length} {cartLines.length === 1 ? "item" : "items"}):</span>
                 <span className="font-semibold">₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span>GST (18%):</span>
                 <span>₹{Number(order.gstAmount).toFixed(2)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-green-600">
+                <span>Delivery:</span>
+                <span>Free</span>
               </div>
               <div className="flex justify-between border-t-2 border-gray-800 pt-3 text-xl font-bold text-black mt-3">
                 <span>Grand Total:</span>
@@ -152,16 +192,15 @@ export default function Bill() {
               </div>
             </div>
           </div>
-          
-          <div className="mt-12 text-center text-sm text-gray-500 font-medium">
-            Thank you for shopping with S K Crackers!<br/>
-            Wishing you a safe and joyful celebration.
+
+          <div className="mt-12 text-center text-sm text-gray-500 font-medium border-t border-gray-100 pt-6">
+            Thank you for shopping with S K Crackers!<br />
+            Wishing you a safe and joyful celebration. 🎇
           </div>
         </Card>
 
-        {/* Actions - Hidden on Print */}
         <div className="flex flex-wrap justify-center gap-4 mt-8 print:hidden">
-          <Button variant="outline" onClick={handlePrint} className="bg-white/5 border-white/20 text-white hover:bg-white/10">
+          <Button variant="outline" onClick={() => window.print()} className="bg-white/5 border-white/20 text-white hover:bg-white/10">
             <Printer className="w-4 h-4 mr-2" /> Print Invoice
           </Button>
           <Link href="/">
