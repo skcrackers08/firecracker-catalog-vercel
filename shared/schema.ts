@@ -4,8 +4,9 @@ import { z } from "zod";
 
 export const PRODUCT_CATEGORIES = [
   "Sparklers",
-  "Ground Crackers",
+  "Twinkling Stars",
   "Flower Pots",
+  "Ground Crackers",
   "Rockets",
   "Aerial Shots",
   "Sound Crackers",
