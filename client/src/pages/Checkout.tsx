@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation, Link } from "wouter";
 import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar, Copy, Check, Smartphone } from "lucide-react";
 import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
@@ -28,15 +28,35 @@ type CustomerDetails = z.infer<typeof customerDetailsSchema>;
 type UpiApp = "phonepe" | "gpay" | "paytm" | "any";
 type CardType = "debit" | "credit";
 
+function isAndroid() {
+  return /android/i.test(navigator.userAgent);
+}
+
 function buildUpiLink(app: UpiApp, amount: string): string {
-  const pa = encodeURIComponent(getMerchantUPI());
-  const pn = encodeURIComponent(MERCHANT_NAME);
-  const tn = encodeURIComponent(PAYMENT_NOTE);
+  const pa  = encodeURIComponent(getMerchantUPI());
+  const pn  = encodeURIComponent(MERCHANT_NAME);
+  const tn  = encodeURIComponent(PAYMENT_NOTE);
   const params = `pa=${pa}&pn=${pn}&am=${amount}&cu=INR&tn=${tn}`;
+
+  if (isAndroid()) {
+    // Android Chrome requires Intent URLs to reliably open specific apps
+    switch (app) {
+      case "phonepe":
+        return `intent://pay?${params}#Intent;scheme=phonepe;package=com.phonepe.app;S.browser_fallback_url=https%3A%2F%2Fphon.pe;end`;
+      case "gpay":
+        return `intent://upi/pay?${params}#Intent;scheme=tez;package=com.google.android.apps.nbu.paisa.user;S.browser_fallback_url=https%3A%2F%2Fpay.google.com;end`;
+      case "paytm":
+        return `intent://pay?${params}#Intent;scheme=paytm;package=net.one97.paytm;S.browser_fallback_url=https%3A%2F%2Fpaytm.com;end`;
+      case "any":
+        return `upi://pay?${params}`;
+    }
+  }
+
+  // iOS / desktop — use scheme URLs
   switch (app) {
     case "phonepe": return `phonepe://pay?${params}`;
     case "gpay":    return `tez://upi/pay?${params}`;
-    case "paytm":   return `paytm://upi/pay?${params}`;
+    case "paytm":   return `paytm://pay?${params}`;
     case "any":     return `upi://pay?${params}`;
   }
 }
@@ -52,6 +72,7 @@ export default function Checkout() {
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
   const [upiLaunched, setUpiLaunched] = useState(false);
   const [upiCopied, setUpiCopied] = useState(false);
+  const upiTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [selectedCardType, setSelectedCardType] = useState<CardType | null>(null);
   const [cardPaid, setCardPaid] = useState(false);
   const [cardForm, setCardForm] = useState({ number: "", name: "", expiry: "", cvv: "" });
@@ -83,22 +104,40 @@ export default function Checkout() {
   };
 
   const copyUpiId = () => {
-    navigator.clipboard.writeText(getMerchantUPI()).then(() => {
-      setUpiCopied(true);
-      setTimeout(() => setUpiCopied(false), 2500);
-    });
+    const upiId = getMerchantUPI();
+    setUpiCopied(true);
+    setTimeout(() => setUpiCopied(false), 2500);
+    const fallback = () => {
+      try {
+        const el = document.createElement("textarea");
+        el.value = upiId;
+        el.style.cssText = "position:fixed;top:0;left:0;opacity:0";
+        document.body.appendChild(el);
+        el.select();
+        document.execCommand("copy");
+        document.body.removeChild(el);
+      } catch { /* ignore */ }
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(upiId).catch(fallback);
+    } else {
+      fallback();
+    }
   };
 
   const openUpiApp = (app: UpiApp) => {
+    if (upiTimeoutRef.current) clearTimeout(upiTimeoutRef.current);
     setSelectedUpiApp(app);
     setUpiLaunched(false);
     const link = buildUpiLink(app, finalAmount.toFixed(2));
     const a = document.createElement("a");
     a.href = link;
+    a.target = "_blank";
+    a.rel = "noreferrer noopener";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setTimeout(() => setUpiLaunched(true), 1200);
+    upiTimeoutRef.current = setTimeout(() => setUpiLaunched(true), 1200);
   };
 
   const handleCheckout = () => {
@@ -357,17 +396,24 @@ export default function Checkout() {
                       </div>
 
                       {selectedUpiApp && (
-                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center animate-in fade-in duration-300">
-                          <p className="text-green-400 text-sm font-medium">
+                        <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg animate-in fade-in duration-300">
+                          <p className="text-green-400 text-sm font-medium text-center">
                             {upiLaunched
-                              ? "✓ App launched — complete payment there, then click Confirm below"
+                              ? `✓ ${upiApps.find(a => a.id === selectedUpiApp)?.label} launched — complete payment there, then click Confirm Order below`
                               : `Opening ${upiApps.find(a => a.id === selectedUpiApp)?.label}…`}
                           </p>
+                          {upiLaunched && !isAndroid() && (
+                            <p className="text-yellow-400/80 text-xs text-center mt-1">
+                              If the app did not open, copy the UPI ID below and pay manually
+                            </p>
+                          )}
                         </div>
                       )}
 
-                      <div className="border-t border-white/10 pt-3">
-                        <p className="text-xs text-muted-foreground mb-2">Or pay manually using UPI ID:</p>
+                      <div className="border-t border-white/10 pt-3 space-y-2">
+                        <p className="text-xs text-muted-foreground font-medium">
+                          📱 UPI buttons work on mobile. On desktop, copy the UPI ID below:
+                        </p>
                         <div className="flex items-center gap-2">
                           <code className="flex-1 bg-black/40 text-white text-sm font-mono px-3 py-2 rounded-lg border border-white/10 select-all">
                             {getMerchantUPI()}
@@ -380,7 +426,9 @@ export default function Checkout() {
                             {upiCopied ? "Copied!" : "Copy"}
                           </button>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1.5">Amount: <span className="text-white font-semibold">₹{finalAmount.toFixed(2)}</span></p>
+                        <p className="text-xs text-muted-foreground">
+                          Amount to pay: <span className="text-white font-bold">₹{finalAmount.toFixed(2)}</span>
+                        </p>
                       </div>
                     </div>
                   )}
