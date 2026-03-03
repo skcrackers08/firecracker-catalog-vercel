@@ -21,24 +21,28 @@ async function seedDatabase() {
         description: "Bright and colorful sparklers perfect for kids and adults alike. Burns for approximately 1 minute.",
         price: "150.00",
         imageUrl: "https://images.unsplash.com/photo-1514304859873-1025ee74eb3a?auto=format&fit=crop&q=80&w=800",
+        category: "Sparklers",
       },
       {
         name: "Ground Chakkars (Box of 25)",
         description: "Classic spinning firecrackers that create a beautiful glowing circle on the ground.",
         price: "200.00",
         imageUrl: "https://images.unsplash.com/photo-1542154564-963d5966601b?auto=format&fit=crop&q=80&w=800",
+        category: "Ground Crackers",
       },
       {
         name: "Flower Pots Deluxe (Pack of 5)",
         description: "Premium flower pots that shoot up brilliant fountains of colorful sparks up to 10 feet.",
         price: "450.00",
         imageUrl: "https://images.unsplash.com/photo-1481023848149-166fb94b2853?auto=format&fit=crop&q=80&w=800",
+        category: "Flower Pots",
       },
       {
         name: "Sky Shot Rockets (Pack of 6)",
         description: "High-flying rockets that burst into colorful patterns in the night sky.",
         price: "600.00",
         imageUrl: "https://images.unsplash.com/photo-1498843516560-6b66d5ed330a?auto=format&fit=crop&q=80&w=800",
+        category: "Rockets",
       }
     ]);
   }

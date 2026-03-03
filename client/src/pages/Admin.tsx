@@ -25,8 +25,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag } from "lucide-react";
 import { z } from "zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PRODUCT_CATEGORIES } from "@shared/schema";
 
 function SectionPanel({
   icon,
@@ -437,6 +439,10 @@ export default function Admin() {
                 <span>{product.name}</span>
                 <span className="text-primary">₹{product.price}</span>
               </CardTitle>
+              <div className="flex items-center gap-1 mt-1">
+                <Tag className="h-3 w-3 text-muted-foreground" />
+                <span className="text-xs text-muted-foreground">{product.category || "Other"}</span>
+              </div>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4 line-clamp-2">
@@ -508,6 +514,7 @@ function ProductForm({
       price: "",
       imageUrl: "",
       videoUrl: "",
+      category: "Other",
     },
   });
 
@@ -536,6 +543,28 @@ function ProductForm({
               <FormControl>
                 <Textarea {...field} data-testid="input-description" />
               </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="category"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Category</FormLabel>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger data-testid="select-category">
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {PRODUCT_CATEGORIES.map((cat) => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

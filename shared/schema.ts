@@ -2,6 +2,19 @@ import { pgTable, text, serial, integer, numeric, boolean } from "drizzle-orm/pg
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const PRODUCT_CATEGORIES = [
+  "Sparklers",
+  "Ground Crackers",
+  "Flower Pots",
+  "Rockets",
+  "Aerial Shots",
+  "Sound Crackers",
+  "Gift Box",
+  "Other",
+] as const;
+
+export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
+
 export const products = pgTable("products", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
@@ -9,6 +22,7 @@ export const products = pgTable("products", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("image_url").notNull(),
   videoUrl: text("video_url"),
+  category: text("category").notNull().default("Other"),
 });
 
 export const customers = pgTable("customers", {

@@ -3,7 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
 import { Card, Button } from "@/components/ui-custom";
-import { Settings, ChevronLeft, ChevronRight, ShoppingCart, Heart, Search, X } from "lucide-react";
+import { Settings, ChevronLeft, ChevronRight, ShoppingCart, Heart, Search, X, Layers } from "lucide-react";
+import { PRODUCT_CATEGORIES } from "@shared/schema";
 import { useState, useEffect } from "react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -15,6 +16,7 @@ export default function Home() {
   const [currentIdx, setCurrentIdx] = useState(0);
   const [quantities, setQuantities] = useState<Record<number, number>>({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("All");
 
   // Auto-scroll logic for top selling products
   useEffect(() => {
@@ -46,12 +48,17 @@ export default function Home() {
 
   const topProduct = products?.[currentIdx];
 
-  const filteredProducts = searchQuery.trim()
-    ? products?.filter(p =>
-        p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.description?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
-    : products;
+  const activeCategories = products
+    ? ["All", ...Array.from(new Set(products.map(p => p.category || "Other"))).sort()]
+    : ["All"];
+
+  const filteredProducts = products?.filter(p => {
+    const matchesCategory = selectedCategory === "All" || (p.category || "Other") === selectedCategory;
+    const matchesSearch = !searchQuery.trim() ||
+      p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    return matchesCategory && matchesSearch;
+  });
 
   return (
     <Layout>
@@ -185,6 +192,32 @@ export default function Home() {
         )}
       </div>
 
+      {/* Category Filter Tabs */}
+      {!isLoading && !error && (
+        <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+          {activeCategories.map((cat) => (
+            <button
+              key={cat}
+              data-testid={`button-category-${cat.toLowerCase().replace(/\s+/g, "-")}`}
+              onClick={() => setSelectedCategory(cat)}
+              className={`flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 border ${
+                selectedCategory === cat
+                  ? "bg-primary text-primary-foreground border-primary shadow-gold-glow"
+                  : "bg-white/5 text-muted-foreground border-white/10 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {cat === "All" && <Layers className="w-3.5 h-3.5" />}
+              {cat}
+              {cat !== "All" && products && (
+                <span className={`text-xs px-1.5 py-0.5 rounded-full ${selectedCategory === cat ? "bg-white/20" : "bg-white/10"}`}>
+                  {products.filter(p => (p.category || "Other") === cat).length}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
       {searchQuery && (
         <p className="text-sm text-muted-foreground mb-4">
           {filteredProducts?.length === 0
@@ -206,12 +239,25 @@ export default function Home() {
       ) : filteredProducts?.length === 0 ? (
         <div className="p-12 text-center bg-white/5 rounded-2xl">
           <p className="text-xl text-muted-foreground">
-            {searchQuery ? `No crackers found for "${searchQuery}"` : "No crackers available right now."}
+            {searchQuery
+              ? `No crackers found for "${searchQuery}"${selectedCategory !== "All" ? ` in ${selectedCategory}` : ""}`
+              : selectedCategory !== "All"
+              ? `No products in "${selectedCategory}" yet.`
+              : "No crackers available right now."}
           </p>
-          {searchQuery && (
-            <button onClick={() => setSearchQuery("")} className="mt-4 text-primary text-sm underline">
-              Clear search
-            </button>
+          {(searchQuery || selectedCategory !== "All") && (
+            <div className="flex gap-3 justify-center mt-4">
+              {searchQuery && (
+                <button onClick={() => setSearchQuery("")} className="text-primary text-sm underline">
+                  Clear search
+                </button>
+              )}
+              {selectedCategory !== "All" && (
+                <button onClick={() => setSelectedCategory("All")} className="text-primary text-sm underline">
+                  Show all products
+                </button>
+              )}
+            </div>
           )}
         </div>
       ) : (
