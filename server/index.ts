@@ -104,22 +104,32 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
+  const port = parseInt(process.env.PORT || "5000", 10);
+
   if (process.env.NODE_ENV === "production") {
     serveStatic(app);
+    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+      log(`serving on port ${port}`);
+    });
   } else {
+    let viteReadyResolve!: () => void;
+    const viteReady = new Promise<void>((resolve) => {
+      viteReadyResolve = resolve;
+    });
+
+    app.use((req, _res, next) => {
+      if (req.path.startsWith("/api")) {
+        return next();
+      }
+      viteReady.then(next);
+    });
+
+    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+      log(`serving on port ${port}`);
+    });
+
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
+    viteReadyResolve();
   }
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-  httpServer.listen(
-    {
-      port,
-      host: "0.0.0.0",
-      reusePort: true,
-    },
-    () => {
-      log(`serving on port ${port}`);
-    },
-  );
 })();
