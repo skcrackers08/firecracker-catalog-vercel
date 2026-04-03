@@ -104,19 +104,14 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  const port = parseInt(process.env.PORT || "5000", 10);
-
-  let viteReady = false;
-  if (process.env.NODE_ENV !== "production") {
-    app.use((req, res, next) => {
-      if (!viteReady && !req.path.startsWith("/api")) {
-        res.status(200).send(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="2"></head><body>Starting up...</body></html>`);
-        return;
-      }
-      next();
-    });
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    const { setupVite } = await import("./vite");
+    await setupVite(httpServer, app);
   }
 
+  const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
       port,
@@ -127,12 +122,4 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
-
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
-    viteReady = true;
-  }
 })();
