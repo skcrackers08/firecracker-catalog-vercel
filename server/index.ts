@@ -5,6 +5,14 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
 
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
@@ -96,14 +104,19 @@ app.use((req, res, next) => {
     return res.status(status).json({ message });
   });
 
-  if (process.env.NODE_ENV === "production") {
-    serveStatic(app);
-  } else {
-    const { setupVite } = await import("./vite");
-    await setupVite(httpServer, app);
+  const port = parseInt(process.env.PORT || "5000", 10);
+
+  let viteReady = false;
+  if (process.env.NODE_ENV !== "production") {
+    app.use((req, res, next) => {
+      if (!viteReady && !req.path.startsWith("/api")) {
+        res.status(200).send(`<!DOCTYPE html><html><head><meta http-equiv="refresh" content="2"></head><body>Starting up...</body></html>`);
+        return;
+      }
+      next();
+    });
   }
 
-  const port = parseInt(process.env.PORT || "5000", 10);
   httpServer.listen(
     {
       port,
@@ -114,4 +127,12 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
     },
   );
+
+  if (process.env.NODE_ENV === "production") {
+    serveStatic(app);
+  } else {
+    const { setupVite } = await import("./vite");
+    await setupVite(httpServer, app);
+    viteReady = true;
+  }
 })();
