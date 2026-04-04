@@ -88,29 +88,29 @@ app.use((req, res, next) => {
   next();
 });
 
+const port = parseInt(process.env.PORT || "5000", 10);
+
 (async () => {
-  await registerRoutes(httpServer, app);
-
-  app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    console.error("Internal Server Error:", err);
-    if (res.headersSent) return next(err);
-    return res.status(status).json({ message });
-  });
-
-  const port = parseInt(process.env.PORT || "5000", 10);
-
   if (process.env.NODE_ENV === "production") {
+    await registerRoutes(httpServer, app);
+
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error("Internal Server Error:", err);
+      if (res.headersSent) return next(err);
+      return res.status(status).json({ message });
+    });
+
     serveStatic(app);
-    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+    httpServer.listen({ port, host: "0.0.0.0" }, () => {
       log(`serving on port ${port}`);
     });
   } else {
-    let viteIsReady = false;
-    let viteReadyResolve!: () => void;
-    const viteReadyPromise = new Promise<void>((resolve) => {
-      viteReadyResolve = resolve;
+    let appIsReady = false;
+    let appReadyResolve!: () => void;
+    const appReadyPromise = new Promise<void>((resolve) => {
+      appReadyResolve = resolve;
     });
 
     const htmlTemplatePath = path.resolve(
@@ -121,29 +121,48 @@ app.use((req, res, next) => {
     );
 
     app.use((req: Request, res: Response, next: NextFunction) => {
-      if (req.path.startsWith("/api")) return next();
+      if (appIsReady) return next();
 
-      if (viteIsReady) return next();
+      if (req.path.startsWith("/api")) {
+        appReadyPromise.then(next);
+        return;
+      }
 
       const ext = path.extname(req.path);
       const isHtmlRequest =
         req.method === "GET" && (!ext || ext === ".html");
 
       if (isHtmlRequest) {
-        const template = fs.readFileSync(htmlTemplatePath, "utf-8");
-        return res.status(200).set("Content-Type", "text/html").end(template);
+        try {
+          const template = fs.readFileSync(htmlTemplatePath, "utf-8");
+          return res.status(200).set("Content-Type", "text/html").end(template);
+        } catch {
+          return res.status(200).send("<html><body>Loading...</body></html>");
+        }
       }
 
-      viteReadyPromise.then(next);
+      appReadyPromise.then(next);
     });
 
-    httpServer.listen({ port, host: "0.0.0.0", reusePort: true }, () => {
+    httpServer.listen({ port, host: "0.0.0.0" }, () => {
       log(`serving on port ${port}`);
+    });
+
+    await registerRoutes(httpServer, app);
+
+    app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      console.error("Internal Server Error:", err);
+      if (res.headersSent) return next(err);
+      return res.status(status).json({ message });
     });
 
     const { setupVite } = await import("./vite");
     await setupVite(httpServer, app);
-    viteIsReady = true;
-    viteReadyResolve();
+    appIsReady = true;
+    appReadyResolve();
+
+    log("Application fully ready");
   }
 })();
