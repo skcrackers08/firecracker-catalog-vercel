@@ -15,6 +15,16 @@ process.on("unhandledRejection", (reason) => {
   console.error("Unhandled Rejection:", reason);
 });
 
+process.on("SIGTERM", () => {
+  httpServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000);
+});
+
+process.on("SIGINT", () => {
+  httpServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 3000);
+});
+
 const app = express();
 const httpServer = createServer(app);
 
