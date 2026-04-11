@@ -10,6 +10,7 @@ import { CustomerAuthProvider } from "@/hooks/use-customer-auth";
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
 import ProductDetails from "@/pages/ProductDetails";
+import ProductGroups from "@/pages/ProductGroups";
 import Checkout from "@/pages/Checkout";
 import Bill from "@/pages/Bill";
 import Wishlist from "@/pages/Wishlist";
@@ -21,6 +22,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+      <Route path="/groups" component={ProductGroups} />
       <Route path="/admin" component={Admin} />
       <Route path="/product/:id" component={ProductDetails} />
       <Route path="/checkout/:id" component={Checkout} />

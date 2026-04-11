@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu } from "lucide-react";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -21,54 +21,65 @@ export function Layout({ children }: LayoutProps) {
 
   const isCheckoutPage = location === "/checkout";
 
+  const bottomNavItems = [
+    { label: "Home", icon: Home, href: "/" },
+    { label: "Search", icon: Search, href: "/?search=1" },
+    { label: "Cart", icon: ShoppingCart, href: null, action: () => setIsCartOpen(true) },
+    { label: "Orders", icon: Package, href: customer ? "/account" : "/login" },
+    { label: "Profile", icon: User, href: customer ? "/account" : "/login" },
+  ];
+
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
       {/* Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/80 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-3 group">
-            <div className="relative flex items-center justify-center w-12 h-12 rounded-full overflow-hidden border-2 border-primary/30 shadow-fire-glow group-hover:scale-110 transition-transform duration-300">
-              <img src={logoPng} alt="S K Crackers Logo" className="w-full h-full object-cover" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-display text-gradient-gold drop-shadow-sm tracking-widest mt-1">
-              S K CRACKERS
-            </h1>
-          </Link>
-          
-          <nav className="flex items-center gap-6">
-            <Link href="/admin" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block">
-              ADMIN
+      <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/90 backdrop-blur-md">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button className="p-1.5 text-muted-foreground hover:text-primary transition-colors md:hidden" data-testid="button-menu">
+              <Menu className="w-5 h-5" />
+            </button>
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative flex items-center justify-center w-9 h-9 rounded-full overflow-hidden border-2 border-primary/40 shadow-fire-glow group-hover:scale-110 transition-transform duration-300">
+                <img src={logoPng} alt="S K Crackers Logo" className="w-full h-full object-cover" />
+              </div>
+              <h1 className="text-2xl md:text-3xl font-display text-gradient-gold drop-shadow-sm tracking-widest">
+                S K CRACKERS
+              </h1>
             </Link>
-            <Link href="/" className="text-sm font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block">
-              CATALOG
+          </div>
+
+          <nav className="flex items-center gap-2">
+            <Link href="/admin" className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block mr-2">
+              ADMIN
             </Link>
             <Link
               href={customer ? "/account" : "/login"}
               data-testid="link-account"
-              className={cn(
-                "flex items-center gap-1.5 text-sm font-semibold transition-colors hidden sm:flex",
-                customer ? "text-primary hover:text-primary/80" : "text-muted-foreground hover:text-primary"
-              )}
+              className="hidden sm:flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-primary transition-colors mr-1"
             >
               <User className="w-4 h-4" />
               {customer ? customer.username : "LOGIN"}
             </Link>
             <Link href="/wishlist" className="relative p-2 text-muted-foreground hover:text-pink-400 transition-colors">
-              <Heart className="w-6 h-6" />
+              <Heart className="w-5 h-5" />
               {wishlist.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-pink-500 text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background">
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-pink-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-background">
                   {wishlist.length}
                 </span>
               )}
             </Link>
+            <button className="relative p-2 text-muted-foreground hover:text-primary transition-colors">
+              <Bell className="w-5 h-5" />
+            </button>
             {!isCheckoutPage && (
-              <button 
+              <button
                 onClick={() => setIsCartOpen(!isCartOpen)}
                 className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
+                data-testid="button-cart-open"
               >
-                <ShoppingBag className="w-6 h-6" />
+                <ShoppingBag className="w-5 h-5" />
                 {totalItems > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary text-white text-[10px] font-bold flex items-center justify-center rounded-full border-2 border-background">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-black text-[9px] font-bold flex items-center justify-center rounded-full border border-background">
                     {totalItems}
                   </span>
                 )}
@@ -79,31 +90,77 @@ export function Layout({ children }: LayoutProps) {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+      <main className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         {children}
       </main>
 
-      {/* Cart Popup Icon (Visible when items are added) */}
-      <AnimatePresence>
-        {totalItems > 0 && !isCartOpen && !isCheckoutPage && (
-          <motion.div
-            initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0, opacity: 0 }}
-            className="fixed bottom-6 right-6 z-[60]"
-          >
-            <button
-              onClick={() => setIsCartOpen(true)}
-              className="w-16 h-16 bg-primary text-white rounded-full shadow-fire-glow flex items-center justify-center relative hover:scale-110 transition-transform border-2 border-white/20"
-            >
-              <ShoppingCart className="w-8 h-8" />
-              <span className="absolute -top-1 -right-1 w-6 h-6 bg-white text-primary text-xs font-bold flex items-center justify-center rounded-full border-2 border-primary">
-                {totalItems}
-              </span>
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Bottom Navigation */}
+      {!isCheckoutPage && (
+        <nav className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-md border-t border-white/10 safe-area-bottom">
+          <div className="max-w-7xl mx-auto flex items-center justify-around h-16">
+            {bottomNavItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = item.href && (item.href === "/" ? location === "/" : location.startsWith(item.href.split("?")[0]));
+              const isCart = item.label === "Cart";
+
+              if (item.action) {
+                return (
+                  <button
+                    key={item.label}
+                    onClick={item.action}
+                    data-testid={`nav-${item.label.toLowerCase()}`}
+                    className="flex flex-col items-center gap-1 px-3 py-2 relative"
+                  >
+                    <div className={cn(
+                      "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                      isCart && totalItems > 0
+                        ? "bg-primary text-black shadow-fire-glow scale-110"
+                        : "text-muted-foreground hover:text-primary"
+                    )}>
+                      <Icon className="w-5 h-5" />
+                      {isCart && totalItems > 0 && (
+                        <span className="absolute top-1 right-2 w-4 h-4 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full">
+                          {totalItems}
+                        </span>
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-[10px] font-medium",
+                      isCart && totalItems > 0 ? "text-primary" : "text-muted-foreground"
+                    )}>
+                      {item.label}
+                    </span>
+                  </button>
+                );
+              }
+
+              return (
+                <Link
+                  key={item.label}
+                  href={item.href!}
+                  data-testid={`nav-${item.label.toLowerCase()}`}
+                  className="flex flex-col items-center gap-1 px-3 py-2 relative"
+                >
+                  <div className={cn(
+                    "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                    isActive
+                      ? "bg-primary text-black shadow-fire-glow"
+                      : "text-muted-foreground hover:text-primary"
+                  )}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  )}>
+                    {item.label}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
 
       {/* Cart Drawer/Modal */}
       <AnimatePresence>
@@ -150,7 +207,7 @@ export function Layout({ children }: LayoutProps) {
                           <p className="text-xs text-muted-foreground">{item.quantity} x ₹{Number(item.price).toFixed(2)}</p>
                         </div>
                         <div className="text-sm font-bold text-primary">₹{(Number(item.price) * item.quantity).toFixed(2)}</div>
-                        <button 
+                        <button
                           onClick={() => removeFromCart(item.id)}
                           className="p-2 text-muted-foreground hover:text-red-400 transition-colors"
                         >
@@ -167,7 +224,7 @@ export function Layout({ children }: LayoutProps) {
                       <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Total Amount</span>
                       <span className="text-3xl font-display text-primary">₹{totalAmount.toFixed(2)}</span>
                     </div>
-                    <Button 
+                    <Button
                       className="w-full h-14 text-lg font-bold shadow-fire-glow"
                       onClick={() => {
                         setIsCartOpen(false);
@@ -184,19 +241,6 @@ export function Layout({ children }: LayoutProps) {
           </div>
         )}
       </AnimatePresence>
-
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-8 mt-auto bg-black/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <img src={logoPng} alt="Logo" className="w-8 h-8 rounded-full object-cover border border-white/10" />
-            <span className="font-display text-xl tracking-wider text-muted-foreground">S K CRACKERS</span>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} Top S K Crackers. All rights reserved.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }
