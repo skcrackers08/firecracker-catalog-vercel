@@ -1,6 +1,6 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings } from "lucide-react";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -49,8 +49,13 @@ export function Layout({ children }: LayoutProps) {
           </div>
 
           <nav className="flex items-center gap-2">
-            <Link href="/admin" className="text-xs font-semibold text-muted-foreground hover:text-primary transition-colors hidden sm:block mr-2">
-              ADMIN
+            <Link
+              href="/admin"
+              data-testid="link-admin"
+              title="Admin Panel"
+              className="p-2 text-muted-foreground hover:text-primary transition-colors"
+            >
+              <Settings className="w-5 h-5" />
             </Link>
             <Link
               href={customer ? "/account" : "/login"}

@@ -1,4 +1,4 @@
-import { Link, useLocation } from "wouter";
+import { Link, useLocation, useLocation as useSetLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
@@ -15,10 +15,9 @@ export default function Home() {
   const { isInWishlist, toggleWishlist } = useWishlist();
   const [currentIdx, setCurrentIdx] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const catalogRef = useRef<HTMLDivElement>(null);
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
   useEffect(() => {
     if (location.includes("search=1")) {
@@ -48,19 +47,10 @@ export default function Home() {
   const featuredProducts = products?.slice(0, 5) ?? [];
   const topProduct = featuredProducts[currentIdx];
 
-  const getGroupCategories = (groupName: string | null) => {
-    if (!groupName) return null;
-    const group = PRODUCT_GROUPS.find(g => g.name === groupName);
-    return group?.categories ?? null;
-  };
-
   const filteredProducts = products?.filter(p => {
-    const matchesSearch = !searchQuery.trim() ||
+    return !searchQuery.trim() ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const groupCategories = getGroupCategories(selectedGroup);
-    const matchesGroup = !groupCategories || groupCategories.includes(p.category || "Other");
-    return matchesSearch && matchesGroup;
   });
 
   return (
@@ -183,23 +173,18 @@ export default function Home() {
 
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-7 gap-3">
             {PRODUCT_GROUPS.map((group) => {
-              const isSelected = selectedGroup === group.name;
               const count = products?.filter(p =>
-                group.categories.includes(p.category || "Other")
+                group.categories.includes(p.category || "")
               ).length ?? 0;
 
               return (
                 <button
                   key={group.name}
                   data-testid={`group-${group.name.toLowerCase().replace(/\s+/g, "-")}`}
-                  onClick={() => setSelectedGroup(isSelected ? null : group.name)}
+                  onClick={() => setLocation(`/group/${encodeURIComponent(group.name)}`)}
                   className="flex flex-col items-center gap-2 group"
                 >
-                  <div className={`w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden border-2 transition-all duration-200 ${
-                    isSelected
-                      ? "border-primary shadow-fire-glow scale-105"
-                      : "border-white/10 hover:border-primary/50 hover:scale-105"
-                  }`}>
+                  <div className="w-16 h-16 sm:w-18 sm:h-18 rounded-2xl overflow-hidden border-2 border-white/10 hover:border-primary/50 hover:scale-105 transition-all duration-200">
                     <div className="relative w-full h-full">
                       <img
                         src={group.image}
@@ -209,11 +194,11 @@ export default function Home() {
                           (e.target as HTMLImageElement).src = "https://images.unsplash.com/photo-1514304859873-1025ee74eb3a?auto=format&fit=crop&q=80&w=200";
                         }}
                       />
-                      <div className={`absolute inset-0 bg-black/20 ${isSelected ? "bg-primary/20" : ""}`} />
+                      <div className="absolute inset-0 bg-black/20" />
                     </div>
                   </div>
                   <div className="text-center">
-                    <p className={`text-[11px] font-medium leading-tight ${isSelected ? "text-primary" : "text-muted-foreground group-hover:text-white"} transition-colors`}>
+                    <p className="text-[11px] font-medium leading-tight text-muted-foreground group-hover:text-white transition-colors">
                       {group.name}
                     </p>
                     {count > 0 && (
@@ -231,16 +216,16 @@ export default function Home() {
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-display tracking-wider flex items-center gap-2 text-white">
           <span className="w-1.5 h-6 bg-primary rounded-full inline-block"></span>
-          {selectedGroup ? selectedGroup.toUpperCase() : "ALL CRACKERS"}
-          {selectedGroup && (
+          {searchQuery ? "SEARCH RESULTS" : "ALL CRACKERS"}
+          {searchQuery && (
             <span className="text-xs text-muted-foreground font-sans font-normal ml-1">
               ({filteredProducts?.length ?? 0} items)
             </span>
           )}
         </h3>
-        {selectedGroup && (
+        {searchQuery && (
           <button
-            onClick={() => setSelectedGroup(null)}
+            onClick={() => setSearchQuery("")}
             className="text-xs text-primary hover:text-primary/80 flex items-center gap-1"
           >
             <X className="w-3 h-3" /> Clear
@@ -262,24 +247,13 @@ export default function Home() {
       ) : filteredProducts?.length === 0 ? (
         <div className="p-12 text-center bg-white/5 rounded-2xl">
           <p className="text-lg text-muted-foreground">
-            {searchQuery
-              ? `No crackers found for "${searchQuery}"`
-              : selectedGroup
-              ? `No products in "${selectedGroup}" yet.`
-              : "No crackers available right now."}
+            {searchQuery ? `No crackers found for "${searchQuery}"` : "No crackers available right now."}
           </p>
-          <div className="flex gap-3 justify-center mt-4">
-            {searchQuery && (
-              <button onClick={() => setSearchQuery("")} className="text-primary text-sm underline">
-                Clear search
-              </button>
-            )}
-            {selectedGroup && (
-              <button onClick={() => setSelectedGroup(null)} className="text-primary text-sm underline">
-                Show all products
-              </button>
-            )}
-          </div>
+          {searchQuery && (
+            <button onClick={() => setSearchQuery("")} className="text-primary text-sm underline mt-3 block mx-auto">
+              Clear search
+            </button>
+          )}
         </div>
       ) : (
         <motion.div
