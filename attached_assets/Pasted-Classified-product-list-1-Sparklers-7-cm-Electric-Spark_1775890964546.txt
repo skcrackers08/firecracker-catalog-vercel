@@ -1,0 +1,167 @@
+Classified product list
+1. Sparklers
+7 cm Electric Sparklers
+7 cm Red
+7 cm Green
+7 cm Crackling
+10 cm Electric
+10 cm Red
+10 cm Green
+10 cm Crackling
+15 cm Electric Sparklers
+15 cm Red
+15 cm Green
+15 cm Crackling
+30 cm Red Sparklers
+30 cm Green
+30 cm Electric
+30 cm Crackling
+50 cm Electric Sparklers
+50 cm Crackling Sparklers
+75 cm Electric Sparklers
+75 cm Crackling Sparklers
+2. Flower Pots
+Flower Pots Big
+Flower Pots Small
+Flower Pots Special
+Flower Pots Asoka
+Flower Pots Deluxe
+Colour Koti
+Colour Koti Deluxe
+3. Twinkling Star
+1.5 Feet Twinkling Star
+2 Feet Twinkling Star
+4. Chakkars
+Chakkar Big
+Chakkar Special
+Chakkar Deluxe
+Chakkar Asoka
+Spinner Special
+Spinner Deluxe
+5. Fancy Wheels
+Musical Wheel
+2 min Chakkar Deluxe
+Silver Giant Wheel
+Wire Chakkar
+6. Fancy Fountains
+Water Queen
+Mumbai Beauty / Hitlar
+Trump Jelly / Pogo
+Pop Star
+Star Dum (Big)
+Tri Colour Fountain
+Tinopen
+Golden Rise
+Touch & Touch
+Feather Drop S
+Mojito, Popcorn, Cock Fight
+Bus
+Top Gun (Big)
+Showa (5 pcs)
+Golden Peacock (old) 6000
+7. Peacock Series
+Anand Peacock 2 in 1
+Bada Peacock Single
+Peacock Fathan (5 pcs)
+8. Mini Fancy
+Chota Fancy
+White House (or) Pentagon
+Penta Colour Drops
+Ping Pong
+Air Gel
+7 Shot
+9. Fancy Colour Shots
+12 Shot Rider
+12 Shot Colour
+25 Shot Rider
+18 Shot Colour
+30 Shot Multi Colour
+60 Shot
+120 Shot
+240 Shot
+3 inch Avenger Setout (30 shot)
+10. Sky Shots
+2 inch Single Fancy
+2 inch Fancy (3 pcs)
+3.5 inch Single Fancy (2 pcs)
+Nayagara Falls
+4 inch Single Fancy
+4 inch 7 Ball Fancy
+4 inch Fancy (2 pcs)
+4 inch Double Ball Fancy
+6 inch Double Ball Fancy
+11. One Sound Crackers
+2¾ Kuruvi
+3½ Lakshmi
+2¼ Lakshmi
+4" Gold Lakshmi
+4½ inch Lakshmi Deluxe
+5 inch Jallikattu
+2 Sound
+Super Deluxe Lakshmi
+12. Bomb Varieties
+Hydro Bomb
+Jug Mug 3000 Bomb
+Jug Mug 5000 Bomb
+Dinosaur Mega Bomb
+Laxmi Digital Bomb
+¼ Paper Bomb
+½ Paper Bomb
+1 kg Paper Bomb
+Colour Paper Bomb
+Avathan (10 pcs)
+13. Rockets
+Baby Rocket
+Rocket Bomb
+Whistling Rocket
+Crackling Rocket
+Lunik Rocket
+14. Wala
+28 Chorsa
+50 Deluxe
+56 Giant
+100 Deluxe
+100 Sound
+1K Wala
+2K Wala
+5K Wala
+10K Wala
+15. Kids Item
+Mini Sisan
+Mega Sisan
+Drone
+Helicopter
+10' Pencil
+Water Falls Pencil
+Mercury Pencil
+Selfi Stick
+Colour Smoke Candle
+Water Falls Pencil
+Electric Stone
+Magic Pop
+Kit Kat
+Sachin Matches Box
+Lion Matches
+Big Boss 10 in 1
+16. Bijili Crackers
+Red Bijili
+Striped Bijili
+Mega Bijili
+Simple group → subgroup structure
+Sparklers → Electric, Red, Green, Crackling
+Flower Pots → Big, Small, Special, Asoka, Deluxe, Colour Koti, Colour Koti Deluxe
+Twinkling Star → 1.5 Feet, 2 Feet
+Chakkars → Big, Special, Deluxe, Asoka, Spinner Special, Spinner Deluxe
+Fancy Wheels → Musical Wheel, 2 min Chakkar Deluxe, Silver Giant Wheel, Wire Chakkar
+Fancy Fountains → multiple fountain items
+Peacock Series → Anand Peacock, Bada Peacock, Peacock Fathan
+Mini Fancy → Chota Fancy, White House/Pentagon, Penta Colour Drops, Ping Pong, Air Gel, 7 Shot
+Fancy Colour Shots → 12/25/18/30/60/120/240 shot items
+Sky Shots → 2 inch, 3.5 inch, 4 inch, 6 inch variants
+One Sound Crackers → Kuruvi, Lakshmi, Gold Lakshmi, Lakshmi Deluxe, Jallikattu, 2 Sound, Super Deluxe Lakshmi
+Bomb Varieties → Hydro, Jug Mug, Dinosaur, Digital, Paper Bomb variants
+Rockets → Baby, Bomb, Whistling, Crackling, Lunik
+Wala → 28, 50, 56, 100, 1K, 2K, 5K, 10K
+Kids Item → novelty items
+Bijili Crackers → Red, Striped, Mega
+I can also turn this into a clean Excel-style table with columns: S.No | Group | Subgroup/Product Name.

@@ -175,7 +175,7 @@ export default function Home() {
       {!searchQuery && (
         <section className="mb-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-display tracking-wider text-white">Product Groups</h2>
+            <h2 className="text-xl font-display tracking-wider text-white">Still looking for these</h2>
             <Link href="/groups" className="text-sm font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-0.5">
               View All <ArrowRight className="w-4 h-4" />
             </Link>

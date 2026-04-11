@@ -439,9 +439,12 @@ export default function Admin() {
                 <span>{product.name}</span>
                 <span className="text-primary">₹{product.price}</span>
               </CardTitle>
-              <div className="flex items-center gap-1 mt-1">
+              <div className="flex items-center gap-1 mt-1 flex-wrap">
                 <Tag className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{product.category || "Other"}</span>
+                <span className="text-xs text-muted-foreground">{product.category || "Sparklers"}</span>
+                {product.subgroup && (
+                  <span className="text-xs bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium">{product.subgroup}</span>
+                )}
               </div>
             </CardHeader>
             <CardContent>
@@ -514,7 +517,8 @@ function ProductForm({
       price: "",
       imageUrl: "",
       videoUrl: "",
-      category: "Other",
+      category: "Sparklers",
+      subgroup: "",
     },
   });
 
@@ -565,6 +569,19 @@ function ProductForm({
                   ))}
                 </SelectContent>
               </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="subgroup"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Subgroup / Type</FormLabel>
+              <FormControl>
+                <Input {...field} value={field.value ?? ""} data-testid="input-subgroup" placeholder="e.g. Electric, Red, Deluxe" />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}

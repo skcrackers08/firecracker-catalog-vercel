@@ -4,18 +4,21 @@ import { z } from "zod";
 
 export const PRODUCT_CATEGORIES = [
   "Sparklers",
-  "Twinkling Stars",
   "Flower Pots",
-  "Ground Crackers",
+  "Twinkling Star",
+  "Chakkars",
+  "Fancy Wheels",
   "Fancy Fountains",
-  "Aerial Shots",
-  "Sound Crackers",
+  "Peacock Series",
+  "Mini Fancy",
+  "Fancy Colour Shots",
+  "Sky Shots",
+  "One Sound Crackers",
+  "Bomb Varieties",
   "Rockets",
   "Wala",
-  "Kids Items",
+  "Kids Item",
   "Bijili Crackers",
-  "Gift Box",
-  "Other",
 ] as const;
 
 export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
@@ -27,7 +30,8 @@ export const products = pgTable("products", {
   price: numeric("price", { precision: 10, scale: 2 }).notNull(),
   imageUrl: text("image_url").notNull(),
   videoUrl: text("video_url"),
-  category: text("category").notNull().default("Other"),
+  category: text("category").notNull().default("Sparklers"),
+  subgroup: text("subgroup").default(""),
 });
 
 export const customers = pgTable("customers", {
