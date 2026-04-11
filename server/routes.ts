@@ -153,7 +153,33 @@ export async function registerRoutes(
       const { phone } = z.object({ phone: z.string().min(10) }).parse(req.body);
       const otp = generateOtp();
       otpStore.set(phone, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
-      res.json({ success: true, otp });
+
+      const apiKey = process.env.FAST2SMS_API_KEY;
+      let smsSent = false;
+
+      if (apiKey) {
+        try {
+          const url = new URL("https://www.fast2sms.com/dev/bulkV2");
+          url.searchParams.set("authorization", apiKey);
+          url.searchParams.set("variables_values", otp);
+          url.searchParams.set("route", "otp");
+          url.searchParams.set("numbers", phone);
+          const smsRes = await fetch(url.toString());
+          const smsData = await smsRes.json() as { return?: boolean; message?: string[] };
+          smsSent = smsData.return === true;
+          if (!smsSent) {
+            console.error("Fast2SMS error:", smsData.message);
+          }
+        } catch (smsErr) {
+          console.error("Failed to send SMS:", smsErr);
+        }
+      }
+
+      if (smsSent) {
+        res.json({ success: true, smsSent: true });
+      } else {
+        res.json({ success: true, smsSent: false, otp });
+      }
     } catch (err) {
       res.status(400).json({ message: "Invalid phone number" });
     }
@@ -167,11 +193,19 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Invalid or expired OTP" });
       }
       otpStore.delete(phone);
-      const customer = await storage.getCustomerByPhone(phone);
+
+      let customer = await storage.getCustomerByPhone(phone);
       if (customer) {
         await storage.verifyCustomerPhone(customer.id);
+      } else {
+        const autoUsername = `user_${phone}`;
+        customer = await storage.createCustomer({ username: autoUsername, password: `__otp_${Date.now()}__`, phone });
+        await storage.verifyCustomerPhone(customer.id);
       }
-      res.json({ success: true });
+
+      req.session.customerId = customer.id;
+      const { passwordHash: _, ...safeCustomer } = customer;
+      res.json({ success: true, customer: safeCustomer });
     } catch (err) {
       res.status(400).json({ message: "Verification failed" });
     }

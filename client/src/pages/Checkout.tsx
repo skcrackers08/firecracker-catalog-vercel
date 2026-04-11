@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation, Link } from "wouter";
-import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar, Copy, Check, Smartphone } from "lucide-react";
+import { CreditCard, ArrowLeft, Receipt, Trash2, User, Phone, ArrowRight, MapPin, CheckCircle2, ExternalLink, Landmark, Lock, Calendar, Copy, Check, Smartphone, Mail, Truck } from "lucide-react";
 import { SiPhonepe, SiGooglepay, SiPaytm, SiVisa, SiMastercard } from "react-icons/si";
 import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
@@ -9,6 +9,7 @@ import { useCart } from "@/hooks/use-cart";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const DEFAULT_MERCHANT_UPI = "9344468937@axl";
 const MERCHANT_NAME = "SK Crackers";
@@ -18,13 +19,30 @@ function getMerchantUPI() {
   return localStorage.getItem("sk-merchant-upi") || DEFAULT_MERCHANT_UPI;
 }
 
+const INDIAN_STATES = [
+  "Andhra Pradesh","Arunachal Pradesh","Assam","Bihar","Chhattisgarh",
+  "Goa","Gujarat","Haryana","Himachal Pradesh","Jharkhand","Karnataka",
+  "Kerala","Madhya Pradesh","Maharashtra","Manipur","Meghalaya","Mizoram",
+  "Nagaland","Odisha","Punjab","Rajasthan","Sikkim","Tamil Nadu","Telangana",
+  "Tripura","Uttar Pradesh","Uttarakhand","West Bengal",
+  "Andaman and Nicobar Islands","Chandigarh","Dadra and Nagar Haveli and Daman and Diu",
+  "Delhi","Jammu and Kashmir","Ladakh","Lakshadweep","Puducherry",
+];
+
 const customerDetailsSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits").max(15, "Phone number too long"),
-  address: z.string().min(10, "Address must be at least 10 characters"),
+  phone: z.string().length(10, "Please enter a valid 10-digit mobile number"),
+  email: z.string().email("Please enter a valid email").optional().or(z.literal("")),
+  doorStreet: z.string().min(3, "Please enter your door no / street"),
+  area: z.string().min(2, "Please enter your area / locality"),
+  city: z.string().min(2, "Please enter your city"),
+  district: z.string().min(2, "Please enter your district"),
+  state: z.string().min(2, "Please select your state"),
+  pincode: z.string().length(6, "Pincode must be 6 digits"),
 });
 
 type CustomerDetails = z.infer<typeof customerDetailsSchema>;
+type CustomerDetailsWithAddress = CustomerDetails & { address: string };
 type UpiApp = "phonepe" | "gpay" | "paytm" | "any";
 type CardType = "debit" | "credit";
 
@@ -66,7 +84,7 @@ export default function Checkout() {
   const { items, totalAmount, removeFromCart, clearCart } = useCart();
   const createOrder = useCreateOrder();
   const [step, setStep] = useState<1 | 2>(1);
-  const [customerDetails, setCustomerDetails] = useState<CustomerDetails | null>(null);
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetailsWithAddress | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<"upi" | "card">("upi");
   const [showPaymentOptions, setShowPaymentOptions] = useState(false);
   const [selectedUpiApp, setSelectedUpiApp] = useState<UpiApp | null>(null);
@@ -80,7 +98,7 @@ export default function Checkout() {
 
   const form = useForm<CustomerDetails>({
     resolver: zodResolver(customerDetailsSchema),
-    defaultValues: { name: "", phone: "", address: "" },
+    defaultValues: { name: "", phone: "", email: "", doorStreet: "", area: "", city: "", district: "", state: "", pincode: "" },
   });
 
   if (items.length === 0) {
@@ -99,7 +117,14 @@ export default function Checkout() {
   const finalAmount = totalAmount + gstAmount;
 
   const onDetailsSubmit = (data: CustomerDetails) => {
-    setCustomerDetails(data);
+    const parts = [
+      data.doorStreet,
+      data.area,
+      data.city,
+      `${data.district}, ${data.state}`,
+      `PIN: ${data.pincode}`,
+    ].filter(Boolean);
+    setCustomerDetails({ ...data, address: parts.join(", ") } as CustomerDetailsWithAddress);
     setStep(2);
   };
 
@@ -162,6 +187,7 @@ export default function Checkout() {
       quantity: items.reduce((sum, item) => sum + item.quantity, 0),
       customerName: customerDetails.name,
       customerPhone: customerDetails.phone,
+      customerEmail: customerDetails.email || undefined,
       customerAddress: customerDetails.address,
       paymentMethod: pm,
       subtotal: totalAmount.toFixed(2),
@@ -268,34 +294,153 @@ export default function Checkout() {
                   <span className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-3 text-sm">3</span>
                   Enter Delivery Information
                 </h2>
-                <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-6">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="name">Full Name</Label>
-                      <div className="relative">
-                        <User className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                        <Input id="name" placeholder="Enter your name" className="pl-10 h-12 bg-white/5 border-white/10" {...form.register("name")} />
-                      </div>
-                      {form.formState.errors.name && <p className="text-sm text-red-500">{form.formState.errors.name.message}</p>}
+                <form onSubmit={form.handleSubmit(onDetailsSubmit)} className="space-y-8">
+
+                  {/* CUSTOMER DETAILS */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <User className="w-5 h-5 text-primary" />
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Customer Details</h3>
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">Phone Number</Label>
-                      <div className="relative">
-                        <Phone className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                        <Input id="phone" type="tel" placeholder="Enter your phone number" className="pl-10 h-12 bg-white/5 border-white/10" {...form.register("phone")} />
+                    <div className="space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                          Name <span className="text-red-400">(Mandatory)</span>
+                        </Label>
+                        <Input
+                          data-testid="input-name"
+                          placeholder="Enter full name"
+                          className="h-12 bg-white/5 border-white/10"
+                          {...form.register("name")}
+                        />
+                        {form.formState.errors.name && <p className="text-xs text-red-400">{form.formState.errors.name.message}</p>}
                       </div>
-                      {form.formState.errors.phone && <p className="text-sm text-red-500">{form.formState.errors.phone.message}</p>}
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                            Phone <span className="text-red-400">(Mandatory)</span>
+                          </Label>
+                          <div className="flex items-center gap-1.5">
+                            <div className="flex items-center h-12 px-2.5 rounded-xl bg-white/5 border border-white/10 text-xs font-medium text-muted-foreground shrink-0">+91</div>
+                            <Input
+                              data-testid="input-phone"
+                              type="tel"
+                              inputMode="numeric"
+                              placeholder="Mobile number"
+                              className="h-12 bg-white/5 border-white/10 font-mono tracking-wider flex-1"
+                              maxLength={10}
+                              {...form.register("phone", {
+                                onChange: (e) => {
+                                  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                }
+                              })}
+                            />
+                          </div>
+                          {form.formState.errors.phone && <p className="text-xs text-red-400">{form.formState.errors.phone.message}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                            Email <span className="text-muted-foreground/60">(Optional)</span>
+                          </Label>
+                          <Input
+                            data-testid="input-email"
+                            type="email"
+                            placeholder="mail@example.com"
+                            className="h-12 bg-white/5 border-white/10"
+                            {...form.register("email")}
+                          />
+                          {form.formState.errors.email && <p className="text-xs text-red-400">{form.formState.errors.email.message}</p>}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="address">Delivery Address</Label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3 top-3 w-5 h-5 text-muted-foreground" />
-                      <Textarea id="address" placeholder="Enter your full delivery address" className="pl-10 min-h-[100px] bg-white/5 border-white/10" {...form.register("address")} />
+
+                  {/* DELIVERY ADDRESS */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-4">
+                      <Truck className="w-5 h-5 text-primary" />
+                      <h3 className="text-sm font-bold uppercase tracking-widest text-primary">Delivery Address</h3>
                     </div>
-                    {form.formState.errors.address && <p className="text-sm text-red-500">{form.formState.errors.address.message}</p>}
+                    <div className="bg-white/3 rounded-2xl border border-white/8 p-4 space-y-4">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Door No / Street</Label>
+                        <Input
+                          data-testid="input-door-street"
+                          placeholder="Building, Street name"
+                          className="h-12 bg-white/5 border-white/10"
+                          {...form.register("doorStreet")}
+                        />
+                        {form.formState.errors.doorStreet && <p className="text-xs text-red-400">{form.formState.errors.doorStreet.message}</p>}
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Area</Label>
+                          <Input
+                            data-testid="input-area"
+                            placeholder="Locality"
+                            className="h-12 bg-white/5 border-white/10"
+                            {...form.register("area")}
+                          />
+                          {form.formState.errors.area && <p className="text-xs text-red-400">{form.formState.errors.area.message}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">City</Label>
+                          <Input
+                            data-testid="input-city"
+                            placeholder="City name"
+                            className="h-12 bg-white/5 border-white/10"
+                            {...form.register("city")}
+                          />
+                          {form.formState.errors.city && <p className="text-xs text-red-400">{form.formState.errors.city.message}</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">District</Label>
+                          <Input
+                            data-testid="input-district"
+                            placeholder="District"
+                            className="h-12 bg-white/5 border-white/10"
+                            {...form.register("district")}
+                          />
+                          {form.formState.errors.district && <p className="text-xs text-red-400">{form.formState.errors.district.message}</p>}
+                        </div>
+                        <div className="space-y-1.5">
+                          <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">State</Label>
+                          <Select onValueChange={(val) => form.setValue("state", val, { shouldValidate: true })}>
+                            <SelectTrigger data-testid="select-state" className="h-12 bg-white/5 border-white/10">
+                              <SelectValue placeholder="Select State" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {INDIAN_STATES.map((s) => (
+                                <SelectItem key={s} value={s}>{s}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {form.formState.errors.state && <p className="text-xs text-red-400">{form.formState.errors.state.message}</p>}
+                        </div>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Pincode</Label>
+                        <Input
+                          data-testid="input-pincode"
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="6 digits"
+                          className="h-12 bg-white/5 border-white/10 font-mono tracking-widest max-w-[160px]"
+                          maxLength={6}
+                          {...form.register("pincode", {
+                            onChange: (e) => {
+                              e.target.value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                            }
+                          })}
+                        />
+                        {form.formState.errors.pincode && <p className="text-xs text-red-400">{form.formState.errors.pincode.message}</p>}
+                      </div>
+                    </div>
                   </div>
-                  <Button type="submit" className="w-full h-14 text-lg font-bold group">
+
+                  <Button type="submit" className="w-full h-14 text-lg font-bold group" data-testid="button-continue-payment">
                     Continue to Payment
                     <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>

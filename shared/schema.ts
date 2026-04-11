@@ -48,6 +48,7 @@ export const orders = pgTable("orders", {
   quantity: integer("quantity").notNull(),
   customerName: text("customer_name").notNull(),
   customerPhone: text("customer_phone").notNull(),
+  customerEmail: text("customer_email"),
   customerAddress: text("customer_address").notNull(),
   paymentMethod: text("payment_method").notNull(),
   subtotal: numeric("subtotal", { precision: 10, scale: 2 }).notNull(),

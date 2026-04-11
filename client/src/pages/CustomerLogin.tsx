@@ -1,295 +1,244 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { User, Lock, Phone, Eye, EyeOff, ArrowRight, ShieldCheck, CheckCircle2 } from "lucide-react";
+import { Phone, ShieldCheck, CheckCircle2, ArrowLeft, MessageSquare } from "lucide-react";
 import { Layout } from "@/components/Layout";
 import { Button, Card, Input, Label, cn } from "@/components/ui-custom";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { useToast } from "@/hooks/use-toast";
 
-type Tab = "login" | "register";
-type RegisterStep = "details" | "otp";
+type Step = "phone" | "otp" | "done";
 
 export default function CustomerLogin() {
-  const [tab, setTab] = useState<Tab>("login");
   const [, setLocation] = useLocation();
-  const { login, register, sendOtp, verifyOtp, customer } = useCustomerAuth();
+  const { sendOtp, verifyOtpAndLogin, customer } = useCustomerAuth();
   const { toast } = useToast();
 
-  const [loginForm, setLoginForm] = useState({ username: "", password: "" });
-  const [showLoginPwd, setShowLoginPwd] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState("");
-
-  const [registerForm, setRegisterForm] = useState({ username: "", password: "", phone: "" });
-  const [showRegPwd, setShowRegPwd] = useState(false);
-  const [registerStep, setRegisterStep] = useState<RegisterStep>("details");
-  const [registerLoading, setRegisterLoading] = useState(false);
-  const [registerError, setRegisterError] = useState("");
-  const [otpSending, setOtpSending] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
-  const [enteredOtp, setEnteredOtp] = useState("");
-  const [otpVerified, setOtpVerified] = useState(false);
-  const [otpError, setOtpError] = useState("");
+  const [step, setStep] = useState<Step>("phone");
+  const [phone, setPhone] = useState("");
+  const [otp, setOtp] = useState("");
+  const [devOtp, setDevOtp] = useState<string | null>(null);
+  const [smsSent, setSmsSent] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   useEffect(() => {
     if (customer) setLocation("/account");
   }, [customer]);
 
+  useEffect(() => {
+    if (resendCooldown <= 0) return;
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000);
+    return () => clearTimeout(t);
+  }, [resendCooldown]);
+
   if (customer) return null;
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSendOtp = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.length !== 10) {
+      setError("Please enter a valid 10-digit mobile number.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    const result = await sendOtp(cleaned);
+    setLoading(false);
+    if (!result) {
+      setError("Failed to send OTP. Please try again.");
+      return;
+    }
+    setSmsSent(result.smsSent);
+    if (!result.smsSent && result.otp) {
+      setDevOtp(result.otp);
+    }
+    setStep("otp");
+    setResendCooldown(30);
+    toast({
+      title: result.smsSent ? "OTP Sent via SMS" : "OTP Generated",
+      description: result.smsSent
+        ? `A 6-digit OTP has been sent to +91 ${cleaned}`
+        : "SMS not configured — your OTP is shown below.",
+    });
+  };
+
+  const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginForm.username.trim() || !loginForm.password) {
-      setLoginError("Please enter your username and password.");
+    if (otp.length !== 6) {
+      setError("Please enter the 6-digit OTP.");
       return;
     }
-    setLoginLoading(true);
-    setLoginError("");
-    const ok = await login(loginForm.username.trim(), loginForm.password);
-    setLoginLoading(false);
+    setError("");
+    setLoading(true);
+    const cleaned = phone.replace(/\D/g, "");
+    const ok = await verifyOtpAndLogin(cleaned, otp);
+    setLoading(false);
     if (ok) {
-      toast({ title: "Welcome back!", description: `Logged in as ${loginForm.username}` });
-      setLocation("/account");
+      setStep("done");
+      toast({ title: "Verified!", description: "You are now logged in." });
+      setTimeout(() => setLocation("/account"), 800);
     } else {
-      setLoginError("Invalid username or password. Please try again.");
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!registerForm.phone || registerForm.phone.length < 10) {
-      setRegisterError("Please enter a valid 10-digit phone number.");
-      return;
-    }
-    setRegisterError("");
-    setOtpSending(true);
-    const otp = await sendOtp(registerForm.phone);
-    setOtpSending(false);
-    if (otp) {
-      setOtpCode(otp);
-      setRegisterStep("otp");
-      toast({ title: "OTP Sent", description: `Your OTP is shown below for verification.` });
-    } else {
-      setRegisterError("Failed to send OTP. Please try again.");
-    }
-  };
-
-  const handleVerifyOtp = async () => {
-    if (enteredOtp.length < 6) {
-      setOtpError("Please enter the 6-digit OTP.");
-      return;
-    }
-    setOtpError("");
-    const ok = await verifyOtp(registerForm.phone, enteredOtp);
-    if (ok) {
-      setOtpVerified(true);
-    } else {
-      setOtpError("Invalid OTP. Please check and try again.");
-    }
-  };
-
-  const handleRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!registerForm.username.trim() || registerForm.username.length < 3) {
-      setRegisterError("Username must be at least 3 characters.");
-      return;
-    }
-    if (!registerForm.password || registerForm.password.length < 6) {
-      setRegisterError("Password must be at least 6 characters.");
-      return;
-    }
-    if (!registerForm.phone || registerForm.phone.length < 10) {
-      setRegisterError("Please enter a valid phone number.");
-      return;
-    }
-    if (!otpVerified) {
-      setRegisterError("Please verify your phone number first.");
-      return;
-    }
-    setRegisterLoading(true);
-    setRegisterError("");
-    const ok = await register(registerForm.username.trim(), registerForm.password, registerForm.phone);
-    setRegisterLoading(false);
-    if (ok) {
-      toast({ title: "Account Created!", description: "Welcome to SK Crackers!" });
-      setLocation("/account");
-    } else {
-      setRegisterError("Username or phone number already registered.");
+      setError("Incorrect OTP. Please check and try again.");
     }
   };
 
   return (
     <Layout>
-      <div className="max-w-md mx-auto py-8">
+      <div className="max-w-md mx-auto py-8 px-4">
         <div className="text-center mb-8">
           <div className="w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-primary/30">
-            <User className="w-8 h-8 text-primary" />
+            <Phone className="w-8 h-8 text-primary" />
           </div>
-          <h1 className="font-display text-3xl text-gradient-gold mb-2">MY ACCOUNT</h1>
-          <p className="text-muted-foreground text-sm">Sign in to view your orders and purchase history</p>
+          <h1 className="font-display text-3xl text-gradient-gold mb-2">CUSTOMER LOGIN</h1>
+          <p className="text-muted-foreground text-sm">
+            Verify your mobile number to access your account and orders
+          </p>
         </div>
 
-        <div className="flex rounded-xl overflow-hidden border border-white/10 mb-6">
-          <button
-            data-testid="tab-login"
-            onClick={() => { setTab("login"); setLoginError(""); }}
-            className={cn(
-              "flex-1 py-3 text-sm font-bold transition-all duration-200",
-              tab === "login" ? "bg-primary text-white" : "bg-white/5 text-muted-foreground hover:bg-white/10"
-            )}
-          >Login</button>
-          <button
-            data-testid="tab-register"
-            onClick={() => { setTab("register"); setRegisterError(""); setRegisterStep("details"); setOtpVerified(false); setOtpCode(""); setEnteredOtp(""); }}
-            className={cn(
-              "flex-1 py-3 text-sm font-bold transition-all duration-200",
-              tab === "register" ? "bg-primary text-white" : "bg-white/5 text-muted-foreground hover:bg-white/10"
-            )}
-          >Create Account</button>
+        <div className="flex items-center gap-2 mb-8 px-2">
+          {["phone", "otp", "done"].map((s, i) => (
+            <div key={s} className="flex items-center gap-2 flex-1">
+              <div className={cn(
+                "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 transition-all shrink-0",
+                step === s
+                  ? "bg-primary border-primary text-white"
+                  : (["phone", "otp", "done"].indexOf(step) > i)
+                    ? "bg-primary/30 border-primary/50 text-primary"
+                    : "bg-white/5 border-white/20 text-muted-foreground"
+              )}>
+                {["phone", "otp", "done"].indexOf(step) > i ? <CheckCircle2 className="w-4 h-4" /> : i + 1}
+              </div>
+              {i < 2 && <div className={cn("h-0.5 flex-1", ["phone", "otp", "done"].indexOf(step) > i ? "bg-primary/50" : "bg-white/10")} />}
+            </div>
+          ))}
         </div>
 
-        {tab === "login" && (
+        {step === "phone" && (
           <Card className="p-6 animate-in fade-in duration-300">
-            <form onSubmit={handleLogin} className="space-y-5">
+            <form onSubmit={handleSendOtp} className="space-y-5">
               <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username</Label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  Mobile Number
+                </Label>
+                <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 h-12 px-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-muted-foreground shrink-0">
+                    🇮🇳 +91
+                  </div>
                   <Input
-                    data-testid="input-login-username"
-                    value={loginForm.username}
-                    onChange={e => { setLoginForm(f => ({ ...f, username: e.target.value })); setLoginError(""); }}
-                    placeholder="Enter your username"
-                    className="pl-9 h-12 bg-white/5 border-white/10"
+                    data-testid="input-phone"
+                    type="tel"
+                    inputMode="numeric"
+                    value={phone}
+                    onChange={e => {
+                      setPhone(e.target.value.replace(/\D/g, "").slice(0, 10));
+                      setError("");
+                    }}
+                    placeholder="10-digit mobile number"
+                    className="h-12 bg-white/5 border-white/10 font-mono tracking-wider text-base flex-1"
+                    maxLength={10}
+                    autoFocus
                   />
                 </div>
+                <p className="text-xs text-muted-foreground">
+                  We'll send a one-time password to verify your number
+                </p>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs uppercase tracking-wider text-muted-foreground">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    data-testid="input-login-password"
-                    type={showLoginPwd ? "text" : "password"}
-                    value={loginForm.password}
-                    onChange={e => { setLoginForm(f => ({ ...f, password: e.target.value })); setLoginError(""); }}
-                    placeholder="Enter your password"
-                    className="pl-9 pr-10 h-12 bg-white/5 border-white/10"
-                  />
-                  <button type="button" onClick={() => setShowLoginPwd(v => !v)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
-                    {showLoginPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              {loginError && <p className="text-red-400 text-sm">{loginError}</p>}
-              <Button data-testid="button-login" type="submit" className="w-full h-12 font-bold" isLoading={loginLoading}>
-                <ArrowRight className="w-4 h-4" /> Sign In
+              {error && <p className="text-red-400 text-sm" data-testid="text-error">{error}</p>}
+              <Button
+                data-testid="button-send-otp"
+                type="submit"
+                className="w-full h-12 font-bold"
+                isLoading={loading}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Send OTP
               </Button>
             </form>
           </Card>
         )}
 
-        {tab === "register" && (
-          <Card className="p-6 animate-in fade-in duration-300">
-            {registerStep === "details" && (
-              <form onSubmit={e => { e.preventDefault(); handleSendOtp(); }} className="space-y-5">
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      data-testid="input-reg-username"
-                      value={registerForm.username}
-                      onChange={e => { setRegisterForm(f => ({ ...f, username: e.target.value })); setRegisterError(""); }}
-                      placeholder="Choose a username (min 3 chars)"
-                      className="pl-9 h-12 bg-white/5 border-white/10"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      data-testid="input-reg-password"
-                      type={showRegPwd ? "text" : "password"}
-                      value={registerForm.password}
-                      onChange={e => { setRegisterForm(f => ({ ...f, password: e.target.value })); setRegisterError(""); }}
-                      placeholder="Create a password (min 6 chars)"
-                      className="pl-9 pr-10 h-12 bg-white/5 border-white/10"
-                    />
-                    <button type="button" onClick={() => setShowRegPwd(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
-                      {showRegPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      data-testid="input-reg-phone"
-                      value={registerForm.phone}
-                      onChange={e => { setRegisterForm(f => ({ ...f, phone: e.target.value.replace(/\D/g, "").slice(0, 10) })); setRegisterError(""); }}
-                      placeholder="10-digit mobile number"
-                      className="pl-9 h-12 bg-white/5 border-white/10 font-mono tracking-wider"
-                    />
-                  </div>
-                </div>
-                {registerError && <p className="text-red-400 text-sm">{registerError}</p>}
-                <Button data-testid="button-send-otp" type="submit" className="w-full h-12 font-bold" isLoading={otpSending}>
-                  <Phone className="w-4 h-4" /> Send OTP to Verify Phone
-                </Button>
-              </form>
-            )}
+        {step === "otp" && (
+          <Card className="p-6 animate-in fade-in duration-300 space-y-5">
+            <button
+              onClick={() => { setStep("phone"); setOtp(""); setError(""); setDevOtp(null); }}
+              className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white transition-colors mb-1"
+            >
+              <ArrowLeft className="w-3 h-3" /> Change number
+            </button>
 
-            {registerStep === "otp" && (
-              <div className="space-y-5 animate-in fade-in duration-300">
-                <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-center">
-                  <ShieldCheck className="w-8 h-8 text-primary mx-auto mb-2" />
-                  <p className="text-sm font-bold text-white">OTP Sent to {registerForm.phone}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Your verification code:</p>
-                  <p className="text-3xl font-mono font-bold text-primary mt-2 tracking-widest">{otpCode}</p>
-                  <p className="text-xs text-muted-foreground mt-1">Valid for 10 minutes</p>
-                </div>
-
-                {!otpVerified ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="text-xs uppercase tracking-wider text-muted-foreground">Enter OTP</Label>
-                      <Input
-                        data-testid="input-otp"
-                        value={enteredOtp}
-                        onChange={e => { setEnteredOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setOtpError(""); }}
-                        placeholder="6-digit OTP"
-                        className="h-12 bg-white/5 border-white/10 font-mono text-xl tracking-widest text-center"
-                        maxLength={6}
-                      />
-                    </div>
-                    {otpError && <p className="text-red-400 text-sm">{otpError}</p>}
-                    <Button data-testid="button-verify-otp" onClick={handleVerifyOtp} className="w-full h-12 font-bold">
-                      <ShieldCheck className="w-4 h-4" /> Verify OTP
-                    </Button>
-                    <button onClick={() => setRegisterStep("details")} className="text-xs text-muted-foreground hover:text-white w-full text-center underline">
-                      Change details
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="p-3 bg-green-500/10 border border-green-500/20 rounded-lg text-center">
-                      <p className="text-green-400 font-bold flex items-center justify-center gap-2">
-                        <CheckCircle2 className="w-5 h-5" /> Phone verified!
-                      </p>
-                    </div>
-                    {registerError && <p className="text-red-400 text-sm">{registerError}</p>}
-                    <Button data-testid="button-create-account" onClick={handleRegister} className="w-full h-12 font-bold" isLoading={registerLoading}>
-                      <CheckCircle2 className="w-4 h-4" /> Create My Account
-                    </Button>
-                  </>
-                )}
+            {smsSent ? (
+              <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-xl text-center">
+                <MessageSquare className="w-7 h-7 text-green-400 mx-auto mb-2" />
+                <p className="text-sm font-bold text-white">OTP sent to +91 {phone}</p>
+                <p className="text-xs text-muted-foreground mt-1">Check your SMS inbox</p>
+              </div>
+            ) : (
+              <div className="p-4 bg-primary/10 border border-primary/20 rounded-xl text-center">
+                <ShieldCheck className="w-7 h-7 text-primary mx-auto mb-2" />
+                <p className="text-sm font-bold text-white">OTP for +91 {phone}</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  SMS service not active — use this code to continue:
+                </p>
+                <p className="text-4xl font-mono font-bold text-primary mt-3 tracking-widest" data-testid="text-dev-otp">
+                  {devOtp}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Valid for 10 minutes</p>
               </div>
             )}
+
+            <form onSubmit={handleVerifyOtp} className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                  Enter 6-Digit OTP
+                </Label>
+                <Input
+                  data-testid="input-otp"
+                  type="text"
+                  inputMode="numeric"
+                  value={otp}
+                  onChange={e => { setOtp(e.target.value.replace(/\D/g, "").slice(0, 6)); setError(""); }}
+                  placeholder="• • • • • •"
+                  className="h-14 bg-white/5 border-white/10 font-mono text-3xl tracking-[0.5em] text-center"
+                  maxLength={6}
+                  autoFocus
+                />
+              </div>
+              {error && <p className="text-red-400 text-sm">{error}</p>}
+              <Button
+                data-testid="button-verify-otp"
+                type="submit"
+                className="w-full h-12 font-bold"
+                isLoading={loading}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                Verify & Login
+              </Button>
+            </form>
+
+            <div className="text-center">
+              {resendCooldown > 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  Resend OTP in {resendCooldown}s
+                </p>
+              ) : (
+                <button
+                  data-testid="button-resend-otp"
+                  onClick={handleSendOtp}
+                  className="text-xs text-primary hover:underline"
+                >
+                  Resend OTP
+                </button>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {step === "done" && (
+          <Card className="p-8 text-center animate-in fade-in duration-300">
+            <CheckCircle2 className="w-14 h-14 text-green-400 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-white mb-2">Verified!</h2>
+            <p className="text-muted-foreground text-sm">Redirecting to your account…</p>
           </Card>
         )}
       </div>

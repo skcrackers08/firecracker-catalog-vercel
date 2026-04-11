@@ -9,14 +9,20 @@ interface Customer {
   phoneVerified: boolean;
 }
 
+interface OtpResult {
+  success: boolean;
+  smsSent: boolean;
+  otp?: string;
+}
+
 interface CustomerAuthContextType {
   customer: Customer | null;
   isLoading: boolean;
   login: (username: string, password: string) => Promise<boolean>;
   register: (username: string, password: string, phone: string) => Promise<boolean>;
   logout: () => Promise<void>;
-  sendOtp: (phone: string) => Promise<string | null>;
-  verifyOtp: (phone: string, otp: string) => Promise<boolean>;
+  sendOtp: (phone: string) => Promise<OtpResult | null>;
+  verifyOtpAndLogin: (phone: string, otp: string) => Promise<boolean>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | null>(null);
@@ -70,20 +76,25 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     queryClient.removeQueries({ queryKey: ["/api/customers/orders"] });
   };
 
-  const sendOtp = async (phone: string): Promise<string | null> => {
+  const sendOtp = async (phone: string): Promise<OtpResult | null> => {
     try {
       const res = await apiRequest("POST", "/api/customers/send-otp", { phone });
-      const data = await res.json();
-      return data.otp as string;
+      const data = await res.json() as OtpResult;
+      return data;
     } catch {
       return null;
     }
   };
 
-  const verifyOtp = async (phone: string, otp: string): Promise<boolean> => {
+  const verifyOtpAndLogin = async (phone: string, otp: string): Promise<boolean> => {
     try {
-      await apiRequest("POST", "/api/customers/verify-otp", { phone, otp });
-      queryClient.invalidateQueries({ queryKey: ["/api/customers/me"] });
+      const res = await apiRequest("POST", "/api/customers/verify-otp", { phone, otp });
+      const data = await res.json() as { success: boolean; customer: Customer };
+      if (data.customer) {
+        queryClient.setQueryData(["/api/customers/me"], data.customer);
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/customers/me"] });
+      }
       return true;
     } catch {
       return false;
@@ -91,7 +102,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <CustomerAuthContext.Provider value={{ customer: customer ?? null, isLoading, login, register, logout, sendOtp, verifyOtp }}>
+    <CustomerAuthContext.Provider value={{ customer: customer ?? null, isLoading, login, register, logout, sendOtp, verifyOtpAndLogin }}>
       {children}
     </CustomerAuthContext.Provider>
   );
