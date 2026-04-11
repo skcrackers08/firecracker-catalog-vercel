@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { User, LogOut, Package, Receipt, ShieldCheck, Phone, Clock, ChevronRight, ShoppingBag } from "lucide-react";
+import { User, LogOut, Package, ShieldCheck, Phone, ChevronRight, ShoppingBag, KeyRound, Eye, EyeOff, ChevronDown } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
-import { Button, Card, cn } from "@/components/ui-custom";
+import { Button, Card, Input, Label, cn } from "@/components/ui-custom";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { useToast } from "@/hooks/use-toast";
 
@@ -21,8 +21,109 @@ interface Order {
   customerId: number | null;
 }
 
+function ChangePasswordSection({ changePassword }: { changePassword: (o: string, n: string) => Promise<{ ok: boolean; message?: string }> }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [form, setForm] = useState({ old: "", new: "", confirm: "" });
+  const [showPwd, setShowPwd] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (form.new.length < 6) { setError("New password must be at least 6 characters."); return; }
+    if (form.new !== form.confirm) { setError("Passwords do not match."); return; }
+    setError("");
+    setLoading(true);
+    const result = await changePassword(form.old, form.new);
+    setLoading(false);
+    if (result.ok) {
+      toast({ title: "Password Changed", description: "Your password has been updated." });
+      setForm({ old: "", new: "", confirm: "" });
+      setOpen(false);
+    } else {
+      setError(result.message || "Failed to change password.");
+    }
+  };
+
+  return (
+    <Card className="overflow-hidden">
+      <button
+        data-testid="button-toggle-change-password"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-amber-500/15 rounded-xl flex items-center justify-center border border-amber-500/20">
+            <KeyRound className="w-4 h-4 text-amber-400" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-bold text-white">Change Password</p>
+            <p className="text-xs text-muted-foreground">Update your account password</p>
+          </div>
+        </div>
+        <ChevronDown className={cn("w-4 h-4 text-muted-foreground transition-transform duration-200", open && "rotate-180")} />
+      </button>
+
+      {open && (
+        <form onSubmit={handleSubmit} className="border-t border-white/10 p-4 space-y-4 animate-in fade-in duration-200">
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Current Password</Label>
+            <div className="relative">
+              <Input
+                data-testid="input-old-password"
+                type={showPwd ? "text" : "password"}
+                value={form.old}
+                onChange={e => { setForm(f => ({ ...f, old: e.target.value })); setError(""); }}
+                placeholder="Enter current password"
+                className="h-11 pr-10 bg-white/5 border-white/10"
+              />
+              <button type="button" onClick={() => setShowPwd(v => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
+                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">New Password</Label>
+            <Input
+              data-testid="input-new-password"
+              type={showPwd ? "text" : "password"}
+              value={form.new}
+              onChange={e => { setForm(f => ({ ...f, new: e.target.value })); setError(""); }}
+              placeholder="Minimum 6 characters"
+              className="h-11 bg-white/5 border-white/10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Confirm New Password</Label>
+            <Input
+              data-testid="input-confirm-password"
+              type={showPwd ? "text" : "password"}
+              value={form.confirm}
+              onChange={e => { setForm(f => ({ ...f, confirm: e.target.value })); setError(""); }}
+              placeholder="Re-enter new password"
+              className="h-11 bg-white/5 border-white/10"
+            />
+          </div>
+          {error && <p className="text-red-400 text-sm">{error}</p>}
+          <div className="flex gap-2">
+            <Button data-testid="button-save-password" type="submit" className="flex-1 h-10 font-bold text-sm" isLoading={loading}>
+              <KeyRound className="w-4 h-4" /> Update Password
+            </Button>
+            <Button type="button" onClick={() => { setOpen(false); setForm({ old: "", new: "", confirm: "" }); setError(""); }}
+              className="h-10 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground hover:text-white text-sm">
+              Cancel
+            </Button>
+          </div>
+        </form>
+      )}
+    </Card>
+  );
+}
+
 export default function CustomerAccount() {
-  const { customer, isLoading, logout } = useCustomerAuth();
+  const { customer, isLoading, logout, changePassword } = useCustomerAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const [loggingOut, setLoggingOut] = useState(false);
@@ -118,6 +219,8 @@ export default function CustomerAccount() {
             </Button>
           </div>
         </Card>
+
+        <ChangePasswordSection changePassword={changePassword} />
 
         <div>
           <div className="flex items-center gap-2 mb-4">

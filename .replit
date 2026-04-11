@@ -39,3 +39,8 @@ outputType = "webview"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "NODE_ENV=production node dist/index.cjs"
+
+[userenv]
+
+[userenv.shared]
+FAST2SMS_API_KEY = "GyVq6ubkRg7NH3h5zBsd0MIYPtLC4piSjT1lJWOXQavmFxAo9DWAHz9IZY6u7kX4xlb0c2feoTBMs3gy"

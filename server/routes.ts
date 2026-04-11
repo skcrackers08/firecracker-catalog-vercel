@@ -264,6 +264,97 @@ export async function registerRoutes(
     }
   });
 
+  app.post("/api/customers/forgot-password/send-otp", async (req, res) => {
+    try {
+      const { phone } = z.object({ phone: z.string().min(10) }).parse(req.body);
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "No account found with this phone number" });
+      }
+      const otp = generateOtp();
+      otpStore.set(`reset_${phone}`, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
+
+      const apiKey = process.env.FAST2SMS_API_KEY;
+      let smsSent = false;
+      if (apiKey) {
+        try {
+          const url = new URL("https://www.fast2sms.com/dev/bulkV2");
+          url.searchParams.set("authorization", apiKey);
+          url.searchParams.set("variables_values", otp);
+          url.searchParams.set("route", "otp");
+          url.searchParams.set("numbers", phone);
+          const smsRes = await fetch(url.toString());
+          const smsData = await smsRes.json() as { return?: boolean };
+          smsSent = smsData.return === true;
+        } catch {}
+      }
+
+      if (smsSent) {
+        res.json({ success: true, smsSent: true });
+      } else {
+        res.json({ success: true, smsSent: false, otp });
+      }
+    } catch (err) {
+      res.status(400).json({ message: "Invalid phone number" });
+    }
+  });
+
+  app.post("/api/customers/forgot-password/reset", async (req, res) => {
+    try {
+      const { phone, otp, newPassword } = z.object({
+        phone: z.string(),
+        otp: z.string(),
+        newPassword: z.string().min(6),
+      }).parse(req.body);
+
+      const stored = otpStore.get(`reset_${phone}`);
+      if (!stored || stored.otp !== otp || Date.now() > stored.expiresAt) {
+        return res.status(400).json({ message: "Invalid or expired OTP" });
+      }
+      otpStore.delete(`reset_${phone}`);
+
+      const customer = await storage.getCustomerByPhone(phone);
+      if (!customer) {
+        return res.status(404).json({ message: "Account not found" });
+      }
+      await storage.updateCustomerPassword(customer.id, newPassword);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(400).json({ message: "Password reset failed" });
+    }
+  });
+
+  app.post("/api/customers/change-password", async (req, res) => {
+    if (!req.session.customerId) {
+      return res.status(401).json({ message: "Not logged in" });
+    }
+    try {
+      const { oldPassword, newPassword } = z.object({
+        oldPassword: z.string(),
+        newPassword: z.string().min(6),
+      }).parse(req.body);
+
+      const customer = await storage.getCustomerById(req.session.customerId);
+      if (!customer) {
+        return res.status(404).json({ message: "Customer not found" });
+      }
+      const valid = await storage.validateCustomerPassword(customer.username, oldPassword);
+      if (!valid) {
+        return res.status(400).json({ message: "Current password is incorrect" });
+      }
+      await storage.updateCustomerPassword(customer.id, newPassword);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(400).json({ message: "Failed to change password" });
+    }
+  });
+
   app.post("/api/customers/logout", (req, res) => {
     req.session.destroy(() => {
       res.json({ success: true });

@@ -20,9 +20,14 @@ function hashPassword(password: string): string {
 }
 
 function verifyPassword(password: string, stored: string): boolean {
-  const [salt, hash] = stored.split(":");
-  const inputHash = scryptSync(password, salt, 64).toString("hex");
-  return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(inputHash, "hex"));
+  if (!stored || !stored.includes(":")) return false;
+  try {
+    const [salt, hash] = stored.split(":");
+    const inputHash = scryptSync(password, salt, 64).toString("hex");
+    return timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(inputHash, "hex"));
+  } catch {
+    return false;
+  }
 }
 
 export interface IStorage {
@@ -41,6 +46,7 @@ export interface IStorage {
   getCustomerById(id: number): Promise<Customer | undefined>;
   verifyCustomerPhone(customerId: number): Promise<void>;
   validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
+  updateCustomerPassword(customerId: number, newPassword: string): Promise<void>;
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
 }
@@ -125,6 +131,11 @@ export class DatabaseStorage implements IStorage {
     if (!customer) return null;
     if (!verifyPassword(password, customer.passwordHash)) return null;
     return customer;
+  }
+
+  async updateCustomerPassword(customerId: number, newPassword: string): Promise<void> {
+    const passwordHash = hashPassword(newPassword);
+    await db.update(customers).set({ passwordHash }).where(eq(customers.id, customerId));
   }
 
   async getSetting(key: string): Promise<string | null> {

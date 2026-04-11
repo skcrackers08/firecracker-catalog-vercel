@@ -23,6 +23,9 @@ interface CustomerAuthContextType {
   logout: () => Promise<void>;
   sendOtp: (phone: string) => Promise<OtpResult | null>;
   verifyOtpAndLogin: (phone: string, otp: string) => Promise<boolean>;
+  sendForgotOtp: (phone: string) => Promise<OtpResult | null>;
+  resetPassword: (phone: string, otp: string, newPassword: string) => Promise<boolean>;
+  changePassword: (oldPassword: string, newPassword: string) => Promise<{ ok: boolean; message?: string }>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | null>(null);
@@ -79,8 +82,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
   const sendOtp = async (phone: string): Promise<OtpResult | null> => {
     try {
       const res = await apiRequest("POST", "/api/customers/send-otp", { phone });
-      const data = await res.json() as OtpResult;
-      return data;
+      return await res.json() as OtpResult;
     } catch {
       return null;
     }
@@ -101,8 +103,53 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const sendForgotOtp = async (phone: string): Promise<OtpResult | null> => {
+    try {
+      const res = await apiRequest("POST", "/api/customers/forgot-password/send-otp", { phone });
+      return await res.json() as OtpResult;
+    } catch {
+      return null;
+    }
+  };
+
+  const resetPassword = async (phone: string, otp: string, newPassword: string): Promise<boolean> => {
+    try {
+      await apiRequest("POST", "/api/customers/forgot-password/reset", { phone, otp, newPassword });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const changePassword = async (oldPassword: string, newPassword: string): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      await apiRequest("POST", "/api/customers/change-password", { oldPassword, newPassword });
+      return { ok: true };
+    } catch (err: any) {
+      const raw: string = err?.message || "";
+      try {
+        const jsonStr = raw.substring(raw.indexOf("{"));
+        const parsed = JSON.parse(jsonStr);
+        return { ok: false, message: parsed.message || "Failed to change password" };
+      } catch {
+        return { ok: false, message: "Current password is incorrect or request failed." };
+      }
+    }
+  };
+
   return (
-    <CustomerAuthContext.Provider value={{ customer: customer ?? null, isLoading, login, register, logout, sendOtp, verifyOtpAndLogin }}>
+    <CustomerAuthContext.Provider value={{
+      customer: customer ?? null,
+      isLoading,
+      login,
+      register,
+      logout,
+      sendOtp,
+      verifyOtpAndLogin,
+      sendForgotOtp,
+      resetPassword,
+      changePassword,
+    }}>
       {children}
     </CustomerAuthContext.Provider>
   );
