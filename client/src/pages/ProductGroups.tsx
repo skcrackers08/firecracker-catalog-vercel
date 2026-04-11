@@ -16,7 +16,7 @@ export default function ProductGroups() {
   const activeGroupData = PRODUCT_GROUPS.find(g => g.name === activeGroup);
 
   const groupProducts = activeGroup && activeGroupData
-    ? products?.filter(p => activeGroupData.categories.includes(p.category || "Other"))
+    ? products?.filter(p => p.category === activeGroupData.category)
     : null;
 
   return (
@@ -45,9 +45,7 @@ export default function ProductGroups() {
         /* Groups Grid */
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {PRODUCT_GROUPS.map((group, idx) => {
-            const count = products?.filter(p =>
-              group.categories.includes(p.category || "Other")
-            ).length ?? 0;
+            const count = products?.filter(p => p.category === group.category).length ?? 0;
 
             return (
               <motion.button
@@ -88,28 +86,17 @@ export default function ProductGroups() {
       ) : (
         /* Products in Selected Group */
         <div>
-          {/* Sub-categories tabs */}
-          {activeGroupData && activeGroupData.categories.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
-              <button
-                className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium bg-primary text-black"
-              >
-                All {activeGroup}
-              </button>
-              {activeGroupData.categories.map((cat) => {
-                const catCount = products?.filter(p => (p.category || "Other") === cat).length ?? 0;
-                if (catCount === 0) return null;
-                return (
-                  <button
-                    key={cat}
-                    className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium bg-white/5 border border-white/10 text-muted-foreground hover:text-white hover:bg-white/10 transition-colors whitespace-nowrap"
-                  >
-                    {cat} ({catCount})
-                  </button>
-                );
-              })}
-            </div>
-          )}
+          {/* Sub-groups tabs */}
+          {activeGroupData && groupProducts && groupProducts.length > 0 && (() => {
+            const subgroups = [...new Set(groupProducts.map(p => p.subgroup || "").filter(Boolean))];
+            return subgroups.length > 1 ? (
+              <div className="flex gap-2 overflow-x-auto pb-2 mb-4 scrollbar-hide">
+                <span className="flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-medium bg-primary text-black">
+                  All {activeGroup}
+                </span>
+              </div>
+            ) : null;
+          })()}
 
           {isLoading ? (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">

@@ -25,10 +25,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
+import { PRODUCT_GROUPS, DEFAULT_GROUP_IMAGES } from "@/lib/product-groups";
+import { useSaveGroupImages } from "@/hooks/use-group-images";
 
 function SectionPanel({
   icon,
@@ -322,6 +324,91 @@ function SecuritySettings() {
   );
 }
 
+function GroupImagesSection() {
+  const { toast } = useToast();
+  const saveGroupImages = useSaveGroupImages();
+  const [images, setImages] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem("sk-group-images-draft");
+    if (saved) {
+      try { return JSON.parse(saved); } catch {}
+    }
+    return {};
+  });
+
+  const { data: settingData } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/settings/group-images"],
+  });
+
+  const serverImages: Record<string, string> = (() => {
+    if (!settingData?.value) return {};
+    try { return JSON.parse(settingData.value); } catch { return {}; }
+  })();
+
+  function getImage(groupName: string): string {
+    return images[groupName] ?? serverImages[groupName] ?? DEFAULT_GROUP_IMAGES[groupName] ?? "";
+  }
+
+  function setImage(groupName: string, url: string) {
+    setImages(prev => {
+      const next = { ...prev, [groupName]: url };
+      localStorage.setItem("sk-group-images-draft", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  async function handleSave() {
+    const merged = { ...serverImages, ...images };
+    await saveGroupImages.mutateAsync(merged);
+    toast({ title: "Group Images Saved", description: "All group icons updated successfully." });
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Set a custom image URL for each product category group. Leave blank to use the default image.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {PRODUCT_GROUPS.map((group) => {
+          const imgSrc = getImage(group.name);
+          return (
+            <div key={group.name} className="flex items-center gap-3 bg-muted/30 rounded-xl p-3 border border-border">
+              <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-black/40">
+                <img
+                  src={imgSrc || DEFAULT_GROUP_IMAGES[group.name]}
+                  alt={group.name}
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = DEFAULT_GROUP_IMAGES[group.name];
+                  }}
+                />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold mb-1 text-foreground">{group.name}</p>
+                <Input
+                  value={images[group.name] ?? serverImages[group.name] ?? ""}
+                  onChange={(e) => setImage(group.name, e.target.value)}
+                  placeholder="Paste image URL..."
+                  className="h-8 text-xs"
+                  data-testid={`input-group-image-${group.name.toLowerCase().replace(/\s+/g, "-")}`}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <Button
+        onClick={handleSave}
+        disabled={saveGroupImages.isPending}
+        data-testid="button-save-group-images"
+        className="flex items-center gap-2"
+      >
+        <Save className="h-4 w-4" />
+        {saveGroupImages.isPending ? "Saving..." : "Save Group Images"}
+      </Button>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1");
@@ -397,6 +484,10 @@ export default function Admin() {
 
       <SectionPanel icon={<ShieldCheck className="h-5 w-5" />} title="Security Settings">
         <SecuritySettings />
+      </SectionPanel>
+
+      <SectionPanel icon={<LayoutGrid className="h-5 w-5" />} title="Group Icons & Images" badge="16">
+        <GroupImagesSection />
       </SectionPanel>
 
       <SectionPanel

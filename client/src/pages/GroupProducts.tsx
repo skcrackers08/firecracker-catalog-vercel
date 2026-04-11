@@ -20,7 +20,7 @@ export default function GroupProducts() {
 
   const groupProducts = products?.filter(p =>
     groupData
-      ? groupData.categories.includes(p.category || "")
+      ? p.category === groupData.category
       : p.category === groupName
   ) ?? [];
 

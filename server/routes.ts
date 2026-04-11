@@ -125,6 +125,29 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  app.get("/api/settings/:key", async (req, res) => {
+    try {
+      const value = await storage.getSetting(req.params.key);
+      if (value === null) return res.json({ value: null });
+      res.json({ value });
+    } catch (err) {
+      res.status(500).json({ message: 'Failed to get setting' });
+    }
+  });
+
+  app.post("/api/settings/:key", async (req, res) => {
+    try {
+      const { value } = z.object({ value: z.string() }).parse(req.body);
+      await storage.setSetting(req.params.key, value);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      res.status(500).json({ message: 'Failed to save setting' });
+    }
+  });
+
   app.post("/api/customers/send-otp", async (req, res) => {
     try {
       const { phone } = z.object({ phone: z.string().min(10) }).parse(req.body);

@@ -1,4 +1,4 @@
-import { db } from "./db";
+import { db, pool } from "./db";
 import {
   products,
   orders,
@@ -41,6 +41,8 @@ export interface IStorage {
   getCustomerById(id: number): Promise<Customer | undefined>;
   verifyCustomerPhone(customerId: number): Promise<void>;
   validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
+  getSetting(key: string): Promise<string | null>;
+  setSetting(key: string, value: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -123,6 +125,19 @@ export class DatabaseStorage implements IStorage {
     if (!customer) return null;
     if (!verifyPassword(password, customer.passwordHash)) return null;
     return customer;
+  }
+
+  async getSetting(key: string): Promise<string | null> {
+    const result = await pool.query(`SELECT value FROM app_settings WHERE key = $1`, [key]);
+    if (result.rows.length === 0) return null;
+    return result.rows[0].value ?? null;
+  }
+
+  async setSetting(key: string, value: string): Promise<void> {
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
+      [key, value]
+    );
   }
 }
 
