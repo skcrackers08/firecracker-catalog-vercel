@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Product, insertProductSchema, updateProductSchema } from "@shared/schema";
 import { api, buildUrl } from "@shared/routes";
@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
@@ -324,16 +324,39 @@ function SecuritySettings() {
   );
 }
 
+async function resizeImageToDataUrl(file: File, maxSize = 400, quality = 0.85): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 function GroupImagesSection() {
   const { toast } = useToast();
   const saveGroupImages = useSaveGroupImages();
   const [images, setImages] = useState<Record<string, string>>(() => {
     const saved = localStorage.getItem("sk-group-images-draft");
-    if (saved) {
-      try { return JSON.parse(saved); } catch {}
-    }
+    if (saved) { try { return JSON.parse(saved); } catch {} }
     return {};
   });
+  const [uploading, setUploading] = useState<string | null>(null);
+  const [urlMode, setUrlMode] = useState<Record<string, boolean>>({});
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   const { data: settingData } = useQuery<{ value: string | null }>({
     queryKey: ["/api/settings/group-images"],
@@ -356,42 +379,127 @@ function GroupImagesSection() {
     });
   }
 
+  function clearImage(groupName: string) {
+    setImages(prev => {
+      const next = { ...prev, [groupName]: "" };
+      localStorage.setItem("sk-group-images-draft", JSON.stringify(next));
+      return next;
+    });
+  }
+
+  async function handleFileChange(groupName: string, file: File | null) {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Invalid file", description: "Please select an image file.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please select an image under 10MB.", variant: "destructive" });
+      return;
+    }
+    setUploading(groupName);
+    try {
+      const dataUrl = await resizeImageToDataUrl(file, 400, 0.85);
+      setImage(groupName, dataUrl);
+      toast({ title: "Image ready", description: `${groupName} image loaded. Click Save to apply.` });
+    } catch {
+      toast({ title: "Upload failed", description: "Could not process image.", variant: "destructive" });
+    } finally {
+      setUploading(null);
+    }
+  }
+
   async function handleSave() {
     const merged = { ...serverImages, ...images };
     await saveGroupImages.mutateAsync(merged);
+    localStorage.removeItem("sk-group-images-draft");
     toast({ title: "Group Images Saved", description: "All group icons updated successfully." });
   }
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Set a custom image URL for each product category group. Leave blank to use the default image.
+        Upload a gallery image or paste a URL for each product category group.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {PRODUCT_GROUPS.map((group) => {
           const imgSrc = getImage(group.name);
+          const hasCustom = !!(images[group.name] || serverImages[group.name]);
+          const showUrl = urlMode[group.name] ?? false;
+          const isUploading = uploading === group.name;
+          const testId = group.name.toLowerCase().replace(/\s+/g, "-");
+
           return (
-            <div key={group.name} className="flex items-center gap-3 bg-muted/30 rounded-xl p-3 border border-border">
-              <div className="w-14 h-14 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-black/40">
-                <img
-                  src={imgSrc || DEFAULT_GROUP_IMAGES[group.name]}
-                  alt={group.name}
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).src = DEFAULT_GROUP_IMAGES[group.name];
-                  }}
-                />
+            <div key={group.name} className="flex flex-col gap-2 bg-muted/30 rounded-xl p-3 border border-border">
+              <div className="flex items-center gap-3">
+                <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-white/10 shrink-0 bg-black/40 group/img">
+                  <img
+                    src={imgSrc || DEFAULT_GROUP_IMAGES[group.name]}
+                    alt={group.name}
+                    className="w-full h-full object-cover"
+                    onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_GROUP_IMAGES[group.name]; }}
+                  />
+                  {isUploading && (
+                    <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold mb-2 text-foreground">{group.name}</p>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      ref={(el) => { fileInputRefs.current[group.name] = el; }}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      data-testid={`file-input-group-${testId}`}
+                      onChange={(e) => handleFileChange(group.name, e.target.files?.[0] ?? null)}
+                    />
+                    <button
+                      type="button"
+                      data-testid={`button-upload-${testId}`}
+                      onClick={() => fileInputRefs.current[group.name]?.click()}
+                      disabled={isUploading}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/20 hover:bg-primary/30 border border-primary/30 text-primary text-xs font-semibold transition-colors disabled:opacity-50"
+                    >
+                      <Upload className="w-3 h-3" />
+                      {isUploading ? "Processing…" : "Upload"}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid={`button-url-toggle-${testId}`}
+                      onClick={() => setUrlMode(m => ({ ...m, [group.name]: !showUrl }))}
+                      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-muted-foreground text-xs font-medium transition-colors"
+                    >
+                      <LinkIcon className="w-3 h-3" />
+                      URL
+                    </button>
+                    {hasCustom && (
+                      <button
+                        type="button"
+                        data-testid={`button-clear-${testId}`}
+                        onClick={() => clearImage(group.name)}
+                        className="flex items-center gap-1 px-2 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 border border-red-500/20 text-red-400 text-xs font-medium transition-colors"
+                        title="Reset to default"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold mb-1 text-foreground">{group.name}</p>
+
+              {showUrl && (
                 <Input
                   value={images[group.name] ?? serverImages[group.name] ?? ""}
                   onChange={(e) => setImage(group.name, e.target.value)}
-                  placeholder="Paste image URL..."
+                  placeholder="Paste image URL (https://...)"
                   className="h-8 text-xs"
-                  data-testid={`input-group-image-${group.name.toLowerCase().replace(/\s+/g, "-")}`}
+                  data-testid={`input-group-image-${testId}`}
                 />
-              </div>
+              )}
             </div>
           );
         })}
@@ -403,7 +511,7 @@ function GroupImagesSection() {
         className="flex items-center gap-2"
       >
         <Save className="h-4 w-4" />
-        {saveGroupImages.isPending ? "Saving..." : "Save Group Images"}
+        {saveGroupImages.isPending ? "Saving…" : "Save All Group Images"}
       </Button>
     </div>
   );
