@@ -5,6 +5,7 @@ import { api } from "@shared/routes";
 import { z } from "zod";
 import { db } from "./db";
 import { products } from "@shared/schema";
+import { sendInvoiceEmail } from "./email";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
@@ -73,6 +74,11 @@ export async function registerRoutes(
       const customerId = req.session.customerId ?? null;
       const order = await storage.createOrder({ ...input, customerId });
       res.status(201).json(order);
+      if (order.customerEmail) {
+        sendInvoiceEmail(order).catch((err) => {
+          console.error("[Email] Failed to send invoice:", err?.message ?? err);
+        });
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
