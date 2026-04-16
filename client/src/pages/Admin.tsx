@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
@@ -517,6 +517,135 @@ function GroupImagesSection() {
   );
 }
 
+function EmailSettingsSection() {
+  const { toast } = useToast();
+  const [apiKey, setApiKey] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const { data: settingData, isLoading } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/settings/resend-api-key"],
+  });
+
+  const savedKey: string = settingData?.value ?? "";
+
+  const saveMutation = useMutation({
+    mutationFn: async (value: string) => {
+      const res = await apiRequest("POST", "/api/settings/resend-api-key", { value });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/resend-api-key"] });
+      setSaved(true);
+      setApiKey("");
+      setTimeout(() => setSaved(false), 2500);
+      toast({ title: "API Key Saved", description: "Invoice emails are now active." });
+    },
+    onError: () => {
+      toast({ title: "Save Failed", description: "Could not save the API key.", variant: "destructive" });
+    },
+  });
+
+  function handleSave() {
+    const trimmed = apiKey.trim();
+    if (!trimmed) {
+      toast({ title: "Empty Key", description: "Please paste your Resend API key.", variant: "destructive" });
+      return;
+    }
+    saveMutation.mutate(trimmed);
+  }
+
+  const displayKey = savedKey
+    ? showKey
+      ? savedKey
+      : savedKey.slice(0, 6) + "••••••••••••••••••••••" + savedKey.slice(-4)
+    : "";
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Add your <strong>Resend API key</strong> to automatically email invoices to customers after payment. Get your key free at{" "}
+        <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-primary underline">resend.com</a>.
+      </p>
+
+      {/* Current key display */}
+      {isLoading ? (
+        <div className="h-10 bg-muted/40 rounded-lg animate-pulse" />
+      ) : savedKey ? (
+        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+          <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+          <span className="text-sm font-mono text-green-400 flex-1 truncate">{displayKey}</span>
+          <button
+            type="button"
+            onClick={() => setShowKey(v => !v)}
+            className="text-muted-foreground hover:text-foreground transition-colors p-1"
+            data-testid="button-toggle-show-key"
+            title={showKey ? "Hide key" : "Show key"}
+          >
+            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
+          <KeyRound className="w-4 h-4 text-yellow-500 shrink-0" />
+          <span className="text-sm text-yellow-400">No API key set — invoice emails are disabled.</span>
+        </div>
+      )}
+
+      {/* Input for new key */}
+      <div className="space-y-2">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+          {savedKey ? "Update API Key" : "Enter API Key"}
+        </label>
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Input
+              type={showKey ? "text" : "password"}
+              value={apiKey}
+              onChange={(e) => setApiKey(e.target.value)}
+              placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
+              className="pr-10 font-mono text-sm"
+              data-testid="input-resend-api-key"
+            />
+            <button
+              type="button"
+              onClick={() => setShowKey(v => !v)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <Button
+            onClick={handleSave}
+            disabled={saveMutation.isPending || !apiKey.trim()}
+            data-testid="button-save-api-key"
+            className="flex items-center gap-2 shrink-0"
+          >
+            {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+            {saveMutation.isPending ? "Saving…" : saved ? "Saved!" : "Save Key"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Keys start with <code className="bg-muted px-1 rounded">re_</code>. Paste and click Save — invoices go live instantly.
+        </p>
+      </div>
+
+      {/* How it works */}
+      <div className="bg-muted/30 rounded-xl border border-border p-4 space-y-2">
+        <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+          <Mail className="w-3.5 h-3.5" /> How to get your free Resend API key
+        </p>
+        <ol className="text-xs text-muted-foreground space-y-1 list-none">
+          <li>1. Go to <a href="https://resend.com/signup" target="_blank" rel="noreferrer" className="text-primary underline">resend.com/signup</a> and create a free account</li>
+          <li>2. In your dashboard, click <strong>API Keys</strong> → <strong>Create API Key</strong></li>
+          <li>3. Copy the key (starts with <code className="bg-muted px-1 rounded">re_</code>)</li>
+          <li>4. Paste it above and click <strong>Save Key</strong></li>
+        </ol>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1");
@@ -588,6 +717,10 @@ export default function Admin() {
 
       <SectionPanel icon={<IndianRupee className="h-5 w-5" />} title="Payment Settings">
         <PaymentSettings />
+      </SectionPanel>
+
+      <SectionPanel icon={<Mail className="h-5 w-5" />} title="Email Invoice Settings">
+        <EmailSettingsSection />
       </SectionPanel>
 
       <SectionPanel icon={<ShieldCheck className="h-5 w-5" />} title="Security Settings">

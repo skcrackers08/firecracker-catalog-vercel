@@ -1,5 +1,5 @@
-import nodemailer from "nodemailer";
 import type { Order } from "@shared/schema";
+import { storage } from "./storage";
 
 interface CartItem {
   id: number;
@@ -63,15 +63,13 @@ function buildInvoiceHtml(order: Order): string {
           <!-- Order Badge -->
           <tr>
             <td style="background:#fef3c7;padding:14px 32px;text-align:center;border-bottom:1px solid #fde68a;">
-              <p style="margin:0;font-size:13px;color:#92400e;">Order ID: <strong style="font-size:15px;color:#78350f;">#SK-${String(order.id).padStart(4,"0")}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong></p>
+              <p style="margin:0;font-size:13px;color:#92400e;">Order ID: <strong style="font-size:15px;color:#78350f;">#SK-${String(order.id).padStart(4, "0")}</strong> &nbsp;|&nbsp; Date: <strong>${date}</strong></p>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
             <td style="padding:28px 32px;">
-
-              <!-- Greeting -->
               <p style="margin:0 0 20px;font-size:16px;color:#374151;">
                 Dear <strong>${order.customerName}</strong>,<br>
                 <span style="color:#6b7280;font-size:14px;">Thank you for shopping with SK Crackers! Your order has been received and is being processed. Here is your invoice summary.</span>
@@ -88,7 +86,7 @@ function buildInvoiceHtml(order: Order): string {
                   <td style="padding:12px 16px;">
                     <table width="100%" cellpadding="0" cellspacing="0">
                       <tr>
-                        <td width="50%" style="padding:4px 0;font-size:13px;color:#6b7280;">📱 Phone</td>
+                        <td width="30%" style="padding:4px 0;font-size:13px;color:#6b7280;">📱 Phone</td>
                         <td style="padding:4px 0;font-size:13px;color:#111827;font-weight:500;">+91 ${order.customerPhone}</td>
                       </tr>
                       ${order.customerEmail ? `<tr>
@@ -153,12 +151,10 @@ function buildInvoiceHtml(order: Order): string {
                 </tr>
               </table>
 
-              <!-- Footer note -->
               <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">
                 For any queries, reply to this email or contact us.<br>
                 Thank you for choosing SK Crackers – Celebrate safely! 🎇
               </p>
-
             </td>
           </tr>
 
@@ -177,37 +173,43 @@ function buildInvoiceHtml(order: Order): string {
 </html>`;
 }
 
-let transporter: nodemailer.Transporter | null = null;
-
-function getTransporter(): nodemailer.Transporter | null {
-  if (transporter) return transporter;
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
-  if (!user || !pass) return null;
-  transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: { user, pass },
-  });
-  return transporter;
+async function getResendApiKey(): Promise<string | null> {
+  const fromDb = await storage.getSetting("resend-api-key");
+  if (fromDb && fromDb.trim()) return fromDb.trim();
+  const fromEnv = process.env.RESEND_API_KEY;
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+  return null;
 }
 
 export async function sendInvoiceEmail(order: Order): Promise<void> {
   if (!order.customerEmail) return;
 
-  const transport = getTransporter();
-  if (!transport) {
-    console.warn("[Email] GMAIL_USER or GMAIL_APP_PASSWORD not configured – skipping invoice email.");
+  const apiKey = await getResendApiKey();
+  if (!apiKey) {
+    console.warn("[Email] Resend API key not configured – skipping invoice email.");
     return;
   }
 
   const html = buildInvoiceHtml(order);
 
-  await transport.sendMail({
-    from: `"SK Crackers" <${process.env.GMAIL_USER}>`,
-    to: order.customerEmail,
-    subject: `🎆 Order Confirmed! Invoice #SK-${String(order.id).padStart(4, "0")} – SK Crackers`,
-    html,
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: "SK Crackers <onboarding@resend.dev>",
+      to: [order.customerEmail],
+      subject: `🎆 Order Confirmed! Invoice #SK-${String(order.id).padStart(4, "0")} – SK Crackers`,
+      html,
+    }),
   });
+
+  if (!response.ok) {
+    const err = await response.text();
+    throw new Error(`Resend API error ${response.status}: ${err}`);
+  }
 
   console.log(`[Email] Invoice sent for order #${order.id} to ${order.customerEmail}`);
 }
