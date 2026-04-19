@@ -517,129 +517,169 @@ function GroupImagesSection() {
   );
 }
 
+const BREVO_DEFAULTS: Record<string, string> = {
+  "brevo-smtp-host": "smtp-relay.brevo.com",
+  "brevo-smtp-port": "587",
+  "brevo-smtp-login": "a893c9001@smtp-brevo.com",
+  "brevo-smtp-key": "",
+  "brevo-from-email": "invoice@skcrackers.net",
+  "brevo-from-name": "S K Crackers",
+};
+
+const BREVO_FIELDS: Array<{ key: string; label: string; placeholder: string; secret?: boolean }> = [
+  { key: "brevo-smtp-host", label: "SMTP Host", placeholder: "smtp-relay.brevo.com" },
+  { key: "brevo-smtp-port", label: "SMTP Port", placeholder: "587" },
+  { key: "brevo-smtp-login", label: "SMTP Login", placeholder: "xxxxx@smtp-brevo.com" },
+  { key: "brevo-smtp-key", label: "SMTP Key (Password)", placeholder: "Paste your SMTP key here…", secret: true },
+  { key: "brevo-from-email", label: "From Email", placeholder: "invoice@skcrackers.net" },
+  { key: "brevo-from-name", label: "From Name", placeholder: "S K Crackers" },
+];
+
 function EmailSettingsSection() {
   const { toast } = useToast();
-  const [apiKey, setApiKey] = useState("");
+  const [values, setValues] = useState<Record<string, string>>({});
   const [showKey, setShowKey] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loaded, setLoaded] = useState(false);
 
-  const { data: settingData, isLoading } = useQuery<{ value: string | null }>({
-    queryKey: ["/api/settings/resend-api-key"],
-  });
+  const queries = BREVO_FIELDS.map(f =>
+    useQuery<{ value: string | null }>({ queryKey: [`/api/settings/${f.key}`] })
+  );
+  const isLoading = queries.some(q => q.isLoading);
+  const dataKey = queries.map(q => q.data?.value ?? "").join("|");
 
-  const savedKey: string = settingData?.value ?? "";
+  if (!isLoading && !loaded) {
+    const next: Record<string, string> = {};
+    BREVO_FIELDS.forEach((f, i) => {
+      next[f.key] = (queries[i].data?.value ?? "") || BREVO_DEFAULTS[f.key] || "";
+    });
+    setValues(next);
+    setLoaded(true);
+  }
+
+  const savedKey = queries[3].data?.value ?? "";
+  const isConfigured = !!savedKey;
 
   const saveMutation = useMutation({
-    mutationFn: async (value: string) => {
-      const res = await apiRequest("POST", "/api/settings/resend-api-key", { value });
-      return res.json();
+    mutationFn: async () => {
+      await Promise.all(
+        BREVO_FIELDS.map(f =>
+          apiRequest("POST", `/api/settings/${f.key}`, { value: values[f.key] ?? "" })
+        )
+      );
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/settings/resend-api-key"] });
+      BREVO_FIELDS.forEach(f =>
+        queryClient.invalidateQueries({ queryKey: [`/api/settings/${f.key}`] })
+      );
       setSaved(true);
-      setApiKey("");
       setTimeout(() => setSaved(false), 2500);
-      toast({ title: "API Key Saved", description: "Invoice emails are now active." });
+      toast({ title: "Settings Saved", description: "Brevo SMTP is now active. Invoice emails will be sent automatically." });
     },
     onError: () => {
-      toast({ title: "Save Failed", description: "Could not save the API key.", variant: "destructive" });
+      toast({ title: "Save Failed", description: "Could not save Brevo settings.", variant: "destructive" });
     },
   });
 
   function handleSave() {
-    const trimmed = apiKey.trim();
-    if (!trimmed) {
-      toast({ title: "Empty Key", description: "Please paste your Resend API key.", variant: "destructive" });
+    if (!values["brevo-smtp-key"]?.trim()) {
+      toast({ title: "SMTP Key Required", description: "Please paste your Brevo SMTP key.", variant: "destructive" });
       return;
     }
-    saveMutation.mutate(trimmed);
+    saveMutation.mutate();
   }
 
-  const displayKey = savedKey
-    ? showKey
-      ? savedKey
-      : savedKey.slice(0, 6) + "••••••••••••••••••••••" + savedKey.slice(-4)
-    : "";
+  function setValue(key: string, value: string) {
+    setValues(prev => ({ ...prev, [key]: value }));
+  }
+
+  void dataKey;
 
   return (
     <div className="space-y-5">
       <p className="text-sm text-muted-foreground">
-        Add your <strong>Resend API key</strong> to automatically email invoices to customers after payment. Get your key free at{" "}
-        <a href="https://resend.com" target="_blank" rel="noreferrer" className="text-primary underline">resend.com</a>.
+        Configure <strong>Brevo SMTP</strong> to automatically send branded invoice emails to customers after they complete payment.
       </p>
 
-      {/* Current key display */}
+      {/* Status badge */}
       {isLoading ? (
         <div className="h-10 bg-muted/40 rounded-lg animate-pulse" />
-      ) : savedKey ? (
+      ) : isConfigured ? (
         <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
           <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
-          <span className="text-sm font-mono text-green-400 flex-1 truncate">{displayKey}</span>
-          <button
-            type="button"
-            onClick={() => setShowKey(v => !v)}
-            className="text-muted-foreground hover:text-foreground transition-colors p-1"
-            data-testid="button-toggle-show-key"
-            title={showKey ? "Hide key" : "Show key"}
-          >
-            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-          </button>
+          <span className="text-sm text-green-400 font-medium">Brevo SMTP active — invoice emails are being sent automatically.</span>
         </div>
       ) : (
         <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
           <KeyRound className="w-4 h-4 text-yellow-500 shrink-0" />
-          <span className="text-sm text-yellow-400">No API key set — invoice emails are disabled.</span>
+          <span className="text-sm text-yellow-400">SMTP Key not set — invoice emails are disabled. Fill in the form below.</span>
         </div>
       )}
 
-      {/* Input for new key */}
-      <div className="space-y-2">
-        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-          {savedKey ? "Update API Key" : "Enter API Key"}
-        </label>
-        <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Input
-              type={showKey ? "text" : "password"}
-              value={apiKey}
-              onChange={(e) => setApiKey(e.target.value)}
-              placeholder="re_xxxxxxxxxxxxxxxxxxxxxxxx"
-              className="pr-10 font-mono text-sm"
-              data-testid="input-resend-api-key"
-            />
-            <button
-              type="button"
-              onClick={() => setShowKey(v => !v)}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-          </div>
-          <Button
-            onClick={handleSave}
-            disabled={saveMutation.isPending || !apiKey.trim()}
-            data-testid="button-save-api-key"
-            className="flex items-center gap-2 shrink-0"
-          >
-            {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
-            {saveMutation.isPending ? "Saving…" : saved ? "Saved!" : "Save Key"}
-          </Button>
-        </div>
+      {/* Settings fields */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        {BREVO_FIELDS.map((field) => {
+          const isSecret = field.secret;
+          const inputType = isSecret && !showKey ? "password" : "text";
+          return (
+            <div key={field.key} className={isSecret ? "sm:col-span-2 space-y-1.5" : "space-y-1.5"}>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+                {isSecret && <KeyRound className="w-3 h-3" />}
+                {field.label}
+                {isSecret && <span className="text-red-400">*</span>}
+              </label>
+              <div className="relative">
+                <Input
+                  type={inputType}
+                  value={values[field.key] ?? ""}
+                  onChange={(e) => setValue(field.key, e.target.value)}
+                  placeholder={field.placeholder}
+                  className={isSecret ? "pr-10 font-mono text-sm" : "text-sm"}
+                  data-testid={`input-${field.key}`}
+                />
+                {isSecret && (
+                  <button
+                    type="button"
+                    onClick={() => setShowKey(v => !v)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="button-toggle-show-smtp-key"
+                  >
+                    {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Save button */}
+      <div className="flex items-center gap-3">
+        <Button
+          onClick={handleSave}
+          disabled={saveMutation.isPending}
+          data-testid="button-save-brevo-settings"
+          className="flex items-center gap-2"
+        >
+          {saved ? <CheckCircle className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+          {saveMutation.isPending ? "Saving…" : saved ? "Saved!" : "Save All Settings"}
+        </Button>
         <p className="text-xs text-muted-foreground">
-          Keys start with <code className="bg-muted px-1 rounded">re_</code>. Paste and click Save — invoices go live instantly.
+          The defaults are pre-filled. Just paste your SMTP key and click Save.
         </p>
       </div>
 
-      {/* How it works */}
+      {/* How to get the key */}
       <div className="bg-muted/30 rounded-xl border border-border p-4 space-y-2">
         <p className="text-xs font-semibold text-foreground flex items-center gap-2">
-          <Mail className="w-3.5 h-3.5" /> How to get your free Resend API key
+          <Mail className="w-3.5 h-3.5" /> How to get your Brevo SMTP key
         </p>
         <ol className="text-xs text-muted-foreground space-y-1 list-none">
-          <li>1. Go to <a href="https://resend.com/signup" target="_blank" rel="noreferrer" className="text-primary underline">resend.com/signup</a> and create a free account</li>
-          <li>2. In your dashboard, click <strong>API Keys</strong> → <strong>Create API Key</strong></li>
-          <li>3. Copy the key (starts with <code className="bg-muted px-1 rounded">re_</code>)</li>
-          <li>4. Paste it above and click <strong>Save Key</strong></li>
+          <li>1. Sign in at <a href="https://app.brevo.com" target="_blank" rel="noreferrer" className="text-primary underline">app.brevo.com</a></li>
+          <li>2. Click your profile (top-right) → <strong>SMTP &amp; API</strong></li>
+          <li>3. Go to the <strong>SMTP</strong> tab → click <strong>Generate a new SMTP key</strong></li>
+          <li>4. Copy the generated key and paste it in the <strong>SMTP Key</strong> field above</li>
+          <li>5. Click <strong>Save All Settings</strong> — invoices go live instantly</li>
         </ol>
       </div>
     </div>
