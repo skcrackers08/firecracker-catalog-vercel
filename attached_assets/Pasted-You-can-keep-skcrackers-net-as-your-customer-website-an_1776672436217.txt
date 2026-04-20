@@ -1,0 +1,204 @@
+You can keep skcrackers.net as your customer website and create a separate admin application for:
+stock management
+sales report
+payment details
+order tracking
+customer details
+invoice control
+This is actually the best method for your business.
+Best structure
+1. Customer website
+This is your public website:
+product display
+price list
+enquiry / order booking
+customer login
+cart or order request
+Example:
+skcrackers.net
+2. Admin application
+This is private, only for you and staff:
+add stock
+reduce stock after sale
+check daily sales
+pending payment list
+paid / unpaid orders
+transport dispatch details
+invoice report
+profit report
+Example:
+admin.skcrackers.net or
+app.skcrackers.net or
+separate private app link
+How both will work together
+Simple flow
+Step 1
+Customer places order on website
+Step 2
+Order goes to your admin app database
+Step 3
+Admin app automatically:
+reduces stock
+creates order number
+saves customer details
+saves payment status
+Step 4
+You check reports inside admin panel
+What modules you need in admin app
+A. Dashboard
+Show:
+today orders
+total sales
+pending payments
+low stock items
+top selling products
+B. Product / stock management
+add new product
+opening stock
+current stock
+stock in / stock out
+low stock alert
+C. Order management
+new orders
+confirmed orders
+packed orders
+dispatched orders
+delivered orders
+cancelled orders
+D. Payment management
+cash
+UPI
+bank transfer
+pending amount
+part payment
+full payment
+customer due list
+E. Sales reports
+daily sales
+weekly sales
+monthly sales
+product-wise sales
+customer-wise sales
+F. Invoice / bill section
+generate invoice
+print invoice
+send invoice by email or WhatsApp PDF
+G. Transport section
+lorry name
+transport contact
+LR number
+dispatch date
+destination
+Best technical method
+Option 1: Website + separate web admin app
+This is best for you.
+Front side:
+customer website
+Back side:
+admin panel
+Database:
+one common database for both
+Technologies can be:
+React / Next.js frontend
+Node.js backend
+PostgreSQL or MySQL database
+If using Replit, this is possible.
+Option 2: Website + Google Sheets / Excel backend
+This is easier for starting stage.
+Website orders go to:
+Google Sheet or
+Excel file
+Then separate admin page reads that data.
+This is simpler but not ideal for big business.
+Option 3: Website + ERP style private app
+For bigger setup:
+inventory
+GST invoice
+ledger
+full accounting
+staff access
+This is more advanced.
+Best recommendation for your business
+For S K Crackers, I suggest:
+Stage 1
+Create these first:
+website
+admin login
+product master
+stock entry
+order entry
+payment status
+daily report
+Stage 2
+Then add:
+invoice PDF
+low stock alert
+transport tracking
+customer history
+sales chart
+Stage 3
+Then add:
+WhatsApp order updates
+barcode
+multi-user staff login
+profit report
+festival season bulk order control
+Domain setup idea
+You can keep:
+skcrackers.net → customer website
+admin.skcrackers.net → your private admin app
+This looks professional.
+Important legal point
+Since crackers business is regulated, your public website should mainly be:
+product catalog
+enquiry/order request
+clear compliance text
+Your private admin app can safely manage:
+stock
+payments
+reports
+invoice
+transport records
+What data should be stored
+Your app should keep:
+product name
+product code
+category
+stock quantity
+rate
+offer price
+order quantity
+customer name
+mobile number
+address
+payment mode
+payment status
+dispatch details
+remarks
+Example working flow
+Customer orders:
+10 flower pots
+5 sparklers
+2 rockets
+Admin app automatically shows:
+order total
+stock reduced
+payment pending or paid
+invoice ready
+dispatch pending
+Then you can see:
+today sale total
+current stock balance
+unpaid orders
+top selling item
+Final answer
+Yes, 100% possible.
+Best method is:
+Public e-commerce website + separate private admin app + one shared database
+That will help you manage:
+stock
+sales report
+payment details
+transport
+invoices
+If you want, next I can make a full step-by-step project plan for your skcrackers.net system with: website + admin app + database + report modules.
