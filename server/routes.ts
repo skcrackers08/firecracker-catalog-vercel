@@ -6,6 +6,7 @@ import { z } from "zod";
 import { db } from "./db";
 import { products } from "@shared/schema";
 import { sendInvoiceEmail } from "./email";
+import { registerAdminProRoutes, seedDefaultStaff } from "./admin-pro-routes";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
@@ -54,6 +55,8 @@ export async function registerRoutes(
   app: Express
 ): Promise<Server> {
   seedDatabase().catch(console.error);
+  seedDefaultStaff().catch(console.error);
+  registerAdminProRoutes(app);
 
   app.get(api.products.list.path, async (req, res) => {
     const productsList = await storage.getProducts();

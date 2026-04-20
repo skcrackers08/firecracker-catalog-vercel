@@ -9,6 +9,8 @@ import { CustomerAuthProvider } from "@/hooks/use-customer-auth";
 
 import Home from "@/pages/Home";
 import Admin from "@/pages/Admin";
+import AdminPro from "@/pages/AdminPro";
+import AdminProInvoice from "@/pages/AdminProInvoice";
 import ProductDetails from "@/pages/ProductDetails";
 import ProductGroups from "@/pages/ProductGroups";
 import GroupProducts from "@/pages/GroupProducts";
@@ -26,6 +28,8 @@ function Router() {
       <Route path="/groups" component={ProductGroups} />
       <Route path="/group/:name" component={GroupProducts} />
       <Route path="/admin" component={Admin} />
+      <Route path="/admin-pro/invoice/:id" component={AdminProInvoice} />
+      <Route path="/admin-pro" component={AdminPro} />
       <Route path="/product/:id" component={ProductDetails} />
       <Route path="/checkout/:id" component={Checkout} />
       <Route path="/checkout" component={Checkout} />

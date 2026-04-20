@@ -37,6 +37,9 @@ declare module "http" {
 declare module "express-session" {
   interface SessionData {
     customerId?: number;
+    staffId?: number;
+    staffRole?: string;
+    staffName?: string;
   }
 }
 
