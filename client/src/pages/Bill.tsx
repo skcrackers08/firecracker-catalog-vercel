@@ -175,19 +175,15 @@ export default function Bill() {
 
             <div className="w-full sm:w-80 space-y-3 text-gray-700">
               <div className="flex justify-between">
-                <span>Subtotal ({cartLines.length} {cartLines.length === 1 ? "item" : "items"}):</span>
+                <span>Estimated Amount ({cartLines.length} {cartLines.length === 1 ? "item" : "items"}):</span>
                 <span className="font-semibold">₹{Number(order.subtotal).toFixed(2)}</span>
               </div>
               <div className="flex justify-between text-sm">
-                <span>GST (18%):</span>
+                <span>Handling Charges (3%):</span>
                 <span>₹{Number(order.gstAmount).toFixed(2)}</span>
               </div>
-              <div className="flex justify-between text-sm text-green-600">
-                <span>Delivery:</span>
-                <span>Free</span>
-              </div>
               <div className="flex justify-between border-t-2 border-gray-800 pt-3 text-xl font-bold text-black mt-3">
-                <span>Grand Total:</span>
+                <span>Estimated Total:</span>
                 <span className="text-red-600">₹{Number(order.totalAmount).toFixed(2)}</span>
               </div>
             </div>

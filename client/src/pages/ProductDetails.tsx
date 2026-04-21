@@ -9,6 +9,7 @@ import { motion } from "framer-motion";
 import { useState } from "react";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
+import { useToast } from "@/hooks/use-toast";
 
 export default function ProductDetails() {
   const [, params] = useRoute("/product/:id");
@@ -16,6 +17,7 @@ export default function ProductDetails() {
   const id = params?.id;
   const { addToCart } = useCart();
   const { isInWishlist, toggleWishlist } = useWishlist();
+  const { toast } = useToast();
   const [quantity, setQuantity] = useState(0);
 
   const { data: product, isLoading, error } = useQuery<Product>({
@@ -141,7 +143,7 @@ export default function ProductDetails() {
             className={`flex items-center gap-2 text-sm font-medium transition-colors w-fit ${isInWishlist(product.id) ? "text-pink-400" : "text-muted-foreground hover:text-pink-400"}`}
           >
             <Heart className={`w-5 h-5 ${isInWishlist(product.id) ? "fill-pink-400" : ""}`} />
-            {isInWishlist(product.id) ? "Saved to Wishlist" : "Add to Wishlist"}
+            {isInWishlist(product.id) ? "Saved to Favorites" : "Add to Favorites"}
           </button>
 
           {quantity === 0 ? (
@@ -151,7 +153,7 @@ export default function ProductDetails() {
               className="w-full h-14 text-lg font-bold rounded-2xl shadow-gold-glow group"
             >
               <Plus className="w-5 h-5 mr-2 transition-transform group-hover:scale-110" />
-              ADD TO CART
+              ADD TO ENQUIRY
             </Button>
           ) : (
             <>
@@ -174,12 +176,16 @@ export default function ProductDetails() {
               </div>
 
               <Button
-                onClick={() => addToCart(product, quantity)}
+                onClick={() => {
+                  addToCart(product, quantity);
+                  toast({ title: "Added to enquiry", description: `${product.name} × ${quantity}` });
+                  setQuantity(0);
+                }}
                 data-testid="button-confirm-cart"
                 className="w-full h-14 text-lg font-bold rounded-2xl shadow-gold-glow group"
               >
                 <ShoppingCart className="w-5 h-5 mr-2 transition-transform group-hover:scale-110" />
-                CONFIRM
+                CONFIRM ENQUIRY
               </Button>
             </>
           )}

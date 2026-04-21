@@ -120,7 +120,7 @@ export default function Wishlist() {
                       className="flex-1 gap-2"
                       onClick={() => addToCart(product, 1)}
                     >
-                      <ShoppingCart className="w-4 h-4" /> Add to Cart
+                      <ShoppingCart className="w-4 h-4" /> Add to Enquiry
                     </Button>
 
                     {isSharedView ? (

@@ -85,10 +85,10 @@ export default function AdminProInvoice() {
           ))}
         </tbody>
         <tfoot>
-          <tr><td colSpan={4} className="text-right p-2">Subtotal</td><td className="text-right p-2">{fmtINR(order.subtotal)}</td></tr>
-          <tr><td colSpan={4} className="text-right p-2">GST</td><td className="text-right p-2">{fmtINR(order.gstAmount)}</td></tr>
+          <tr><td colSpan={4} className="text-right p-2">Estimated Amount</td><td className="text-right p-2">{fmtINR(order.subtotal)}</td></tr>
+          <tr><td colSpan={4} className="text-right p-2">Handling Charges (3%)</td><td className="text-right p-2">{fmtINR(order.gstAmount)}</td></tr>
           <tr className="bg-amber-100 font-bold text-lg">
-            <td colSpan={4} className="text-right p-2">TOTAL</td>
+            <td colSpan={4} className="text-right p-2">ESTIMATED TOTAL</td>
             <td className="text-right p-2">{fmtINR(order.totalAmount)}</td>
           </tr>
           <tr><td colSpan={4} className="text-right p-2">Paid</td><td className="text-right p-2 text-green-600">{fmtINR(order.paidAmount)}</td></tr>

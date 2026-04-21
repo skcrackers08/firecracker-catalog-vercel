@@ -1,6 +1,7 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings, MessageCircle } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
 import { useWishlist } from "@/hooks/use-wishlist";
@@ -24,10 +25,15 @@ export function Layout({ children }: LayoutProps) {
   const bottomNavItems = [
     { label: "Home", icon: Home, href: "/" },
     { label: "Search", icon: Search, href: "/?search=1" },
-    { label: "Cart", icon: ShoppingCart, href: null, action: () => setIsCartOpen(true) },
-    { label: "Orders", icon: Package, href: customer ? "/account" : "/login" },
+    { label: "Enquiry", icon: ShoppingCart, href: null, action: () => setIsCartOpen(true) },
+    { label: "My Requests", icon: Package, href: customer ? "/account" : "/login" },
     { label: "Profile", icon: User, href: customer ? "/account" : "/login" },
   ];
+
+  const { data: waSetting } = useQuery<{ value: string | null }>({
+    queryKey: ["/api/settings/whatsapp-number"],
+  });
+  const whatsappNumber = (waSetting?.value || "919344468937").replace(/\D/g, "");
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -106,7 +112,7 @@ export function Layout({ children }: LayoutProps) {
             {bottomNavItems.map((item) => {
               const Icon = item.icon;
               const isActive = item.href && (item.href === "/" ? location === "/" : location.startsWith(item.href.split("?")[0]));
-              const isCart = item.label === "Cart";
+              const isCart = item.label === "Enquiry";
 
               if (item.action) {
                 return (
@@ -167,6 +173,18 @@ export function Layout({ children }: LayoutProps) {
         </nav>
       )}
 
+      {/* Floating WhatsApp Icon */}
+      <a
+        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hi, I would like to enquire about S K Crackers products.")}`}
+        target="_blank"
+        rel="noreferrer noopener"
+        data-testid="link-whatsapp-float"
+        className="fixed bottom-20 right-4 z-[60] w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#1ebe57] shadow-2xl flex items-center justify-center transition-transform hover:scale-110 ring-4 ring-[#25D366]/30"
+        aria-label="Chat on WhatsApp"
+      >
+        <MessageCircle className="w-7 h-7 text-white fill-white" />
+      </a>
+
       {/* Cart Drawer/Modal */}
       <AnimatePresence>
         {isCartOpen && (
@@ -188,7 +206,7 @@ export function Layout({ children }: LayoutProps) {
                 <div className="flex items-center justify-between mb-6 border-b border-white/10 pb-4">
                   <h3 className="font-display text-2xl flex items-center gap-2">
                     <ShoppingCart className="w-6 h-6 text-primary" />
-                    YOUR CART
+                    YOUR ENQUIRY
                   </h3>
                   <button onClick={() => setIsCartOpen(false)} className="p-2 text-muted-foreground hover:text-white transition-colors">
                     <X className="w-6 h-6" />
@@ -199,7 +217,7 @@ export function Layout({ children }: LayoutProps) {
                   {items.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center py-12">
                       <ShoppingBag className="w-12 h-12 text-muted-foreground mb-4 opacity-20" />
-                      <p className="text-muted-foreground italic">Your cart is empty</p>
+                      <p className="text-muted-foreground italic">Your enquiry is empty</p>
                     </div>
                   ) : (
                     items.map(item => (
@@ -226,7 +244,7 @@ export function Layout({ children }: LayoutProps) {
                 {items.length > 0 && (
                   <div className="space-y-4 pt-4 border-t border-white/10">
                     <div className="flex justify-between items-center">
-                      <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Total Amount</span>
+                      <span className="text-sm font-bold text-muted-foreground uppercase tracking-wider">Estimated Total</span>
                       <span className="text-3xl font-display text-primary">₹{totalAmount.toFixed(2)}</span>
                     </div>
                     <Button
@@ -236,7 +254,7 @@ export function Layout({ children }: LayoutProps) {
                         setLocation('/checkout');
                       }}
                     >
-                      PROCEED TO CHECKOUT
+                      CONFIRM BOOKING
                       <ArrowRight className="w-5 h-5 ml-2" />
                     </Button>
                   </div>

@@ -1,4 +1,13 @@
-# S K Crackers — replit.md
+# S K Crackers
+
+## Recent Refactor (Apr 2026)
+- Removed in-app payment (UPI/Card/QR). Checkout flow → "ORDER ENQUIRY" page → "Send Enquiry on WhatsApp" button creates order with `paymentMethod="whatsapp-enquiry"` and opens wa.me link with pre-filled customer + items + estimated total.
+- Added floating WhatsApp icon (Layout.tsx) on every page; number stored in app_settings key `whatsapp-number` (default `919344468937`).
+- Tax label changed from "GST (18%)" to "Handling Charges (3%)" everywhere (Bill, Checkout, email, AdminProInvoice). DB column `gstAmount` retained for compatibility — value now stores 3% of subtotal.
+- Removed "Delivery Free" line entirely.
+- Customer-facing string renames: Cart→Enquiry, Orders→My Requests, BUY NOW→BOOK NOW, ADD TO CART→ADD TO ENQUIRY, CONFIRM→CONFIRM ENQUIRY, Saved/Add to Wishlist→Saved/Add to Favorites, Subtotal→Estimated Amount, Total Amount→Estimated Total, Order Summary→Enquiry Summary, Review Items→Selected Items, SECURE CHECKOUT→ORDER ENQUIRY, Delivery Address→Contact Details, Continue to Payment→Send Enquiry, PROCEED TO CHECKOUT→CONFIRM BOOKING, Shop by Category→PRODUCT CATEGORIES, Add to Cart→Add to Enquiry (Wishlist).
+- ProductDetails: after clicking CONFIRM ENQUIRY, quantity resets to 0 so "ADD TO ENQUIRY" button reappears.
+ — replit.md
 
 ## Overview
 

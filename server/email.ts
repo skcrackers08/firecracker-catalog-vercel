@@ -34,6 +34,7 @@ function parseCartItems(raw: string | null | undefined): CartItem[] {
 }
 
 function formatPaymentMethod(pm: string): string {
+  if (pm === "whatsapp-enquiry") return "WhatsApp Enquiry";
   if (pm.startsWith("upi-phonepe")) return "PhonePe UPI";
   if (pm.startsWith("upi-gpay")) return "Google Pay UPI";
   if (pm.startsWith("upi-paytm")) return "Paytm UPI";
@@ -71,7 +72,7 @@ function buildInvoiceHtml(order: Order, fromName: string): string {
 </td></tr>
 <tr><td style="padding:28px 32px;">
 <p style="margin:0 0 20px;font-size:16px;color:#374151;">Dear <strong>${order.customerName}</strong>,<br>
-<span style="color:#6b7280;font-size:14px;">Thank you for shopping with ${fromName}! Your order has been received and is being processed. Here is your invoice summary.</span></p>
+<span style="color:#6b7280;font-size:14px;">Thank you for your enquiry with ${fromName}! Here is a summary of your enquiry. Our team will contact you on WhatsApp to confirm and share payment details.</span></p>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#f9fafb;border-radius:10px;border:1px solid #e5e7eb;">
 <tr><td style="padding:14px 16px;border-bottom:1px solid #e5e7eb;"><p style="margin:0;font-size:11px;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;font-weight:600;">Customer Details</p></td></tr>
 <tr><td style="padding:12px 16px;"><table width="100%" cellpadding="0" cellspacing="0">
@@ -91,15 +92,15 @@ ${order.customerEmail ? `<tr><td style="padding:4px 0;font-size:13px;color:#6b72
 ${itemRows || `<tr><td colspan="4" style="padding:16px;text-align:center;color:#9ca3af;font-size:13px;">No item details available</td></tr>`}
 </tbody></table>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;">
-<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Subtotal</td><td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">₹${Number(order.subtotal).toFixed(2)}</td></tr>
-<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">GST (18%)</td><td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">₹${Number(order.gstAmount).toFixed(2)}</td></tr>
+<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Estimated Amount</td><td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">₹${Number(order.subtotal).toFixed(2)}</td></tr>
+<tr><td style="padding:6px 0;font-size:14px;color:#6b7280;">Handling Charges (3%)</td><td style="padding:6px 0;font-size:14px;color:#374151;text-align:right;">₹${Number(order.gstAmount).toFixed(2)}</td></tr>
 <tr><td colspan="2" style="padding:4px 0;border-top:2px solid #e5e7eb;"></td></tr>
-<tr><td style="padding:8px 0 0;font-size:18px;font-weight:700;color:#b91c1c;">Amount Paid</td><td style="padding:8px 0 0;font-size:18px;font-weight:700;color:#b91c1c;text-align:right;">₹${Number(order.totalAmount).toFixed(2)}</td></tr>
+<tr><td style="padding:8px 0 0;font-size:18px;font-weight:700;color:#b91c1c;">Estimated Total</td><td style="padding:8px 0 0;font-size:18px;font-weight:700;color:#b91c1c;text-align:right;">₹${Number(order.totalAmount).toFixed(2)}</td></tr>
 </table>
 <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:24px;background:#ecfdf5;border-radius:10px;border:1px solid #6ee7b7;">
 <tr><td style="padding:14px 16px;text-align:center;">
-<p style="margin:0;font-size:15px;font-weight:600;color:#065f46;">✅ Payment Received – Order Confirmed!</p>
-<p style="margin:4px 0 0;font-size:12px;color:#059669;">We will dispatch your order within 1-2 business days.</p>
+<p style="margin:0;font-size:15px;font-weight:600;color:#065f46;">✅ Enquiry Received!</p>
+<p style="margin:4px 0 0;font-size:12px;color:#059669;">Our team will confirm your enquiry on WhatsApp and share payment details shortly.</p>
 </td></tr></table>
 <p style="margin:0;font-size:12px;color:#9ca3af;text-align:center;line-height:1.6;">For any queries, reply to this email or contact us.<br>Thank you for choosing ${fromName} – Celebrate safely! 🎇</p>
 </td></tr>
@@ -152,7 +153,7 @@ export async function sendInvoiceEmail(order: Order): Promise<void> {
   await transporter.sendMail({
     from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
     to: order.customerEmail,
-    subject: `🎆 Order Confirmed! Invoice #SK-${String(order.id).padStart(4, "0")} – ${cfg.fromName}`,
+    subject: `🎆 Enquiry Received! #SK-${String(order.id).padStart(4, "0")} – ${cfg.fromName}`,
     html,
   });
 

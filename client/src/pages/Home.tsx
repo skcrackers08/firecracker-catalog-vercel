@@ -127,7 +127,7 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 mt-auto">
                         <Link href={`/product/${product.id}`} className="flex-1">
                           <Button variant="primary" className="w-full h-7 px-2 text-[10px] font-bold uppercase tracking-wider" data-testid={`button-buy-${product.id}`}>
-                            BUY NOW
+                            BOOK NOW
                           </Button>
                         </Link>
                         <button
@@ -183,7 +183,7 @@ export default function Home() {
                   <Link href={`/product/${topProduct?.id}`}>
                     <Button className="h-7 px-3 text-[10px] font-bold w-fit">
                       <ShoppingCart className="w-3 h-3 mr-1" />
-                      BUY NOW
+                      BOOK NOW
                     </Button>
                   </Link>
                 </div>
@@ -237,7 +237,7 @@ export default function Home() {
         <section className="mb-4">
           <div className="flex items-center gap-2 mb-4">
             <span className="w-1.5 h-5 bg-primary rounded-full inline-block"></span>
-            <h2 className="text-base font-display tracking-wider text-white uppercase">Shop by Category</h2>
+            <h2 className="text-base font-display tracking-wider text-white uppercase">Product Categories</h2>
           </div>
 
           <div className="grid grid-cols-4 gap-3">
