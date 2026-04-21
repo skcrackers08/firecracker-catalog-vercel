@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle, MessageSquare, Send } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
@@ -686,6 +686,174 @@ function EmailSettingsSection() {
   );
 }
 
+function SmsSettingsSection() {
+  const { toast } = useToast();
+  const [provider, setProvider] = useState<string>("startmessaging");
+  const [smKey, setSmKey] = useState("");
+  const [smEndpoint, setSmEndpoint] = useState("https://api.startmessaging.com/otp/send");
+  const [smSender, setSmSender] = useState("");
+  const [f2sKey, setF2sKey] = useState("");
+  const [showSecret, setShowSecret] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testResult, setTestResult] = useState<string>("");
+
+  const queries = [
+    useQuery<{ value: string | null }>({ queryKey: ["/api/settings/sms-provider"] }),
+    useQuery<{ value: string | null }>({ queryKey: ["/api/settings/startmessaging-api-key"] }),
+    useQuery<{ value: string | null }>({ queryKey: ["/api/settings/startmessaging-endpoint"] }),
+    useQuery<{ value: string | null }>({ queryKey: ["/api/settings/startmessaging-sender-id"] }),
+    useQuery<{ value: string | null }>({ queryKey: ["/api/settings/fast2sms-api-key"] }),
+  ];
+  const isLoading = queries.some((q) => q.isLoading);
+
+  if (!isLoading && !loaded) {
+    setProvider(queries[0].data?.value || "startmessaging");
+    setSmKey(queries[1].data?.value || "");
+    setSmEndpoint(queries[2].data?.value || "https://api.startmessaging.com/otp/send");
+    setSmSender(queries[3].data?.value || "");
+    setF2sKey(queries[4].data?.value || "");
+    setLoaded(true);
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      await Promise.all([
+        apiRequest("POST", "/api/settings/sms-provider", { value: provider }),
+        apiRequest("POST", "/api/settings/startmessaging-api-key", { value: smKey }),
+        apiRequest("POST", "/api/settings/startmessaging-endpoint", { value: smEndpoint }),
+        apiRequest("POST", "/api/settings/startmessaging-sender-id", { value: smSender }),
+        apiRequest("POST", "/api/settings/fast2sms-api-key", { value: f2sKey }),
+      ]);
+    },
+    onSuccess: () => {
+      ["sms-provider", "startmessaging-api-key", "startmessaging-endpoint", "startmessaging-sender-id", "fast2sms-api-key"].forEach((k) =>
+        queryClient.invalidateQueries({ queryKey: [`/api/settings/${k}`] })
+      );
+      toast({ title: "SMS settings saved", description: `Active provider: ${provider}` });
+    },
+    onError: () => toast({ title: "Save failed", variant: "destructive" }),
+  });
+
+  const test = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/customers/send-otp", { phone: testPhone });
+      return res.json();
+    },
+    onSuccess: (d: any) => {
+      if (d.smsSent) {
+        setTestResult(`✓ SMS sent successfully via ${d.provider}`);
+        toast({ title: "Test SMS sent", description: `Provider: ${d.provider}` });
+      } else {
+        setTestResult(`✗ Failed via ${d.provider}: ${d.error || "unknown error"}. (OTP for manual test: ${d.otp})`);
+        toast({ title: "Send failed", description: d.error, variant: "destructive" });
+      }
+    },
+    onError: (e: any) => {
+      setTestResult(`✗ ${e?.message ?? "Request failed"}`);
+      toast({ title: "Failed", variant: "destructive" });
+    },
+  });
+
+  const activeKey = provider === "startmessaging" ? smKey : f2sKey;
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Configure the SMS service used to send OTP codes to customers during phone verification and password reset.
+      </p>
+
+      {activeKey ? (
+        <div className="flex items-center gap-2 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+          <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+          <span className="text-sm text-green-400 font-medium">{provider === "startmessaging" ? "StartMessaging" : "Fast2SMS"} active — OTP SMS will be sent via this provider.</span>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
+          <KeyRound className="w-4 h-4 text-yellow-500 shrink-0" />
+          <span className="text-sm text-yellow-400">No API key set for {provider} — OTP will be shown on screen instead of texted.</span>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">SMS Provider</label>
+        <Select value={provider} onValueChange={setProvider}>
+          <SelectTrigger data-testid="select-sms-provider"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="startmessaging">StartMessaging (DLT-free, India)</SelectItem>
+            <SelectItem value="fast2sms">Fast2SMS</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
+      {provider === "startmessaging" ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2 space-y-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+              <KeyRound className="w-3 h-3" /> API Key <span className="text-red-400">*</span>
+            </label>
+            <div className="relative">
+              <Input
+                type={showSecret ? "text" : "password"}
+                value={smKey}
+                onChange={(e) => setSmKey(e.target.value)}
+                placeholder="sm_live_xxxxxxxxxxxxxxxx"
+                className="pr-10 font-mono text-sm"
+                data-testid="input-startmessaging-key"
+              />
+              <button type="button" onClick={() => setShowSecret((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">API Endpoint</label>
+            <Input value={smEndpoint} onChange={(e) => setSmEndpoint(e.target.value)} placeholder="https://api.startmessaging.com/otp/send" className="text-sm font-mono" data-testid="input-startmessaging-endpoint" />
+            <p className="text-xs text-muted-foreground">Default works for most setups. Change only if StartMessaging gives a different URL.</p>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sender ID (optional)</label>
+            <Input value={smSender} onChange={(e) => setSmSender(e.target.value)} placeholder="SKCRKR" className="text-sm" data-testid="input-startmessaging-sender" />
+          </div>
+        </div>
+      ) : (
+        <div className="space-y-1.5">
+          <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+            <KeyRound className="w-3 h-3" /> Fast2SMS API Key
+          </label>
+          <div className="relative">
+            <Input type={showSecret ? "text" : "password"} value={f2sKey} onChange={(e) => setF2sKey(e.target.value)} placeholder="Paste your Fast2SMS key here…" className="pr-10 font-mono text-sm" data-testid="input-fast2sms-key" />
+            <button type="button" onClick={() => setShowSecret((v) => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {showSecret ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+          <p className="text-xs text-muted-foreground">Leaving this blank falls back to the FAST2SMS_API_KEY environment variable.</p>
+        </div>
+      )}
+
+      <div className="flex items-center gap-3">
+        <Button onClick={() => save.mutate()} disabled={save.isPending} className="flex items-center gap-2" data-testid="button-save-sms-settings">
+          <Save className="w-4 h-4" />{save.isPending ? "Saving…" : "Save SMS Settings"}
+        </Button>
+      </div>
+
+      <div className="bg-muted/30 rounded-xl border border-border p-4 space-y-3">
+        <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+          <Send className="w-3.5 h-3.5" /> Send Test OTP
+        </p>
+        <div className="flex gap-2">
+          <Input value={testPhone} onChange={(e) => setTestPhone(e.target.value)} placeholder="10-digit phone" className="text-sm" data-testid="input-test-phone" />
+          <Button variant="outline" onClick={() => test.mutate()} disabled={test.isPending || testPhone.length < 10} data-testid="button-test-sms">
+            {test.isPending ? "Sending…" : "Send"}
+          </Button>
+        </div>
+        {testResult && <p className="text-xs font-mono break-all">{testResult}</p>}
+        <p className="text-xs text-muted-foreground">A real OTP will be sent. If the API call fails, the OTP will be shown above so you can still test login flow.</p>
+      </div>
+    </div>
+  );
+}
+
 export default function Admin() {
   const { toast } = useToast();
   const [isLoggedIn, setIsLoggedIn] = useState(() => sessionStorage.getItem(SESSION_KEY) === "1");
@@ -761,6 +929,10 @@ export default function Admin() {
 
       <SectionPanel icon={<Mail className="h-5 w-5" />} title="Email Invoice Settings">
         <EmailSettingsSection />
+      </SectionPanel>
+
+      <SectionPanel icon={<MessageSquare className="h-5 w-5" />} title="SMS / OTP Settings">
+        <SmsSettingsSection />
       </SectionPanel>
 
       <SectionPanel icon={<ShieldCheck className="h-5 w-5" />} title="Security Settings">

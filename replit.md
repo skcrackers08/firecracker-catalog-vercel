@@ -113,7 +113,8 @@ A typed `api` manifest object defines each endpoint with its HTTP method, path, 
 **Customer accounts:** Full session-based auth using `express-session` + `memorystore`.
 - Passwords hashed with Node.js `crypto.scryptSync` (salt:hash format)
 - Sessions stored in memory, cookie-based (`sk-crackers-secret-key`)
-- Phone OTP verification: 6-digit code generated server-side, stored in a Map with 10-minute expiry; returned in API response (displayed on screen — no SMS gateway integrated yet)
+- Phone OTP verification: 6-digit code generated server-side, stored in a Map with 10-minute expiry. Sent via configurable SMS gateway (StartMessaging or Fast2SMS). Provider, API key, endpoint and sender ID are managed in `/admin` → "SMS / OTP Settings". If sending fails, OTP falls back to on-screen display so the flow can still complete.
+  - StartMessaging integration: header `x-api-key`, endpoint `https://api.startmessaging.com/otp/send`, body `{phoneNumber: "+91...", variables: {otp}}`. Phone is auto-normalised to E.164 (10-digit assumed Indian and prefixed with +91). Logic lives in `server/sms.ts`.
 - New pages: `/login` (register/login), `/account` (order history)
 - `CustomerAuthProvider` wraps the entire app in `App.tsx`
 

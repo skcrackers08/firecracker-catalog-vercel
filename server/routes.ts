@@ -7,6 +7,7 @@ import { db } from "./db";
 import { products } from "@shared/schema";
 import { sendInvoiceEmail } from "./email";
 import { registerAdminProRoutes, seedDefaultStaff } from "./admin-pro-routes";
+import { sendOtpSms } from "./sms";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
@@ -163,31 +164,12 @@ export async function registerRoutes(
       const otp = generateOtp();
       otpStore.set(phone, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-      const apiKey = process.env.FAST2SMS_API_KEY;
-      let smsSent = false;
-
-      if (apiKey) {
-        try {
-          const url = new URL("https://www.fast2sms.com/dev/bulkV2");
-          url.searchParams.set("authorization", apiKey);
-          url.searchParams.set("variables_values", otp);
-          url.searchParams.set("route", "otp");
-          url.searchParams.set("numbers", phone);
-          const smsRes = await fetch(url.toString());
-          const smsData = await smsRes.json() as { return?: boolean; message?: string[] };
-          smsSent = smsData.return === true;
-          if (!smsSent) {
-            console.error("Fast2SMS error:", smsData.message);
-          }
-        } catch (smsErr) {
-          console.error("Failed to send SMS:", smsErr);
-        }
-      }
-
-      if (smsSent) {
-        res.json({ success: true, smsSent: true });
+      const result = await sendOtpSms(phone, otp);
+      if (!result.success) console.error(`[SMS:${result.provider}] Failed:`, result.error);
+      if (result.success) {
+        res.json({ success: true, smsSent: true, provider: result.provider });
       } else {
-        res.json({ success: true, smsSent: false, otp });
+        res.json({ success: true, smsSent: false, otp, provider: result.provider, error: result.error });
       }
     } catch (err) {
       res.status(400).json({ message: "Invalid phone number" });
@@ -283,26 +265,9 @@ export async function registerRoutes(
       const otp = generateOtp();
       otpStore.set(`reset_${phone}`, { otp, expiresAt: Date.now() + 10 * 60 * 1000 });
 
-      const apiKey = process.env.FAST2SMS_API_KEY;
-      let smsSent = false;
-      if (apiKey) {
-        try {
-          const url = new URL("https://www.fast2sms.com/dev/bulkV2");
-          url.searchParams.set("authorization", apiKey);
-          url.searchParams.set("variables_values", otp);
-          url.searchParams.set("route", "otp");
-          url.searchParams.set("numbers", phone);
-          const smsRes = await fetch(url.toString());
-          const smsData = await smsRes.json() as { return?: boolean };
-          smsSent = smsData.return === true;
-        } catch {}
-      }
-
-      if (smsSent) {
-        res.json({ success: true, smsSent: true });
-      } else {
-        res.json({ success: true, smsSent: false, otp });
-      }
+      const result = await sendOtpSms(phone, otp);
+      if (result.success) res.json({ success: true, smsSent: true, provider: result.provider });
+      else res.json({ success: true, smsSent: false, otp, provider: result.provider, error: result.error });
     } catch (err) {
       res.status(400).json({ message: "Invalid phone number" });
     }
