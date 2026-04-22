@@ -189,8 +189,19 @@ export default function Bill() {
             </div>
           </div>
 
-          <div className="mt-12 text-center text-sm text-gray-500 font-medium border-t border-gray-100 pt-6">
-            Thank you for shopping with S K Crackers!<br />
+          <div className="mt-10 p-5 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 text-sm leading-relaxed" data-testid="text-bill-disclaimer">
+            <p className="font-bold mb-2">⚠️ Important — Please Read</p>
+            <ul className="list-disc list-inside space-y-1 text-xs">
+              <li>This website is for <b>enquiry purposes only</b>. Your order will be confirmed manually via WhatsApp by our team as per government rules.</li>
+              <li><b>No direct online sale or payment</b> is processed on this website. After confirmation, our team will share UPI / Bank / QR details on WhatsApp.</li>
+              <li>Final pricing, available stock, transport / lorry charges and delivery time will be confirmed by our team before payment.</li>
+              <li>Sale of fireworks is subject to <b>local laws and license regulations</b>. Customers are responsible for ensuring fireworks are legally permitted in their area.</li>
+              <li>Please handle and store all crackers with care. Strictly for use by adults under supervision.</li>
+            </ul>
+          </div>
+
+          <div className="mt-8 text-center text-sm text-gray-500 font-medium border-t border-gray-100 pt-6">
+            Thank you for your enquiry with S K Crackers!<br />
             Wishing you a safe and joyful celebration. 🎇
           </div>
         </Card>

@@ -153,7 +153,7 @@ export default function ProductGroups() {
                             className="w-full h-7 px-2 text-[10px] font-bold uppercase tracking-wider"
                             data-testid={`button-buy-${product.id}`}
                           >
-                            BOOK NOW
+                            SEND ENQUIRY
                           </Button>
                         </Link>
                         <button

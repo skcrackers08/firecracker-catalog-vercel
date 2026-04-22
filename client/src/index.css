@@ -93,3 +93,14 @@
   transform: translateY(0);
   transition: opacity 400ms, transform 400ms;
 }
+
+/* Marquee disclaimer */
+@keyframes marquee {
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 60s linear infinite;
+  will-change: transform;
+}

@@ -127,7 +127,7 @@ export default function Home() {
                       <div className="flex items-center gap-1.5 mt-auto">
                         <Link href={`/product/${product.id}`} className="flex-1">
                           <Button variant="primary" className="w-full h-7 px-2 text-[10px] font-bold uppercase tracking-wider" data-testid={`button-buy-${product.id}`}>
-                            BOOK NOW
+                            SEND ENQUIRY
                           </Button>
                         </Link>
                         <button
@@ -152,7 +152,7 @@ export default function Home() {
         <section className="mb-6">
           <div className="flex items-center gap-2 mb-3">
             <span className="w-1.5 h-5 bg-primary rounded-full inline-block"></span>
-            <h2 className="text-base font-display tracking-wider text-white uppercase">Top Selling</h2>
+            <h2 className="text-base font-display tracking-wider text-white uppercase">Popular Products</h2>
           </div>
 
           <div className="relative rounded-2xl overflow-hidden shadow-xl touch-none bg-black/60 border border-white/5">
@@ -171,7 +171,7 @@ export default function Home() {
                 {/* Left: Info */}
                 <div className="flex-1 p-4 flex flex-col justify-center min-w-0">
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary text-black text-[9px] font-bold uppercase tracking-wider mb-2 w-fit">
-                    🎆 TOP SELLING
+                    🎆 POPULAR
                   </span>
                   <Link href={`/product/${topProduct?.id}`}>
                     <h3 className="text-sm sm:text-base font-display text-white leading-snug mb-1 hover:text-primary transition-colors line-clamp-2">
@@ -183,7 +183,7 @@ export default function Home() {
                   <Link href={`/product/${topProduct?.id}`}>
                     <Button className="h-7 px-3 text-[10px] font-bold w-fit">
                       <ShoppingCart className="w-3 h-3 mr-1" />
-                      BOOK NOW
+                      SEND ENQUIRY
                     </Button>
                   </Link>
                 </div>

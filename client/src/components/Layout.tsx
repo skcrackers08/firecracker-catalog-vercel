@@ -100,6 +100,14 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </header>
 
+      {/* Legal Disclaimer Marquee */}
+      <div className="bg-amber-500/10 border-b border-amber-500/30 overflow-hidden py-2 text-amber-200 sticky top-16 z-40">
+        <div className="whitespace-nowrap animate-marquee text-xs sm:text-sm font-medium tracking-wide" data-testid="text-disclaimer-marquee">
+          <span className="mx-8">⚠️ This website is for enquiry purposes only. Orders will be confirmed manually via WhatsApp as per government rules. No direct online sale or payment is processed on this website. Sale of fireworks is subject to local laws and license regulations.</span>
+          <span className="mx-8">⚠️ This website is for enquiry purposes only. Orders will be confirmed manually via WhatsApp as per government rules. No direct online sale or payment is processed on this website. Sale of fireworks is subject to local laws and license regulations.</span>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 pb-24">
         {children}
