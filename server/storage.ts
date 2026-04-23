@@ -194,7 +194,14 @@ export class DatabaseStorage implements IStorage {
     await db.update(customers).set({ phoneVerified: true }).where(eq(customers.id, customerId));
   }
   async validateCustomerPassword(username: string, password: string): Promise<Customer | null> {
-    const customer = await this.getCustomerByUsername(username);
+    const cleaned = (username || "").trim();
+    let customer = await this.getCustomerByUsername(cleaned);
+    if (!customer) {
+      const digits = cleaned.replace(/\D/g, "");
+      if (digits.length >= 10) {
+        customer = await this.getCustomerByPhone(digits.slice(-10));
+      }
+    }
     if (!customer) return null;
     if (!verifyPassword(password, customer.passwordHash)) return null;
     return customer;

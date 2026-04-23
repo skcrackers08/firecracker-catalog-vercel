@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
 import { openWhatsApp } from "@/lib/whatsapp";
+import { LoginPopup } from "@/components/LoginPopup";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
@@ -272,6 +273,8 @@ export function Layout({ children }: LayoutProps) {
           </div>
         )}
       </AnimatePresence>
+
+      <LoginPopup />
     </div>
   );
 }
