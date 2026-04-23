@@ -57,6 +57,20 @@ export const customers = pgTable("customers", {
   email: text("email"),
   address: text("address"),
   profilePhoto: text("profile_photo"),
+  referralCode: text("referral_code").unique(),
+  referralPercentage: integer("referral_percentage").notNull().default(0),
+  walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+});
+
+export const referralUses = pgTable("referral_uses", {
+  id: serial("id").primaryKey(),
+  referrerCustomerId: integer("referrer_customer_id").notNull(),
+  usedByCustomerId: integer("used_by_customer_id"),
+  usedByName: text("used_by_name").notNull(),
+  usedByPhone: text("used_by_phone"),
+  orderId: integer("order_id"),
+  amountCredited: numeric("amount_credited", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const orders = pgTable("orders", {
@@ -121,6 +135,7 @@ export type UpdateProduct = z.infer<typeof updateProductSchema>;
 
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
+export type ReferralUse = typeof referralUses.$inferSelect;
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;

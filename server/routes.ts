@@ -83,6 +83,29 @@ export async function registerRoutes(
           console.error("[Email] Failed to send invoice:", err?.message ?? err);
         });
       }
+      // Process referral credit (best-effort, non-blocking)
+      const promoCode: string | undefined = (req.body?.promoCode || "").toString().trim().toUpperCase();
+      if (promoCode) {
+        try {
+          const referrer = await storage.getCustomerByReferralCode(promoCode);
+          if (referrer && referrer.id !== customerId && referrer.referralPercentage > 0) {
+            const subtotal = Number(order.subtotal || 0);
+            const credit = (subtotal * referrer.referralPercentage / 100).toFixed(2);
+            if (Number(credit) > 0) {
+              await storage.creditReferralUse({
+                referrerCustomerId: referrer.id,
+                usedByCustomerId: customerId,
+                usedByName: order.customerName,
+                usedByPhone: order.customerPhone,
+                orderId: order.id,
+                amountCredited: credit,
+              });
+            }
+          }
+        } catch (e) {
+          console.error("[Referral] credit failed:", (e as Error).message);
+        }
+      }
     } catch (err) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({
@@ -353,6 +376,38 @@ export async function registerRoutes(
     }
     const { passwordHash: _, ...safeCustomer } = customer;
     res.json(safeCustomer);
+  });
+
+  app.get("/api/customers/me/partner", async (req, res) => {
+    if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+    const customer = await storage.getCustomerById(req.session.customerId);
+    if (!customer) return res.status(404).json({ message: "Customer not found" });
+    const history = await storage.getReferralHistory(customer.id);
+    res.json({
+      referralCode: customer.referralCode,
+      referralPercentage: customer.referralPercentage,
+      walletBalance: customer.walletBalance,
+      history,
+    });
+  });
+
+  app.post("/api/customers/me/partner", async (req, res) => {
+    try {
+      if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+      const { percentage } = z.object({
+        percentage: z.number().int().min(0).max(20),
+      }).parse(req.body);
+      const updated = await storage.setCustomerReferral(req.session.customerId, percentage);
+      if (!updated) return res.status(404).json({ message: "Customer not found" });
+      res.json({
+        referralCode: updated.referralCode,
+        referralPercentage: updated.referralPercentage,
+        walletBalance: updated.walletBalance,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to update referral settings" });
+    }
   });
 
   app.patch("/api/customers/me", async (req, res) => {

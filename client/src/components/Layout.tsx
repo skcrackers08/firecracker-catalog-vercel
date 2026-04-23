@@ -33,7 +33,7 @@ export function Layout({ children }: LayoutProps) {
     { label: "Search", icon: Search, href: null, action: () => setIsSearchOpen(true) },
     { label: "Enquiry", icon: ShoppingCart, href: null, action: () => setIsCartOpen(true) },
     { label: "My Requests", icon: Package, href: customer ? "/account" : "/login" },
-    { label: "Partner", icon: Briefcase, href: "/admin" },
+    { label: "Partner", icon: Briefcase, href: customer ? "/partner" : "/login" },
   ];
 
   const { data: waSetting } = useQuery<{ value: string | null }>({

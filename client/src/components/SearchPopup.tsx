@@ -43,12 +43,12 @@ export function SearchPopup({ open, onClose }: { open: boolean; onClose: () => v
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
-            className="fixed inset-0 z-[78] bg-black/75 backdrop-blur-sm"
+            className="fixed inset-0 z-[78] bg-black/85 backdrop-blur-md"
           />
           <motion.div
-            initial={{ y: 24, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 24, opacity: 0 }}
+            initial={{ y: -20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -20, opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[79] w-[94vw] max-w-xl"
+            className="fixed top-4 left-3 right-3 sm:top-20 sm:left-1/2 sm:right-auto sm:-translate-x-1/2 sm:w-[94vw] sm:max-w-2xl z-[79]"
             data-testid="popup-search"
           >
             <Card className="overflow-hidden border-primary/30 shadow-2xl">

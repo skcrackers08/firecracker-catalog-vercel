@@ -5,11 +5,13 @@ import {
   customers,
   staff,
   stockMovements,
+  referralUses,
   type Product,
   type Order,
   type Customer,
   type Staff,
   type StockMovement,
+  type ReferralUse,
   type InsertProduct,
   type InsertOrder,
   type InsertCustomer,
@@ -61,6 +63,10 @@ export interface IStorage {
   validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
   updateCustomerPassword(customerId: number, newPassword: string): Promise<void>;
   updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined>;
+  setCustomerReferral(customerId: number, percentage: number): Promise<Customer | undefined>;
+  getCustomerByReferralCode(code: string): Promise<Customer | undefined>;
+  creditReferralUse(data: { referrerCustomerId: number; usedByCustomerId: number | null; usedByName: string; usedByPhone?: string | null; orderId?: number | null; amountCredited: string }): Promise<void>;
+  getReferralHistory(customerId: number): Promise<ReferralUse[]>;
 
   createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff>;
   getStaff(): Promise<Staff[]>;
@@ -220,6 +226,41 @@ export class DatabaseStorage implements IStorage {
   async updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined> {
     const [row] = await db.update(customers).set(patch).where(eq(customers.id, customerId)).returning();
     return row;
+  }
+  async setCustomerReferral(customerId: number, percentage: number): Promise<Customer | undefined> {
+    const cust = await this.getCustomerById(customerId);
+    if (!cust) return undefined;
+    let code = cust.referralCode;
+    if (!code) {
+      for (let i = 0; i < 8; i++) {
+        const candidate = "SK" + Math.random().toString(36).slice(2, 8).toUpperCase();
+        const exists = await this.getCustomerByReferralCode(candidate);
+        if (!exists) { code = candidate; break; }
+      }
+    }
+    const [row] = await db.update(customers)
+      .set({ referralCode: code, referralPercentage: percentage })
+      .where(eq(customers.id, customerId))
+      .returning();
+    return row;
+  }
+  async getCustomerByReferralCode(code: string): Promise<Customer | undefined> {
+    const [row] = await db.select().from(customers).where(eq(customers.referralCode, code)).limit(1);
+    return row;
+  }
+  async creditReferralUse(data: { referrerCustomerId: number; usedByCustomerId: number | null; usedByName: string; usedByPhone?: string | null; orderId?: number | null; amountCredited: string }): Promise<void> {
+    await db.insert(referralUses).values({
+      referrerCustomerId: data.referrerCustomerId,
+      usedByCustomerId: data.usedByCustomerId,
+      usedByName: data.usedByName,
+      usedByPhone: data.usedByPhone || null,
+      orderId: data.orderId || null,
+      amountCredited: data.amountCredited,
+    });
+    await db.execute(sql`UPDATE customers SET wallet_balance = wallet_balance + ${data.amountCredited} WHERE id = ${data.referrerCustomerId}`);
+  }
+  async getReferralHistory(customerId: number): Promise<ReferralUse[]> {
+    return db.select().from(referralUses).where(eq(referralUses.referrerCustomerId, customerId)).orderBy(desc(referralUses.createdAt));
   }
 
   async createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff> {

@@ -19,6 +19,7 @@ import Bill from "@/pages/Bill";
 import Wishlist from "@/pages/Wishlist";
 import CustomerLogin from "@/pages/CustomerLogin";
 import CustomerAccount from "@/pages/CustomerAccount";
+import PartnerPage from "@/pages/PartnerPage";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -37,6 +38,7 @@ function Router() {
       <Route path="/wishlist" component={Wishlist} />
       <Route path="/login" component={CustomerLogin} />
       <Route path="/account" component={CustomerAccount} />
+      <Route path="/partner" component={PartnerPage} />
       <Route component={NotFound} />
     </Switch>
   );

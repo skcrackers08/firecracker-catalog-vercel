@@ -111,6 +111,7 @@ export default function Checkout() {
       lineTotal: (Number(item.price) * item.quantity).toFixed(2),
     }));
 
+    const promoCode = (typeof window !== "undefined" ? localStorage.getItem("sk-promo-code") : "") || "";
     createOrder.mutate({
       productId: items[0].id,
       quantity: items.reduce((sum, item) => sum + item.quantity, 0),
@@ -123,7 +124,8 @@ export default function Checkout() {
       gstAmount: handlingAmount.toFixed(2),
       totalAmount: finalAmount.toFixed(2),
       cartItems: JSON.stringify(cartSnapshot),
-    }, {
+      promoCode,
+    } as any, {
       onSuccess: (created) => {
         const text = buildWhatsAppMessage(data, address, created.id);
         try {
