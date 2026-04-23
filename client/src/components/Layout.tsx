@@ -1,6 +1,8 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings, MessageCircle } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings, MessageCircle, Briefcase } from "lucide-react";
+import { CustomerDrawer } from "@/components/CustomerDrawer";
+import { SearchPopup } from "@/components/SearchPopup";
 import { useQuery } from "@tanstack/react-query";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
@@ -20,16 +22,18 @@ export function Layout({ children }: LayoutProps) {
   const { wishlist } = useWishlist();
   const { customer } = useCustomerAuth();
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [location, setLocation] = useLocation();
 
   const isCheckoutPage = location === "/checkout";
 
   const bottomNavItems = [
     { label: "Home", icon: Home, href: "/" },
-    { label: "Search", icon: Search, href: "/?search=1" },
+    { label: "Search", icon: Search, href: null, action: () => setIsSearchOpen(true) },
     { label: "Enquiry", icon: ShoppingCart, href: null, action: () => setIsCartOpen(true) },
     { label: "My Requests", icon: Package, href: customer ? "/account" : "/login" },
-    { label: "Profile", icon: User, href: customer ? "/account" : "/login" },
+    { label: "Partner", icon: Briefcase, href: "/admin" },
   ];
 
   const { data: waSetting } = useQuery<{ value: string | null }>({
@@ -43,7 +47,12 @@ export function Layout({ children }: LayoutProps) {
       <header className="sticky top-0 z-50 w-full border-b border-white/5 bg-background/90 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <button className="p-1.5 text-muted-foreground hover:text-primary transition-colors md:hidden" data-testid="button-menu">
+            <button
+              onClick={() => customer ? setIsDrawerOpen(true) : (window.location.href = "/login")}
+              className="p-1.5 text-muted-foreground hover:text-primary transition-colors"
+              data-testid="button-menu"
+              aria-label="Open profile menu"
+            >
               <Menu className="w-5 h-5" />
             </button>
             <Link href="/" className="flex items-center gap-2.5 group">
@@ -182,6 +191,9 @@ export function Layout({ children }: LayoutProps) {
           </div>
         </nav>
       )}
+
+      <CustomerDrawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      <SearchPopup open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
       {/* Floating WhatsApp Icon */}
       <button

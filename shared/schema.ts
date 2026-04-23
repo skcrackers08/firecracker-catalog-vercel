@@ -55,6 +55,8 @@ export const customers = pgTable("customers", {
   phoneVerified: boolean("phone_verified").notNull().default(false),
   fullName: text("full_name"),
   email: text("email"),
+  address: text("address"),
+  profilePhoto: text("profile_photo"),
 });
 
 export const orders = pgTable("orders", {

@@ -60,6 +60,7 @@ export interface IStorage {
   verifyCustomerPhone(customerId: number): Promise<void>;
   validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
   updateCustomerPassword(customerId: number, newPassword: string): Promise<void>;
+  updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined>;
 
   createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff>;
   getStaff(): Promise<Staff[]>;
@@ -215,6 +216,10 @@ export class DatabaseStorage implements IStorage {
   async updateCustomerPassword(customerId: number, newPassword: string): Promise<void> {
     const passwordHash = hashPassword(newPassword);
     await db.update(customers).set({ passwordHash }).where(eq(customers.id, customerId));
+  }
+  async updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined> {
+    const [row] = await db.update(customers).set(patch).where(eq(customers.id, customerId)).returning();
+    return row;
   }
 
   async createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff> {

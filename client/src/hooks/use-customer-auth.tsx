@@ -7,6 +7,10 @@ interface Customer {
   username: string;
   phone: string;
   phoneVerified: boolean;
+  fullName?: string | null;
+  email?: string | null;
+  address?: string | null;
+  profilePhoto?: string | null;
 }
 
 interface OtpResult {
@@ -26,6 +30,7 @@ interface CustomerAuthContextType {
   sendForgotOtp: (phone: string) => Promise<OtpResult | null>;
   resetPassword: (phone: string, otp: string, newPassword: string) => Promise<boolean>;
   changePassword: (oldPassword: string, newPassword: string) => Promise<{ ok: boolean; message?: string }>;
+  updateProfile: (patch: Partial<Pick<Customer, "fullName" | "email" | "address" | "profilePhoto">>) => Promise<{ ok: boolean; message?: string }>;
 }
 
 const CustomerAuthContext = createContext<CustomerAuthContextType | null>(null);
@@ -137,6 +142,23 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const updateProfile = async (patch: Partial<Pick<Customer, "fullName" | "email" | "address" | "profilePhoto">>): Promise<{ ok: boolean; message?: string }> => {
+    try {
+      const res = await apiRequest("PATCH", "/api/customers/me", patch);
+      const updated = await res.json();
+      queryClient.setQueryData(["/api/customers/me"], updated);
+      return { ok: true };
+    } catch (err: any) {
+      const raw: string = err?.message || "";
+      try {
+        const parsed = JSON.parse(raw.substring(raw.indexOf("{")));
+        return { ok: false, message: parsed.message || "Failed to update profile" };
+      } catch {
+        return { ok: false, message: "Failed to update profile" };
+      }
+    }
+  };
+
   return (
     <CustomerAuthContext.Provider value={{
       customer: customer ?? null,
@@ -149,6 +171,7 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
       sendForgotOtp,
       resetPassword,
       changePassword,
+      updateProfile,
     }}>
       {children}
     </CustomerAuthContext.Provider>

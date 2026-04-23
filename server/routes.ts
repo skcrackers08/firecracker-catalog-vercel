@@ -355,6 +355,34 @@ export async function registerRoutes(
     res.json(safeCustomer);
   });
 
+  app.patch("/api/customers/me", async (req, res) => {
+    try {
+      if (!req.session.customerId) {
+        return res.status(401).json({ message: "Not logged in" });
+      }
+      const patch = z.object({
+        fullName: z.string().max(120).optional(),
+        email: z.string().email().optional().or(z.literal("")),
+        address: z.string().max(500).optional(),
+        profilePhoto: z.string().max(700_000, "Image is too large").optional(),
+      }).parse(req.body);
+
+      const cleaned: any = {};
+      if (patch.fullName !== undefined) cleaned.fullName = patch.fullName.trim() || null;
+      if (patch.email !== undefined) cleaned.email = (patch.email || "").trim() || null;
+      if (patch.address !== undefined) cleaned.address = patch.address.trim() || null;
+      if (patch.profilePhoto !== undefined) cleaned.profilePhoto = patch.profilePhoto || null;
+
+      const updated = await storage.updateCustomerProfile(req.session.customerId, cleaned);
+      if (!updated) return res.status(404).json({ message: "Customer not found" });
+      const { passwordHash: _, ...safe } = updated;
+      res.json(safe);
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
   app.get("/api/customers/orders", async (req, res) => {
     if (!req.session.customerId) {
       return res.status(401).json({ message: "Not logged in" });
