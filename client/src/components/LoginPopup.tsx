@@ -1,82 +1,75 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { X, Phone, Lock, Eye, EyeOff, Tag, ArrowRight, ShieldCheck, MessageSquare, KeyRound, CheckCircle2, RefreshCw, UserPlus } from "lucide-react";
-import { Button, Card, Input, Label, cn } from "@/components/ui-custom";
+import { Phone, Lock, Eye, EyeOff, Tag, ArrowRight, ShieldCheck, MessageSquare, KeyRound, CheckCircle2, RefreshCw, UserPlus, User, Mail } from "lucide-react";
+import { Button, Card, Input, Label } from "@/components/ui-custom";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 
-const POPUP_DISMISSED_KEY = "sk-login-popup-dismissed";
 const PROMO_KEY = "sk-promo-code";
 
 type View = "login" | "register" | "forgot";
 type RegStep = "details" | "otp";
 type ForgotStep = "phone" | "otp" | "newpass";
 
+function PopupHeader({ title, subtitle }: { title: string; subtitle: string }) {
+  return (
+    <div className="text-center mb-5">
+      <div className="flex items-center justify-center gap-3 mb-3">
+        <img src={logoPng} alt="S K Crackers Logo" className="w-12 h-12 rounded-full object-cover ring-2 ring-primary/40" />
+        <div className="text-left">
+          <p className="font-display text-xl text-gradient-gold leading-none">S K CRACKERS</p>
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mt-1">Sivakasi Fireworks</p>
+        </div>
+      </div>
+      <div className="h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent my-3" />
+      <h2 className="font-display text-lg text-white tracking-wide">{title}</h2>
+      <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>
+    </div>
+  );
+}
+
 export function LoginPopup() {
   const { customer, isLoading } = useCustomerAuth();
   const [, setLocation] = useLocation();
-  const [open, setOpen] = useState(false);
   const [view, setView] = useState<View>("login");
 
-  useEffect(() => {
-    if (isLoading) return;
-    if (customer) { setOpen(false); return; }
-    const dismissed = sessionStorage.getItem(POPUP_DISMISSED_KEY);
-    if (dismissed) return;
-    const path = window.location.pathname;
-    if (path.startsWith("/admin") || path.startsWith("/login") || path.startsWith("/account")) return;
-    const t = setTimeout(() => setOpen(true), 800);
-    return () => clearTimeout(t);
-  }, [customer, isLoading]);
+  // Compulsory: only hide if logged in OR on admin/login pages
+  const path = typeof window !== "undefined" ? window.location.pathname : "/";
+  const isAdminOrLogin = path.startsWith("/admin") || path.startsWith("/login");
 
-  const handleClose = () => {
-    sessionStorage.setItem(POPUP_DISMISSED_KEY, "1");
-    setOpen(false);
-  };
-
-  if (!open || customer) return null;
+  if (isLoading) return null;
+  if (customer) return null;
+  if (isAdminOrLogin) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200" data-testid="popup-login">
-      <Card className="relative w-full max-w-md max-h-[92vh] overflow-y-auto p-6 sm:p-7 border-primary/30 shadow-2xl animate-in zoom-in-95 duration-200">
-        <button
-          onClick={handleClose}
-          className="absolute top-3 right-3 w-9 h-9 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white transition"
-          aria-label="Close"
-          data-testid="button-close-popup"
-        >
-          <X className="w-4 h-4" />
-        </button>
-
-        <div className="text-center mb-5">
-          <div className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center mx-auto mb-3 border border-primary/30">
-            <ShieldCheck className="w-7 h-7 text-primary" />
-          </div>
-          <h2 className="font-display text-2xl text-gradient-gold mb-1">
-            {view === "login" ? "WELCOME BACK" : view === "register" ? "CREATE ACCOUNT" : "RESET PASSWORD"}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {view === "login" ? "Sign in to place an enquiry" : view === "register" ? "Quick OTP verification — no spam" : "OTP verification on your mobile"}
-          </p>
-        </div>
-
-        {view === "login" && <LoginPanel onSwitch={setView} onClose={handleClose} setLocation={setLocation} />}
-        {view === "register" && <RegisterPanel onSwitch={setView} onClose={handleClose} setLocation={setLocation} />}
-        {view === "forgot" && <ForgotPanel onSwitch={setView} />}
-
-        <button
-          onClick={handleClose}
-          className="block mx-auto mt-5 text-xs text-muted-foreground hover:text-white underline"
-          data-testid="button-continue-browsing"
-        >
-          Continue browsing without login
-        </button>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200" data-testid="popup-login">
+      <Card className="relative w-full max-w-md max-h-[94vh] overflow-y-auto p-6 sm:p-7 border-primary/40 shadow-2xl animate-in zoom-in-95 duration-200">
+        {view === "login" && (
+          <>
+            <PopupHeader title="WELCOME BACK" subtitle="Login is required to use the website" />
+            <LoginPanel onSwitch={setView} setLocation={setLocation} />
+          </>
+        )}
+        {view === "register" && (
+          <>
+            <PopupHeader title="CREATE YOUR ACCOUNT" subtitle="Quick OTP verification — no spam" />
+            <RegisterPanel onSwitch={setView} />
+          </>
+        )}
+        {view === "forgot" && (
+          <>
+            <PopupHeader title="FORGOT PASSWORD" subtitle="Reset using OTP on your mobile" />
+            <ForgotPanel onSwitch={setView} />
+          </>
+        )}
       </Card>
     </div>
   );
 }
 
-function LoginPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View) => void; onClose: () => void; setLocation: (l: string) => void; }) {
+function LoginPanel({ onSwitch, setLocation }: { onSwitch: (v: View) => void; setLocation: (l: string) => void; }) {
   const { login } = useCustomerAuth();
   const { toast } = useToast();
   const [phone, setPhone] = useState("");
@@ -96,8 +89,7 @@ function LoginPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View) =>
     setLoading(false);
     if (ok) {
       if (promo.trim()) localStorage.setItem(PROMO_KEY, promo.trim().toUpperCase());
-      toast({ title: "Welcome back!", description: promo.trim() ? `Promo code "${promo.trim().toUpperCase()}" saved` : `Logged in as +91 ${phone}` });
-      onClose();
+      toast({ title: "Welcome back!", description: promo.trim() ? `Promo "${promo.trim().toUpperCase()}" saved` : `Logged in as +91 ${phone}` });
     } else {
       setError("Invalid mobile number or password.");
     }
@@ -108,9 +100,7 @@ function LoginPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View) =>
       <div className="space-y-2">
         <Label className="text-xs uppercase tracking-wider text-muted-foreground">Username (Mobile Number)</Label>
         <div className="flex items-center gap-2">
-          <div className="flex items-center h-12 px-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-muted-foreground shrink-0">
-            🇮🇳 +91
-          </div>
+          <div className="flex items-center h-12 px-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-muted-foreground shrink-0">🇮🇳 +91</div>
           <div className="relative flex-1">
             <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -194,11 +184,13 @@ function LoginPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View) =>
   );
 }
 
-function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View) => void; onClose: () => void; setLocation: (l: string) => void; }) {
-  const { sendOtp, register } = useCustomerAuth();
+function RegisterPanel({ onSwitch }: { onSwitch: (v: View) => void; }) {
+  const { sendOtp, login } = useCustomerAuth();
   const { toast } = useToast();
   const [step, setStep] = useState<RegStep>("details");
+  const [fullName, setFullName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [otpResult, setOtpResult] = useState<{ smsSent: boolean; otp?: string } | null>(null);
@@ -215,7 +207,9 @@ function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View)
 
   const handleSendOtp = async (e?: React.FormEvent) => {
     e?.preventDefault();
+    if (!fullName.trim() || fullName.trim().length < 2) { setError("Please enter your name."); return; }
     if (phone.length !== 10) { setError("Enter a valid 10-digit mobile number."); return; }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) { setError("Please enter a valid email or leave blank."); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters."); return; }
     setError("");
     setLoading(true);
@@ -236,23 +230,57 @@ function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View)
     if (otpResult?.otp && enteredOtp !== otpResult.otp) { setError("Incorrect OTP. Please try again."); return; }
     setError("");
     setLoading(true);
-    const ok = await register(`user_${phone}`, password, phone);
-    setLoading(false);
-    if (ok) {
-      toast({ title: "Account Created!", description: "Welcome to S K Crackers" });
-      onClose();
-    } else {
-      setError("This mobile number is already registered. Please login instead.");
+    try {
+      const res = await apiRequest("POST", "/api/customers/register", {
+        username: `user_${phone}`,
+        password,
+        phone,
+        fullName: fullName.trim(),
+        email: email.trim() || undefined,
+      });
+      const customer = await res.json();
+      queryClient.setQueryData(["/api/customers/me"], customer);
+      toast({
+        title: `Welcome ${fullName.trim().split(" ")[0]}!`,
+        description: "Account created. Logging you in…",
+      });
+      // Auto-login (in case session cookie wasn't set, login again with phone+password)
+      setTimeout(() => { login(phone, password); }, 100);
+    } catch (e: any) {
+      const raw = e?.message || "";
+      let msg = "This mobile number is already registered. Please login instead.";
+      try {
+        const j = JSON.parse(raw.substring(raw.indexOf("{")));
+        if (j.message) msg = j.message;
+      } catch {}
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
   if (step === "details") {
     return (
-      <form onSubmit={handleSendOtp} className="space-y-4">
-        <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mobile Number</Label>
+      <form onSubmit={handleSendOtp} className="space-y-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Full Name *</Label>
+          <div className="relative">
+            <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              data-testid="input-reg-popup-name"
+              value={fullName}
+              onChange={e => { setFullName(e.target.value); setError(""); }}
+              placeholder="Your full name"
+              className="pl-9 h-11 bg-white/5 border-white/10"
+              autoFocus
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Mobile Number *</Label>
           <div className="flex items-center gap-2">
-            <div className="flex items-center h-12 px-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-muted-foreground shrink-0">🇮🇳 +91</div>
+            <div className="flex items-center h-11 px-3 rounded-xl bg-white/5 border border-white/10 text-sm font-medium text-muted-foreground shrink-0">🇮🇳 +91</div>
             <Input
               data-testid="input-reg-popup-phone"
               type="tel"
@@ -260,14 +288,31 @@ function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View)
               value={phone}
               onChange={e => { setPhone(e.target.value.replace(/\D/g, "").slice(0, 10)); setError(""); }}
               placeholder="10-digit mobile number"
-              className="h-12 bg-white/5 border-white/10 font-mono tracking-wider flex-1"
+              className="h-11 bg-white/5 border-white/10 font-mono tracking-wider flex-1"
               maxLength={10}
-              autoFocus
             />
           </div>
         </div>
-        <div className="space-y-2">
-          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Create Password</Label>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            Email <span className="text-[10px] normal-case tracking-normal text-muted-foreground/60">(optional)</span>
+          </Label>
+          <div className="relative">
+            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              data-testid="input-reg-popup-email"
+              type="email"
+              value={email}
+              onChange={e => { setEmail(e.target.value); setError(""); }}
+              placeholder="you@example.com"
+              className="pl-9 h-11 bg-white/5 border-white/10"
+            />
+          </div>
+        </div>
+
+        <div className="space-y-1.5">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">Create Password *</Label>
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
@@ -276,13 +321,14 @@ function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View)
               value={password}
               onChange={e => { setPassword(e.target.value); setError(""); }}
               placeholder="Min 6 characters"
-              className="pl-9 pr-10 h-12 bg-white/5 border-white/10"
+              className="pl-9 pr-10 h-11 bg-white/5 border-white/10"
             />
             <button type="button" onClick={() => setShowPwd(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white">
               {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
           </div>
         </div>
+
         {error && <p className="text-red-400 text-sm">{error}</p>}
         <Button data-testid="button-reg-popup-otp" type="submit" className="w-full h-12 font-bold" isLoading={loading}>
           <MessageSquare className="w-4 h-4" /> Send OTP
@@ -332,7 +378,7 @@ function RegisterPanel({ onSwitch, onClose, setLocation }: { onSwitch: (v: View)
         )}
       </div>
       <button type="button" onClick={() => { setStep("details"); setEnteredOtp(""); setError(""); }} className="text-xs text-muted-foreground hover:text-white w-full text-center underline">
-        Change mobile number
+        Change details
       </button>
     </div>
   );

@@ -53,6 +53,8 @@ export const customers = pgTable("customers", {
   passwordHash: text("password_hash").notNull(),
   phone: text("phone").notNull().unique(),
   phoneVerified: boolean("phone_verified").notNull().default(false),
+  fullName: text("full_name"),
+  email: text("email"),
 });
 
 export const orders = pgTable("orders", {

@@ -204,10 +204,12 @@ export async function registerRoutes(
 
   app.post("/api/customers/register", async (req, res) => {
     try {
-      const { username, password, phone } = z.object({
+      const { username, password, phone, fullName, email } = z.object({
         username: z.string().min(3),
         password: z.string().min(6),
         phone: z.string().min(10),
+        fullName: z.string().optional(),
+        email: z.string().email().optional().or(z.literal("")),
       }).parse(req.body);
 
       const existingByUsername = await storage.getCustomerByUsername(username);
@@ -220,7 +222,13 @@ export async function registerRoutes(
         return res.status(400).json({ message: "Phone number already registered" });
       }
 
-      const customer = await storage.createCustomer({ username, password, phone });
+      const customer = await storage.createCustomer({
+        username,
+        password,
+        phone,
+        fullName: fullName?.trim() || undefined,
+        email: email?.trim() || undefined,
+      });
       const { passwordHash: _, ...safeCustomer } = customer;
       req.session.customerId = customer.id;
       res.status(201).json(safeCustomer);

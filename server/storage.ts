@@ -53,7 +53,7 @@ export interface IStorage {
   getOrdersInRange(start: Date, end: Date): Promise<Order[]>;
 
   getCustomers(): Promise<Customer[]>;
-  createCustomer(data: { username: string; password: string; phone: string }): Promise<Customer>;
+  createCustomer(data: { username: string; password: string; phone: string; fullName?: string; email?: string }): Promise<Customer>;
   getCustomerByUsername(username: string): Promise<Customer | undefined>;
   getCustomerByPhone(phone: string): Promise<Customer | undefined>;
   getCustomerById(id: number): Promise<Customer | undefined>;
@@ -173,9 +173,15 @@ export class DatabaseStorage implements IStorage {
   async getCustomers(): Promise<Customer[]> {
     return await db.select().from(customers).orderBy(desc(customers.id));
   }
-  async createCustomer(data: { username: string; password: string; phone: string }): Promise<Customer> {
+  async createCustomer(data: { username: string; password: string; phone: string; fullName?: string; email?: string }): Promise<Customer> {
     const passwordHash = hashPassword(data.password);
-    const [customer] = await db.insert(customers).values({ username: data.username, passwordHash, phone: data.phone }).returning();
+    const [customer] = await db.insert(customers).values({
+      username: data.username,
+      passwordHash,
+      phone: data.phone,
+      fullName: data.fullName ?? null,
+      email: data.email ?? null,
+    }).returning();
     return customer;
   }
   async getCustomerByUsername(username: string): Promise<Customer | undefined> {
