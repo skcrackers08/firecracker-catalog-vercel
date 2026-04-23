@@ -4,6 +4,7 @@ import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Pa
 import { useQuery } from "@tanstack/react-query";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
@@ -182,16 +183,15 @@ export function Layout({ children }: LayoutProps) {
       )}
 
       {/* Floating WhatsApp Icon */}
-      <a
-        href={`https://wa.me/${whatsappNumber}?text=${encodeURIComponent("Hi, I would like to enquire about S K Crackers products.")}`}
-        target="_blank"
-        rel="noreferrer noopener"
+      <button
+        type="button"
+        onClick={() => openWhatsApp(whatsappNumber, "Hi S K Crackers, I would like to enquire about your products.")}
         data-testid="link-whatsapp-float"
         className="fixed bottom-20 right-4 z-[60] w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#1ebe57] shadow-2xl flex items-center justify-center transition-transform hover:scale-110 ring-4 ring-[#25D366]/30"
         aria-label="Chat on WhatsApp"
       >
         <MessageCircle className="w-7 h-7 text-white fill-white" />
-      </a>
+      </button>
 
       {/* Cart Drawer/Modal */}
       <AnimatePresence>

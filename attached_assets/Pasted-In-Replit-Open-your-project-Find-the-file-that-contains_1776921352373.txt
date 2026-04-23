@@ -1,0 +1,75 @@
+In Replit
+Open your project
+Find the file that contains the WhatsApp button / checkout page
+usually index.html
+or checkout.html
+or App.js
+or page.tsx
+Replace the old WhatsApp link/button code with the new code
+Click Save
+Click Run or Deploy preview
+Open your website on mobile
+Tap Send Enquiry on WhatsApp
+What should happen
+It should try to open the WhatsApp app directly
+If app does not open, it should open the wa.me fallback link
+It should not show the long api.whatsapp.com browser page
+If Replit AI asks where to change
+Paste this exact message:
+Message
+Please find the current WhatsApp checkout button code in my project and replace the old api.whatsapp.com/send link.
+Update it to:
+use whatsapp://send on mobile
+fallback to https://wa.me/919344468937
+keep the same enquiry message text
+use this for both the checkout WhatsApp button and the floating WhatsApp icon
+If you are editing manually, use this code
+HTML
+<button onclick="openWhatsApp()" class="whatsapp-enquiry-btn">
+  Send Enquiry on WhatsApp
+</button>
+
+<script>
+function openWhatsApp() {
+  const appLink = "whatsapp://send?phone=919344468937&text=Hi%20S%20K%20Crackers,%20I%20want%20to%20place%20an%20order.";
+  const webLink = "https://wa.me/919344468937?text=Hi%20S%20K%20Crackers,%20I%20want%20to%20place%20an%20order.";
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    window.location.href = appLink;
+    setTimeout(() => {
+      window.location.href = webLink;
+    }, 1200);
+  } else {
+    window.open(webLink, "_blank");
+  }
+}
+</script>
+For floating WhatsApp icon
+Use this:
+HTML
+<a href="javascript:void(0)" onclick="openWhatsApp()" class="floating-whatsapp" aria-label="Chat on WhatsApp">
+  <img src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" alt="WhatsApp">
+</a>
+If still same problem
+Then do these checks:
+1. Clear browser cache
+open website in new tab
+or refresh fully
+2. Confirm old link removed
+Search in Replit project for:
+Plain text
+api.whatsapp.com
+If found, replace/remove it.
+3. Search for WhatsApp links
+Search these words in Replit:
+Plain text
+whatsapp
+wa.me
+api.whatsapp.com
+send enquiry
+Best test
+After update, your phone should open:
+WhatsApp app directly, or
+short wa.me page

@@ -5,6 +5,7 @@ import { useCreateOrder } from "@/hooks/use-orders";
 import { Layout } from "@/components/Layout";
 import { Button, Card, Input, Label } from "@/components/ui-custom";
 import { useCart } from "@/hooks/use-cart";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -125,9 +126,8 @@ export default function Checkout() {
     }, {
       onSuccess: (created) => {
         const text = buildWhatsAppMessage(data, address, created.id);
-        const waUrl = `https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`;
         try {
-          window.open(waUrl, "_blank", "noopener,noreferrer");
+          openWhatsApp(whatsappNumber, text);
         } catch { /* ignore popup-blocker */ }
         clearCart();
         setLocation(`/bill/${created.id}`);

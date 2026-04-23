@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
+import { openWhatsApp } from "@/lib/whatsapp";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -303,7 +304,7 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
     const phone = order.customerPhone.replace(/\D/g, "");
     const formatted = phone.length === 10 ? "91" + phone : phone;
     const msg = `Hi ${order.customerName}, your S K Crackers order #${order.id} status: ${orderStatus.toUpperCase()}. Total: ${fmtINR(order.totalAmount)}, Paid: ${fmtINR(paidAmount)}. ${lrNumber ? `LR: ${lrNumber}, Transport: ${lorryName}` : ""} Thank you!`;
-    window.open(`https://wa.me/${formatted}?text=${encodeURIComponent(msg)}`, "_blank");
+    openWhatsApp(formatted, msg);
   };
 
   return (
