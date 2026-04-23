@@ -171,45 +171,77 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
   );
 }
 
-function PaymentSettings() {
+function WhatsAppSettings() {
   const { toast } = useToast();
-  const [upiId, setUpiId] = useState(() => localStorage.getItem("sk-merchant-upi") || DEFAULT_UPI);
+  const { data: setting } = useQuery<{ value: string } | null>({
+    queryKey: ["/api/settings/whatsapp-number"],
+  });
+  const [number, setNumber] = useState("");
   const [saved, setSaved] = useState(false);
+  const currentValue = setting?.value || "919344468937";
+
+  const displayValue = number || currentValue;
+
+  const save = useMutation({
+    mutationFn: async (value: string) => {
+      return apiRequest("POST", "/api/settings/whatsapp-number", { value });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/whatsapp-number"] });
+      setSaved(true);
+      toast({ title: "WhatsApp number saved", description: `Customers will now reach ${displayValue}` });
+      setTimeout(() => setSaved(false), 2500);
+    },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err?.message || "Could not save", variant: "destructive" });
+    },
+  });
 
   function handleSave() {
-    const trimmed = upiId.trim();
-    if (!trimmed) return;
-    localStorage.setItem("sk-merchant-upi", trimmed);
-    setSaved(true);
-    toast({ title: "Saved", description: `UPI ID updated to ${trimmed}` });
-    setTimeout(() => setSaved(false), 2500);
+    const cleaned = displayValue.replace(/\D/g, "");
+    if (cleaned.length < 10) {
+      toast({ title: "Invalid number", description: "Enter a valid WhatsApp number with country code (e.g. 919344468937)", variant: "destructive" });
+      return;
+    }
+    save.mutate(cleaned);
   }
 
   return (
-    <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
-      <div className="flex-1">
-        <label className="text-sm font-medium mb-1 block text-muted-foreground">
-          Company UPI ID
-        </label>
-        <Input
-          data-testid="input-upi-id"
-          value={upiId}
-          onChange={(e) => { setUpiId(e.target.value); setSaved(false); }}
-          placeholder="e.g. yourname@upi"
-          className="max-w-sm"
-        />
-        <p className="text-xs text-muted-foreground mt-1">
-          Pre-filled when customers pay via PhonePe, GPay or Paytm.
+    <div className="space-y-4">
+      <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-end">
+        <div className="flex-1 w-full">
+          <label className="text-sm font-medium mb-1 block text-muted-foreground">
+            WhatsApp Business Number (with country code)
+          </label>
+          <Input
+            data-testid="input-whatsapp-number"
+            value={displayValue}
+            onChange={(e) => { setNumber(e.target.value); setSaved(false); }}
+            placeholder="e.g. 919344468937"
+            className="max-w-sm"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Used for the floating WhatsApp button, the "Send Enquiry on WhatsApp" checkout button, and customer enquiries.
+          </p>
+        </div>
+        <Button
+          data-testid="button-save-whatsapp"
+          onClick={handleSave}
+          disabled={save.isPending}
+          className="flex items-center gap-2"
+        >
+          {saved ? <CheckCircle2 className="h-4 w-4" /> : null}
+          {save.isPending ? "Saving..." : saved ? "Saved!" : "Save WhatsApp Number"}
+        </Button>
+      </div>
+      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs text-amber-200/90 leading-relaxed">
+        <p className="font-semibold mb-1">⚠️ Payment & Order Confirmation Flow</p>
+        <p>
+          Online payments are <strong>disabled</strong> as per government rules. All orders are confirmed manually
+          on WhatsApp. Set up an auto-reply on your WhatsApp Business app to share UPI / bank details, then send
+          invoice and transport details within 24–48 hours after the customer shares the payment screenshot.
         </p>
       </div>
-      <Button
-        data-testid="button-save-upi"
-        onClick={handleSave}
-        className="flex items-center gap-2"
-      >
-        {saved ? <CheckCircle2 className="h-4 w-4" /> : null}
-        {saved ? "Saved!" : "Save UPI ID"}
-      </Button>
     </div>
   );
 }
@@ -923,8 +955,8 @@ export default function Admin() {
         </Button>
       </div>
 
-      <SectionPanel icon={<IndianRupee className="h-5 w-5" />} title="Payment Settings">
-        <PaymentSettings />
+      <SectionPanel icon={<MessageSquare className="h-5 w-5" />} title="WhatsApp Settings">
+        <WhatsAppSettings />
       </SectionPanel>
 
       <SectionPanel icon={<Mail className="h-5 w-5" />} title="Email Invoice Settings">
