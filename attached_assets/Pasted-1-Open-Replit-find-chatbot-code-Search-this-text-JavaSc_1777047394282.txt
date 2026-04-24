@@ -1,0 +1,45 @@
+1. Open Replit → find chatbot code
+Search this text:
+JavaScript
+AI help not available now
+2. Replace with auto reply logic
+Paste this code in your chatbot reply function:
+JavaScript
+function getAutoReply(message) {
+  const text = message.toLowerCase();
+
+  if (text.includes("offer") || text.includes("discount")) {
+    return "Current offer: Up to 50% OFF for online enquiry. Final order confirmation will be done manually via WhatsApp.";
+  }
+
+  if (text.includes("order") || text.includes("how to order")) {
+    return "To place an order: 1) Add products to enquiry 2) Click Send Enquiry 3) Send details via WhatsApp 4) Our team will confirm your order manually.";
+  }
+
+  if (text.includes("cancel")) {
+    return "To cancel your order, please send your order number and mobile number to WhatsApp: 9344468937. Our team will check and confirm cancellation.";
+  }
+
+  if (text.includes("payment") || text.includes("upi") || text.includes("qr")) {
+    return "Payment is accepted only after manual order confirmation via enquiry. No direct online payment facility is available.";
+  }
+
+  if (text.includes("refund") || text.includes("credit")) {
+    return "Refund/credit timing depends on payment method and order status. Please share your order details on WhatsApp: 9344468937 for confirmation.";
+  }
+
+  if (text.includes("delivery") || text.includes("transport")) {
+    return "Transport details will be shared within 24–48 hours after order confirmation. Transport charges should be paid directly while collecting the parcel.";
+  }
+
+  return "Thank you for contacting S K Crackers. Please ask about products, offer, order, payment, cancellation, or transport details.";
+}
+3. Connect it to Send button
+Find where message is sent, then use:
+JavaScript
+const reply = getAutoReply(userMessage);
+addBotMessage(reply);
+4. Best auto reply text for your website
+Use this as default:
+Plain text
+Thank you for contacting S K Crackers. Please add products to enquiry and send via WhatsApp. Orders are confirmed manually as per government rules. Payment is accepted only after confirmation.

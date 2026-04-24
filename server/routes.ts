@@ -453,6 +453,35 @@ export async function registerRoutes(
     }
   });
 
+  function getAutoReply(message: string, waNumber: string): string {
+    const text = message.toLowerCase();
+    if (text.includes("offer") || text.includes("discount")) {
+      return "Current offer: Up to 50% OFF for online enquiry. Final order confirmation will be done manually via WhatsApp.";
+    }
+    if (text.includes("order") || text.includes("how to order") || text.includes("buy") || text.includes("purchase")) {
+      return "To place an order: 1) Add products to enquiry  2) Click Send Enquiry  3) Send details via WhatsApp  4) Our team will confirm your order manually.";
+    }
+    if (text.includes("cancel")) {
+      return `To cancel your order, please send your order number and mobile number to WhatsApp: ${waNumber}. Our team will check and confirm the cancellation.`;
+    }
+    if (/\bpay\b|payment|\bupi\b|\bqr\b|gpay|phonepe|paytm/.test(text)) {
+      return "Payment is accepted only after manual order confirmation via enquiry. No direct online payment facility is available.";
+    }
+    if (text.includes("refund") || text.includes("credit") || text.includes("return")) {
+      return `Refund/credit timing depends on payment method and order status. Please share your order details on WhatsApp: ${waNumber} for confirmation.`;
+    }
+    if (text.includes("delivery") || text.includes("transport") || text.includes("ship") || text.includes("courier")) {
+      return "Transport details will be shared within 24-48 hours after order confirmation. Transport charges should be paid directly while collecting the parcel.";
+    }
+    if (text.includes("contact") || text.includes("phone") || text.includes("number") || text.includes("whatsapp")) {
+      return `You can reach S K Crackers on WhatsApp: ${waNumber}. We respond quickly during business hours.`;
+    }
+    if (text.includes("hi") || text.includes("hello") || text.includes("hey")) {
+      return "Hello! Welcome to S K Crackers. Ask me about products, offers, how to order, payment, cancellation, or transport.";
+    }
+    return "Thank you for contacting S K Crackers. Please ask about products, offers, order, payment, cancellation, or transport details.";
+  }
+
   const chatRateLimit = new Map<string, { count: number; resetAt: number }>();
   app.post("/api/chat", async (req, res) => {
     try {
@@ -471,13 +500,13 @@ export async function registerRoutes(
         for (const [k, v] of chatRateLimit) if (v.resetAt < now) chatRateLimit.delete(k);
       }
       const { message } = z.object({ message: z.string().min(1).max(1000) }).parse(req.body);
+      const waSetting = await storage.getSetting("whatsapp-number");
+      const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
       const dbKey = await storage.getSetting("openai-api-key");
       const apiKey = (dbKey && dbKey.trim()) || process.env.OPENAI_API_KEY || "";
       if (!apiKey) {
-        return res.json({ reply: "AI help is not configured yet. Please contact us on WhatsApp: 9344468937" });
+        return res.json({ reply: getAutoReply(message, waNumber), source: "auto" });
       }
-      const waSetting = await storage.getSetting("whatsapp-number");
-      const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
       const openai = new OpenAI({ apiKey });
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -491,16 +520,17 @@ export async function registerRoutes(
           { role: "user", content: message },
         ],
       });
-      const reply =
-        completion.choices?.[0]?.message?.content?.trim() ||
-        `AI help not available now. Please contact WhatsApp: ${waNumber}`;
-      res.json({ reply });
+      const reply = completion.choices?.[0]?.message?.content?.trim() || getAutoReply(message, waNumber);
+      res.json({ reply, source: "ai" });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
       }
       console.error("AI chat error:", err?.message || err);
-      res.json({ reply: "AI help not available now. Please contact WhatsApp: 9344468937" });
+      const waSetting = await storage.getSetting("whatsapp-number").catch(() => null);
+      const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
+      const userMsg = (req.body && typeof req.body.message === "string") ? req.body.message : "";
+      res.json({ reply: getAutoReply(userMsg, waNumber), source: "auto" });
     }
   });
 
