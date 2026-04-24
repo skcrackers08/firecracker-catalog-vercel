@@ -134,6 +134,33 @@ export const staff = pgTable("staff", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const NOTIFICATION_TYPES = [
+  "order_confirmed",
+  "order_status",
+  "order_cancelled",
+  "wallet_credit",
+  "wallet_debit",
+  "referral_join",
+  "offer",
+  "broadcast",
+] as const;
+export type NotificationType = typeof NOTIFICATION_TYPES[number];
+
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  link: text("link"),
+  isRead: boolean("is_read").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export type Notification = typeof notifications.$inferSelect;
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true, isRead: true });
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+
 export const stockMovements = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),

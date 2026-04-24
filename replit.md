@@ -1,5 +1,16 @@
 # S K Crackers
 
+## Notifications & Partner Refresh (Apr 24, 2026)
+- **Notifications system**: New `notifications` table (customerId, type, title, message, link, isRead, createdAt). Server hooks emit notifications on order create (order_confirmed), admin order status update (order_status / order_cancelled), referral credit (wallet_credit + referral_join for referrer), and wallet withdraw / wallet purchase (wallet_debit). Customer endpoints: `GET/POST /api/notifications/me`, `/me/:id/read`, `/me/read-all`.
+- **NotificationBubble** (`client/src/components/NotificationBubble.tsx`) is now event-driven: opens via `openNotifications()` (window CustomEvent `open-notifications`), reads `/api/notifications/me`, auto-marks all read 800ms after open, shows typed icons + relative time + click-through to `notification.link`. Exposes `useUnreadNotifications()` hook.
+- **Layout** removed the front-page floating bell. Navbar bell uses `NavbarBellButton` (badge from `useUnreadNotifications`, refetch every 30s). Customer logout clears `/api/notifications/me` and `/api/customers/me/partner` caches to avoid stale badges.
+- **Wishlist** removed the top "Share Wishlist" button and the bottom "Copy Share Link" card. Per-product share remains.
+- **Partner page** rewritten:
+  - Wallet card now sits above an always-visible **Wallet Transaction History** card (sectioned: Withdrawals, Wallet Purchases). Withdrawal & Purchase buttons live on the wallet card.
+  - **Purchase Product** is now a 3-step modal: (1) wallet amount → (2) Enquiry — searchable product picker with qty +/- and live subtotal → (3) customer/delivery (name/phone/address pre-filled from logged-in customer). On confirm: posts to `/api/customers/me/wallet/purchase`, opens WhatsApp with partner / wallet / products / delivery sections, and decrements the wallet immediately.
+  - Withdrawal modal unchanged in flow but now also opens WhatsApp + decrements wallet immediately.
+- **Admin Broadcast Notifications** (`/admin` → "Broadcast Notifications to All Customers"): composer for type (Announcement / Special Offer), title, message, optional link with live preview. Posts `POST /api/admin-pro/notifications/broadcast` which requires an active admin-pro staff session with role `superadmin` or `manager`. Broadcast uses a single `INSERT … SELECT id FROM customers` (no N+1). The section detects missing admin-pro session and shows an inline staff login form (default seeded staff: `superadmin` / `super@123`).
+
 ## Recent Refactor (Apr 2026)
 - Removed in-app payment (UPI/Card/QR). Checkout flow → "ORDER ENQUIRY" page → "Send Enquiry on WhatsApp" button creates order with `paymentMethod="whatsapp-enquiry"` and opens wa.me link with pre-filled customer + items + estimated total.
 - Added floating WhatsApp icon (Layout.tsx) on every page; number stored in app_settings key `whatsapp-number` (default `919344468937`).

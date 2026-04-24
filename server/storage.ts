@@ -7,6 +7,7 @@ import {
   stockMovements,
   referralUses,
   walletTransactions,
+  notifications,
   type Product,
   type Order,
   type Customer,
@@ -14,10 +15,12 @@ import {
   type StockMovement,
   type ReferralUse,
   type WalletTransaction,
+  type Notification,
   type InsertProduct,
   type InsertOrder,
   type InsertCustomer,
   type InsertStockMovement,
+  type InsertNotification,
 } from "@shared/schema";
 import { eq, desc, gte, lte, and, sql } from "drizzle-orm";
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
@@ -87,6 +90,13 @@ export interface IStorage {
 
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string): Promise<void>;
+
+  createNotification(data: InsertNotification): Promise<Notification>;
+  getNotificationsForCustomer(customerId: number, limit?: number): Promise<Notification[]>;
+  countUnreadNotifications(customerId: number): Promise<number>;
+  markNotificationRead(id: number, customerId: number): Promise<boolean>;
+  markAllNotificationsRead(customerId: number): Promise<number>;
+  broadcastNotification(data: Omit<InsertNotification, "customerId">): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -393,6 +403,53 @@ export class DatabaseStorage implements IStorage {
       `INSERT INTO app_settings (key, value) VALUES ($1, $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`,
       [key, value]
     );
+  }
+
+  async createNotification(data: InsertNotification): Promise<Notification> {
+    const [row] = await db.insert(notifications).values(data).returning();
+    return row;
+  }
+
+  async getNotificationsForCustomer(customerId: number, limit = 50): Promise<Notification[]> {
+    return await db
+      .select()
+      .from(notifications)
+      .where(eq(notifications.customerId, customerId))
+      .orderBy(desc(notifications.id))
+      .limit(limit);
+  }
+
+  async countUnreadNotifications(customerId: number): Promise<number> {
+    const r = await pool.query(
+      `SELECT COUNT(*)::int AS c FROM notifications WHERE customer_id = $1 AND is_read = false`,
+      [customerId]
+    );
+    return r.rows[0]?.c ?? 0;
+  }
+
+  async markNotificationRead(id: number, customerId: number): Promise<boolean> {
+    const r = await pool.query(
+      `UPDATE notifications SET is_read = true WHERE id = $1 AND customer_id = $2`,
+      [id, customerId]
+    );
+    return (r.rowCount ?? 0) > 0;
+  }
+
+  async markAllNotificationsRead(customerId: number): Promise<number> {
+    const r = await pool.query(
+      `UPDATE notifications SET is_read = true WHERE customer_id = $1 AND is_read = false`,
+      [customerId]
+    );
+    return r.rowCount ?? 0;
+  }
+
+  async broadcastNotification(data: Omit<InsertNotification, "customerId">): Promise<number> {
+    const r = await pool.query(
+      `INSERT INTO notifications (customer_id, type, title, message, link)
+       SELECT id, $1, $2, $3, $4 FROM customers`,
+      [data.type, data.title, data.message, data.link ?? null]
+    );
+    return r.rowCount ?? 0;
   }
 }
 

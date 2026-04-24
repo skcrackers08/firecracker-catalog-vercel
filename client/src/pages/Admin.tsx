@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle, MessageSquare, Send, Sparkles } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle, MessageSquare, Send, Sparkles, Megaphone, Bell } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
@@ -406,6 +406,217 @@ function WhatsAppSettings() {
           invoice and transport details within 24–48 hours after the customer shares the payment screenshot.
         </p>
       </div>
+    </div>
+  );
+}
+
+function BroadcastNotificationSection() {
+  const { toast } = useToast();
+  const [type, setType] = useState<"broadcast" | "offer">("broadcast");
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [link, setLink] = useState("");
+  const [sending, setSending] = useState(false);
+
+  // Server-side staff session is required (admin-pro). Check + allow inline login.
+  const { data: staffMe, refetch: refetchStaff, isLoading: loadingStaff } = useQuery<{ id: number; username: string; role: string } | { message: string }>({
+    queryKey: ["/api/admin-pro/me"],
+    retry: false,
+  });
+  const staffOk = staffMe && "id" in staffMe;
+  const allowedRole = staffOk && ["superadmin", "manager"].includes((staffMe as any).role);
+
+  const [staffUser, setStaffUser] = useState("superadmin");
+  const [staffPass, setStaffPass] = useState("");
+  const [showPass, setShowPass] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  const handleStaffLogin = async () => {
+    setLoggingIn(true);
+    try {
+      await apiRequest("POST", "/api/admin-pro/login", { username: staffUser.trim(), password: staffPass });
+      toast({ title: "Staff session started", description: "You can now broadcast notifications." });
+      setStaffPass("");
+      await refetchStaff();
+    } catch (err: any) {
+      toast({ title: "Login failed", description: err?.message || "Wrong username or password", variant: "destructive" });
+    } finally {
+      setLoggingIn(false);
+    }
+  };
+
+  const handleSend = async () => {
+    if (!title.trim() || !message.trim()) {
+      toast({ title: "Title and message are required", variant: "destructive" });
+      return;
+    }
+    if (!confirm(`Send this notification to ALL customers? It cannot be undone.`)) return;
+    setSending(true);
+    try {
+      const res = await apiRequest("POST", "/api/admin-pro/notifications/broadcast", {
+        type,
+        title: title.trim(),
+        message: message.trim(),
+        link: link.trim() || null,
+      });
+      const json = await res.json();
+      const n = json.count ?? json.sent ?? 0;
+      toast({ title: "Sent!", description: `Notification delivered to ${n} customer${n === 1 ? "" : "s"}.` });
+      setTitle("");
+      setMessage("");
+      setLink("");
+    } catch (err: any) {
+      const msg = err?.message || "Could not broadcast";
+      if (msg.toLowerCase().includes("not authenticated") || msg.toLowerCase().includes("session invalid")) {
+        await refetchStaff();
+        toast({ title: "Session expired", description: "Please login again with staff credentials.", variant: "destructive" });
+      } else {
+        toast({ title: "Failed to send", description: msg, variant: "destructive" });
+      }
+    } finally {
+      setSending(false);
+    }
+  };
+
+  if (loadingStaff) {
+    return <div className="h-24 bg-white/5 rounded-xl animate-pulse" />;
+  }
+
+  if (!staffOk || !allowedRole) {
+    return (
+      <div className="space-y-3">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-sm">
+          <p className="font-bold text-amber-300 mb-1 flex items-center gap-2">
+            <Lock className="w-4 h-4" /> Staff Login Required
+          </p>
+          <p className="text-xs text-amber-100/80">
+            Broadcast notifications go to every customer, so it requires a separate staff (superadmin or manager) login on top of this admin panel.
+            {staffOk && !allowedRole && ` Your current role "${(staffMe as any).role}" is not allowed to broadcast.`}
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">Default seeded staff: <code>superadmin</code> / <code>super@123</code> (change after first use).</p>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <Input
+            data-testid="input-staff-username"
+            value={staffUser}
+            onChange={e => setStaffUser(e.target.value)}
+            placeholder="Staff username"
+          />
+          <div className="relative">
+            <Input
+              data-testid="input-staff-password"
+              type={showPass ? "text" : "password"}
+              value={staffPass}
+              onChange={e => setStaffPass(e.target.value)}
+              placeholder="Staff password"
+              className="pr-10"
+            />
+            <button type="button" onClick={() => setShowPass(s => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+              {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+        <Button
+          data-testid="button-staff-login"
+          onClick={handleStaffLogin}
+          disabled={loggingIn || !staffUser.trim() || !staffPass}
+          className="w-full h-10 gap-2"
+        >
+          <Lock className="w-4 h-4" /> {loggingIn ? "Signing in..." : "Sign in as Staff"}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Compose a custom notification and deliver it to every registered customer's bell inbox instantly.
+      </p>
+
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Notification Type</label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            data-testid="button-broadcast-type-broadcast"
+            onClick={() => setType("broadcast")}
+            className={`h-11 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+              type === "broadcast" ? "bg-pink-500/20 border-pink-500/50 text-pink-300" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"
+            }`}
+          >
+            <Megaphone className="w-4 h-4" /> Announcement
+          </button>
+          <button
+            type="button"
+            data-testid="button-broadcast-type-offer"
+            onClick={() => setType("offer")}
+            className={`h-11 rounded-lg border text-sm font-bold flex items-center justify-center gap-2 transition-colors ${
+              type === "offer" ? "bg-amber-500/20 border-amber-500/50 text-amber-300" : "bg-white/5 border-white/10 text-muted-foreground hover:bg-white/10"
+            }`}
+          >
+            <Tag className="w-4 h-4" /> Special Offer
+          </button>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Title</label>
+        <Input
+          data-testid="input-broadcast-title"
+          value={title}
+          maxLength={120}
+          onChange={e => setTitle(e.target.value)}
+          placeholder={type === "offer" ? "🎆 Diwali Special — 70% OFF!" : "Important Update"}
+        />
+        <p className="text-[10px] text-muted-foreground text-right">{title.length}/120</p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Message</label>
+        <Textarea
+          data-testid="textarea-broadcast-message"
+          value={message}
+          maxLength={500}
+          rows={4}
+          onChange={e => setMessage(e.target.value)}
+          placeholder={type === "offer" ? "Use code DIWALI70 at checkout. Limited time only!" : "Write the message customers will see in their bell inbox..."}
+        />
+        <p className="text-[10px] text-muted-foreground text-right">{message.length}/500</p>
+      </div>
+
+      <div className="space-y-2">
+        <label className="text-xs uppercase tracking-wider font-bold text-muted-foreground">Open Link on Tap (optional)</label>
+        <Input
+          data-testid="input-broadcast-link"
+          value={link}
+          onChange={e => setLink(e.target.value)}
+          placeholder="/ or /products?category=Sparklers"
+        />
+        <p className="text-[10px] text-muted-foreground">Leave blank to skip navigation. Use a path like <code>/cart</code> or <code>/partner</code>.</p>
+      </div>
+
+      <div className="rounded-xl bg-white/5 border border-white/10 p-3">
+        <p className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground mb-2">Preview</p>
+        <div className={`rounded-lg p-3 border ${type === "offer" ? "bg-amber-500/10 border-amber-500/30" : "bg-pink-500/10 border-pink-500/30"}`}>
+          <div className="flex items-start gap-2">
+            {type === "offer" ? <Tag className="w-4 h-4 text-amber-400 mt-0.5" /> : <Megaphone className="w-4 h-4 text-pink-400 mt-0.5" />}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-white">{title || "Title"}</p>
+              <p className="text-xs text-muted-foreground mt-1 whitespace-pre-line">{message || "Your message preview will appear here…"}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Button
+        data-testid="button-broadcast-send"
+        onClick={handleSend}
+        disabled={sending || !title.trim() || !message.trim()}
+        className="w-full h-11 gap-2 bg-pink-500 hover:bg-pink-600 text-white font-bold"
+      >
+        <Send className="w-4 h-4" /> {sending ? "Sending…" : "Send to All Customers"}
+      </Button>
     </div>
   );
 }
@@ -1125,6 +1336,10 @@ export default function Admin() {
 
       <SectionPanel icon={<MessageSquare className="h-5 w-5" />} title="WhatsApp Settings">
         <WhatsAppSettings />
+      </SectionPanel>
+
+      <SectionPanel icon={<Megaphone className="h-5 w-5" />} title="Broadcast Notifications to All Customers">
+        <BroadcastNotificationSection />
       </SectionPanel>
 
       <SectionPanel icon={<Mail className="h-5 w-5" />} title="Email Invoice Settings">

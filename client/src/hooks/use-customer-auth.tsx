@@ -82,6 +82,8 @@ export function CustomerAuthProvider({ children }: { children: ReactNode }) {
     } catch {}
     queryClient.setQueryData(["/api/customers/me"], null);
     queryClient.removeQueries({ queryKey: ["/api/customers/orders"] });
+    queryClient.removeQueries({ queryKey: ["/api/notifications/me"] });
+    queryClient.removeQueries({ queryKey: ["/api/customers/me/partner"] });
   };
 
   const sendOtp = async (phone: string): Promise<OtpResult | null> => {

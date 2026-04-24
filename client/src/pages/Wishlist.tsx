@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Heart, Share2, Copy, Check, ShoppingCart, ArrowLeft, Sparkles } from "lucide-react";
+import { Heart, Share2, Check, ShoppingCart, ArrowLeft, Sparkles } from "lucide-react";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useProducts } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
@@ -11,11 +11,10 @@ import { motion } from "framer-motion";
 import { useToast } from "@/hooks/use-toast";
 
 export default function Wishlist() {
-  const { wishlist, removeFromWishlist, addToWishlist, getShareUrl } = useWishlist();
+  const { wishlist, removeFromWishlist, addToWishlist } = useWishlist();
   const { data: allProducts } = useProducts();
   const { addToCart } = useCart();
   const { toast } = useToast();
-  const [copied, setCopied] = useState(false);
 
   const urlParams = new URLSearchParams(window.location.search);
   const sharedIds = urlParams.get("ids")?.split(",").map(Number).filter(Boolean) ?? [];
@@ -26,19 +25,6 @@ export default function Wishlist() {
     : [];
 
   const displayItems = isSharedView ? sharedProducts : wishlist;
-
-  const copyShareLink = () => {
-    if (wishlist.length === 0) {
-      toast({ title: "Wishlist is empty", description: "Add products to your wishlist first.", variant: "destructive" });
-      return;
-    }
-    const url = getShareUrl();
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      toast({ title: "Link copied!", description: "Share this link with friends and family." });
-      setTimeout(() => setCopied(false), 2500);
-    });
-  };
 
   const handleAddSharedToWishlist = (product: Product) => {
     addToWishlist(product);
@@ -52,13 +38,6 @@ export default function Wishlist() {
           <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors group">
             <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" /> Back to Catalog
           </Link>
-
-          {!isSharedView && wishlist.length > 0 && (
-            <Button onClick={copyShareLink} variant="outline" className="bg-white/5 border-white/20 text-white hover:bg-white/10 gap-2">
-              {copied ? <Check className="w-4 h-4 text-green-400" /> : <Share2 className="w-4 h-4" />}
-              {copied ? "Copied!" : "Share Wishlist"}
-            </Button>
-          )}
         </div>
 
         <div className="flex items-center gap-4 mb-10">
@@ -192,15 +171,6 @@ export default function Wishlist() {
           </div>
         )}
 
-        {!isSharedView && wishlist.length > 0 && (
-          <div className="mt-10 p-6 bg-white/5 rounded-2xl border border-white/10 text-center">
-            <p className="text-muted-foreground mb-3">Share your wishlist with friends and family</p>
-            <Button onClick={copyShareLink} className="gap-2 mx-auto">
-              {copied ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
-              {copied ? "Link Copied!" : "Copy Share Link"}
-            </Button>
-          </div>
-        )}
       </div>
     </Layout>
   );

@@ -7,7 +7,7 @@ import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustrati
 import { useCart } from "@/hooks/use-cart";
 import { LoginPopup } from "@/components/LoginPopup";
 import { AIChatBubble } from "@/components/AIChatBubble";
-import { NotificationBubble, openNotifications } from "@/components/NotificationBubble";
+import { NotificationBubble, openNotifications, useUnreadNotifications } from "@/components/NotificationBubble";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
@@ -85,15 +85,7 @@ export function Layout({ children }: LayoutProps) {
                 </span>
               )}
             </Link>
-            <button
-              type="button"
-              onClick={openNotifications}
-              data-testid="button-navbar-bell"
-              aria-label="Open notifications and offers"
-              className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
-            >
-              <Bell className="w-5 h-5" />
-            </button>
+            <NavbarBellButton />
             {!isCheckoutPage && (
               <button
                 onClick={() => setIsCartOpen(!isCartOpen)}
@@ -284,5 +276,25 @@ export function Layout({ children }: LayoutProps) {
 
       <LoginPopup />
     </div>
+  );
+}
+
+function NavbarBellButton() {
+  const { unread } = useUnreadNotifications();
+  return (
+    <button
+      type="button"
+      onClick={openNotifications}
+      data-testid="button-navbar-bell"
+      aria-label="Open notifications"
+      className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
+    >
+      <Bell className="w-5 h-5" />
+      {unread > 0 && (
+        <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 bg-red-500 text-white text-[9px] font-bold flex items-center justify-center rounded-full border border-background">
+          {unread > 9 ? "9+" : unread}
+        </span>
+      )}
+    </button>
   );
 }

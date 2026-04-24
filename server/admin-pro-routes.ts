@@ -200,6 +200,19 @@ export function registerAdminProRoutes(app: Express) {
       if (cleaned.paidAmount !== undefined) cleaned.paidAmount = String(cleaned.paidAmount);
       const updated = await storage.updateOrder(id, cleaned);
       if (!updated) return res.status(404).json({ message: "Order not found" });
+      // Notify customer on order status changes (best-effort)
+      if (patch.orderStatus && updated.customerId) {
+        const isCancel = patch.orderStatus === "cancelled";
+        storage.createNotification({
+          customerId: updated.customerId,
+          type: isCancel ? "order_cancelled" : "order_status",
+          title: isCancel ? `Order #${updated.id} cancelled` : `Order #${updated.id}: ${patch.orderStatus}`,
+          message: isCancel
+            ? `Sorry, your order has been cancelled. Please contact us on WhatsApp for any clarification.`
+            : `Your order is now ${patch.orderStatus}. Total ₹${Number(updated.totalAmount).toFixed(2)}.`,
+          link: `/account`,
+        }).catch(() => {});
+      }
       res.json(updated);
     } catch (err: any) {
       res.status(400).json({ message: err?.message ?? "Update failed" });

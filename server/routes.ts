@@ -84,6 +84,16 @@ export async function registerRoutes(
           console.error("[Email] Failed to send invoice:", err?.message ?? err);
         });
       }
+      // Notify the customer about their order placement (best-effort)
+      if (customerId) {
+        storage.createNotification({
+          customerId,
+          type: "order_confirmed",
+          title: "Order received",
+          message: `Your enquiry #${order.id} for ₹${Number(order.totalAmount).toFixed(2)} has been received. We'll confirm via WhatsApp shortly.`,
+          link: `/account`,
+        }).catch((e) => console.error("[Notif] order create:", (e as Error).message));
+      }
       // Process referral credit (best-effort, non-blocking)
       const promoCode: string | undefined = (req.body?.promoCode || "").toString().trim().toUpperCase();
       if (promoCode) {
@@ -101,6 +111,21 @@ export async function registerRoutes(
                 orderId: order.id,
                 amountCredited: credit,
               });
+              // Notify the referrer about wallet credit + new referral join
+              storage.createNotification({
+                customerId: referrer.id,
+                type: "wallet_credit",
+                title: "₹" + credit + " credited to your wallet",
+                message: `${order.customerName} placed an order using your code ${promoCode}. You earned ₹${credit}.`,
+                link: "/partner",
+              }).catch(() => {});
+              storage.createNotification({
+                customerId: referrer.id,
+                type: "referral_join",
+                title: "New referral joined",
+                message: `${order.customerName} (+91 ${order.customerPhone}) used your referral code ${promoCode}.`,
+                link: "/partner",
+              }).catch(() => {});
             }
           }
         } catch (e) {
@@ -475,6 +500,14 @@ export async function registerRoutes(
       if ("error" in result) {
         return res.status(400).json({ message: result.error === "insufficient" ? "Insufficient wallet balance" : "Invalid amount" });
       }
+      // Notify wallet debit
+      storage.createNotification({
+        customerId: customer.id,
+        type: "wallet_debit",
+        title: `Withdrawal ₹${amount.toFixed(2)} requested`,
+        message: `Invoice ${result.tx.invoiceNumber}. Wallet balance is now ₹${Number(result.newBalance).toFixed(2)}. Admin will transfer within 24 hours.`,
+        link: "/partner",
+      }).catch(() => {});
       res.json({ tx: result.tx, newBalance: result.newBalance });
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
@@ -487,7 +520,7 @@ export async function registerRoutes(
       if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
       const { amount, productDetails, notes } = z.object({
         amount: z.number().positive().max(1_000_000),
-        productDetails: z.string().min(1).max(2000),
+        productDetails: z.string().min(1).max(4000),
         notes: z.string().max(300).optional(),
       }).parse(req.body);
       const customer = await storage.getCustomerById(req.session.customerId);
@@ -502,10 +535,68 @@ export async function registerRoutes(
       if ("error" in result) {
         return res.status(400).json({ message: result.error === "insufficient" ? "Insufficient wallet balance" : "Invalid amount" });
       }
+      storage.createNotification({
+        customerId: customer.id,
+        type: "wallet_debit",
+        title: `Wallet purchase ₹${amount.toFixed(2)}`,
+        message: `Invoice ${result.tx.invoiceNumber}. Wallet balance is now ₹${Number(result.newBalance).toFixed(2)}. Admin will confirm and share transport details.`,
+        link: "/partner",
+      }).catch(() => {});
       res.json({ tx: result.tx, newBalance: result.newBalance });
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Purchase request failed" });
+    }
+  });
+
+  // Notifications API
+  app.get("/api/notifications/me", async (req, res) => {
+    if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+    const items = await storage.getNotificationsForCustomer(req.session.customerId);
+    const unread = await storage.countUnreadNotifications(req.session.customerId);
+    res.json({ items, unread });
+  });
+
+  app.post("/api/notifications/me/read-all", async (req, res) => {
+    if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+    const updated = await storage.markAllNotificationsRead(req.session.customerId);
+    res.json({ updated });
+  });
+
+  app.post("/api/notifications/me/:id/read", async (req, res) => {
+    if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+    const ok = await storage.markNotificationRead(Number(req.params.id), req.session.customerId);
+    res.json({ ok });
+  });
+
+  // Admin broadcast notification — requires active admin-pro staff (superadmin or manager only)
+  app.post("/api/admin-pro/notifications/broadcast", async (req, res) => {
+    if (!req.session.staffId) return res.status(401).json({ message: "Not authenticated" });
+    const staff = await storage.getStaffById(req.session.staffId);
+    if (!staff || !staff.active) {
+      req.session.staffId = undefined;
+      return res.status(401).json({ message: "Session invalid" });
+    }
+    if (!["superadmin", "manager"].includes(staff.role)) {
+      return res.status(403).json({ message: "Insufficient role to broadcast" });
+    }
+    try {
+      const { title, message, type, link } = z.object({
+        title: z.string().min(1).max(120),
+        message: z.string().min(1).max(1000),
+        type: z.enum(["broadcast", "offer"]).default("broadcast"),
+        link: z.string().max(500).nullable().optional(),
+      }).parse(req.body);
+      const count = await storage.broadcastNotification({
+        title,
+        message,
+        type,
+        link: link && link.trim() ? link.trim() : null,
+      });
+      res.json({ count, sent: count });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Broadcast failed" });
     }
   });
 
