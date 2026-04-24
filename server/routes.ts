@@ -453,34 +453,65 @@ export async function registerRoutes(
     }
   });
 
-  function getAutoReply(message: string, waNumber: string): string {
-    const text = message.toLowerCase();
-    if (text.includes("offer") || text.includes("discount")) {
-      return "Current offer: Up to 50% OFF for online enquiry. Final order confirmation will be done manually via WhatsApp.";
+  const POLICY_REPLY =
+    "Once your order is confirmed, cancellation, refund/credit, and address change are not available. " +
+    "Please check your product list, address, mobile number, and transport details carefully before confirmation. " +
+    "For any doubt before confirmation, contact WhatsApp: 9344468937.";
+
+  function getAutoReply(message: string, waNumber: string): string | null {
+    const text = message.toLowerCase().trim();
+    if (!text) return null;
+
+    if (/\b(hi|hii|hai|hello|hey|namaste|vanakkam)\b/.test(text)) {
+      return "Hello! Welcome to S K Crackers. Ask me about products, offers, how to order, payment, cancellation, refund, transport, invoice, safety, working hours, or bulk orders.";
     }
-    if (text.includes("order") || text.includes("how to order") || text.includes("buy") || text.includes("purchase")) {
-      return "To place an order: 1) Add products to enquiry  2) Click Send Enquiry  3) Send details via WhatsApp  4) Our team will confirm your order manually.";
+    if (text.includes("offer") || text.includes("discount") || text.includes("deal") || text.includes("sale")) {
+      return "Current offer: Up to 50% OFF for online enquiry. Final order confirmation is done manually via WhatsApp.";
     }
-    if (text.includes("cancel")) {
-      return `To cancel your order, please send your order number and mobile number to WhatsApp: ${waNumber}. Our team will check and confirm the cancellation.`;
+    if (text.includes("bulk") || text.includes("wholesale") || text.includes("dealer") || text.includes("retail") || text.includes("large quantity")) {
+      return `Bulk and wholesale orders are welcome! Send your product list and quantities to WhatsApp: ${waNumber}. Our team will share special pricing and transport details.`;
     }
-    if (/\bpay\b|payment|\bupi\b|\bqr\b|gpay|phonepe|paytm/.test(text)) {
-      return "Payment is accepted only after manual order confirmation via enquiry. No direct online payment facility is available.";
+    if (
+      text.includes("cancel") ||
+      text.includes("address change") ||
+      text.includes("change address") ||
+      text.includes("modify order") ||
+      text.includes("edit order")
+    ) {
+      return POLICY_REPLY;
     }
-    if (text.includes("refund") || text.includes("credit") || text.includes("return")) {
-      return `Refund/credit timing depends on payment method and order status. Please share your order details on WhatsApp: ${waNumber} for confirmation.`;
+    if (text.includes("refund") || text.includes("credit note") || text.includes("money back") || /\breturn\b/.test(text)) {
+      return POLICY_REPLY;
     }
-    if (text.includes("delivery") || text.includes("transport") || text.includes("ship") || text.includes("courier")) {
-      return "Transport details will be shared within 24-48 hours after order confirmation. Transport charges should be paid directly while collecting the parcel.";
+    if (text.includes("invoice") || text.includes("bill") || text.includes("receipt") || text.includes("gst")) {
+      return "Your invoice is emailed automatically once the order is confirmed. A 3% handling charge applies (GST is not charged separately as per fireworks rules). For a copy, contact WhatsApp: " + waNumber + ".";
     }
-    if (text.includes("contact") || text.includes("phone") || text.includes("number") || text.includes("whatsapp")) {
-      return `You can reach S K Crackers on WhatsApp: ${waNumber}. We respond quickly during business hours.`;
+    if (text.includes("how to order") || text.includes("place order") || text.includes("place an order") || text.includes("buy") || text.includes("purchase") || /\border\b/.test(text)) {
+      return "To place an order: 1) Add products to your enquiry  2) Click Send Enquiry  3) Share details on WhatsApp  4) Our team confirms your order manually. Payment is collected only after confirmation.";
     }
-    if (text.includes("hi") || text.includes("hello") || text.includes("hey")) {
-      return "Hello! Welcome to S K Crackers. Ask me about products, offers, how to order, payment, cancellation, or transport.";
+    if (/\bpay\b|payment|paying|\bupi\b|\bqr\b|gpay|phonepe|paytm|netbank|bank transfer/.test(text)) {
+      return "Payment is accepted only after manual order confirmation. No direct online payment is available on this website. After confirmation, we will share UPI / bank details on WhatsApp.";
     }
-    return "Thank you for contacting S K Crackers. Please ask about products, offers, order, payment, cancellation, or transport details.";
+    if (text.includes("delivery") || text.includes("transport") || text.includes("ship") || text.includes("courier") || text.includes("dispatch") || text.includes("parcel")) {
+      return "Transport details are shared within 24-48 hours after order confirmation. Transport charges are paid directly to the courier/transport while collecting the parcel.";
+    }
+    if (text.includes("safe") || text.includes("safety") || text.includes("danger") || text.includes("kids") || text.includes("children") || text.includes("instruction")) {
+      return "Safety first: 1) Use crackers only in open spaces  2) Light one cracker at a time and step back  3) Keep water and sand ready  4) Never relight a failed cracker  5) Children must be supervised by adults  6) Store crackers in a cool, dry place away from fire.";
+    }
+    if (text.includes("hour") || text.includes("timing") || text.includes("open") || text.includes("close") || text.includes("when")) {
+      return "Working hours: Monday to Saturday, 9:00 AM to 8:00 PM. WhatsApp enquiries are answered during these hours.";
+    }
+    if (text.includes("contact") || text.includes("phone") || text.includes("mobile") || text.includes("number") || text.includes("whatsapp") || text.includes("address ") || text.includes("location") || text.includes("where")) {
+      return `Contact S K Crackers on WhatsApp: ${waNumber}. We are based in Sivakasi, Tamil Nadu. Our team responds quickly during business hours.`;
+    }
+    if (text.includes("product") || text.includes("item") || text.includes("variety") || text.includes("category") || text.includes("type of") || text.includes("kind of") || text.includes("flower pot") || text.includes("rocket") || text.includes("sparkler") || text.includes("chakkar") || text.includes("bomb") || text.includes("gift box")) {
+      return "We stock 16 product categories — sparklers, ground chakkars, flower pots, rockets, fancy items, gift boxes and more. Browse the Home page, add items to enquiry, and send via WhatsApp for confirmation.";
+    }
+    return null;
   }
+
+  const SAFE_DEFAULT_REPLY =
+    "Thank you for contacting S K Crackers. Please add products to enquiry and send via WhatsApp. Our team will confirm your order manually.";
 
   const chatRateLimit = new Map<string, { count: number; resetAt: number }>();
   app.post("/api/chat", async (req, res) => {
@@ -502,11 +533,18 @@ export async function registerRoutes(
       const { message } = z.object({ message: z.string().min(1).max(1000) }).parse(req.body);
       const waSetting = await storage.getSetting("whatsapp-number");
       const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
+
+      const fixed = getAutoReply(message, waNumber);
+      if (fixed) {
+        return res.json({ reply: fixed, source: "auto" });
+      }
+
       const dbKey = await storage.getSetting("openai-api-key");
       const apiKey = (dbKey && dbKey.trim()) || process.env.OPENAI_API_KEY || "";
       if (!apiKey) {
-        return res.json({ reply: getAutoReply(message, waNumber), source: "auto" });
+        return res.json({ reply: SAFE_DEFAULT_REPLY, source: "default" });
       }
+
       const openai = new OpenAI({ apiKey });
       const completion = await openai.chat.completions.create({
         model: "gpt-4o-mini",
@@ -515,13 +553,28 @@ export async function registerRoutes(
           {
             role: "system",
             content:
-              `You are S K Crackers AI Help assistant.\n\nRules:\n- This website is only for product enquiry.\n- Do not confirm orders automatically.\n- Always tell the customer that orders are confirmed manually through WhatsApp.\n- WhatsApp number: ${waNumber}.\n- Share payment details only after order confirmation.\n- Do not explain how to make fireworks or anything unsafe.\n- Give short, simple, friendly answers (2-4 sentences).`,
+              `You are S K Crackers AI Help assistant for a fireworks enquiry website.\n\n` +
+              `Strict business rules you MUST follow in every reply:\n` +
+              `- This website is for product enquiry only. No direct online payment is available.\n` +
+              `- Customer adds products to enquiry, then sends via WhatsApp. Orders are confirmed manually.\n` +
+              `- Payment is collected ONLY after manual order confirmation.\n` +
+              `- Transport details are shared 24-48 hours after confirmation; courier charges are paid on collection.\n` +
+              `- WhatsApp number: ${waNumber}.\n` +
+              `- A 3% handling charge applies. GST is not charged separately (fireworks government rules).\n\n` +
+              `Strict cancellation/refund/address-change policy (use this exact wording when asked):\n` +
+              `"${POLICY_REPLY}"\n\n` +
+              `Other rules:\n` +
+              `- Never explain how to make fireworks or anything unsafe.\n` +
+              `- For safety questions, advise: open space, one cracker at a time, water/sand ready, adult supervision for children, no relighting, store cool & dry.\n` +
+              `- Working hours: Mon-Sat, 9 AM to 8 PM.\n` +
+              `- Keep answers short, simple and friendly (2-4 sentences).\n` +
+              `- If a question is unrelated to S K Crackers, politely redirect them to product enquiry.`,
           },
           { role: "user", content: message },
         ],
       });
-      const reply = completion.choices?.[0]?.message?.content?.trim() || getAutoReply(message, waNumber);
-      res.json({ reply, source: "ai" });
+      const aiReply = completion.choices?.[0]?.message?.content?.trim();
+      res.json({ reply: aiReply || SAFE_DEFAULT_REPLY, source: aiReply ? "ai" : "default" });
     } catch (err: any) {
       if (err instanceof z.ZodError) {
         return res.status(400).json({ message: err.errors[0].message });
@@ -530,7 +583,8 @@ export async function registerRoutes(
       const waSetting = await storage.getSetting("whatsapp-number").catch(() => null);
       const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
       const userMsg = (req.body && typeof req.body.message === "string") ? req.body.message : "";
-      res.json({ reply: getAutoReply(userMsg, waNumber), source: "auto" });
+      const fallback = getAutoReply(userMsg, waNumber) || SAFE_DEFAULT_REPLY;
+      res.json({ reply: fallback, source: "default" });
     }
   });
 

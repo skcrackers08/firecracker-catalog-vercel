@@ -1,0 +1,83 @@
+Replit instruction to paste
+Paste this to Replit AI:
+Plain text
+Fix my S K Crackers chatbot fully.
+
+Current problem:
+The chatbot only shows fallback WhatsApp message or limited keyword replies. I need a complete customer support AI.
+
+Requirements:
+1. Add auto replies for:
+- current offer
+- how to order
+- payment process
+- cancellation
+- refund/credit
+- invoice
+- transport/delivery
+- product enquiry
+- safety instructions
+- shop contact
+- working hours
+- bulk order
+- payment after confirmation only
+
+2. If customer question does not match auto replies, use OpenAI API to generate a smart reply.
+
+3. Add backend endpoint /api/chat using OPENAI_API_KEY from Replit Secrets.
+
+4. Do not show "AI help not available now" unless API fails.
+
+5. Website must follow fireworks enquiry rules:
+- No direct online payment
+- Customer adds products to enquiry
+- Order confirmed manually via WhatsApp
+- Payment accepted only after confirmation
+- Transport details shared after confirmation
+
+6. Use WhatsApp number: 9344468937
+
+7. Add safe default reply:
+"Thank you for contacting S K Crackers. Please add products to enquiry and send via WhatsApp. Our team will confirm your order manually."
+
+8. Make chatbot work on mobile and desktop.
+Important
+For “full AI”, you need OpenAI API key.
+Without API key, chatbot can only give fixed replies. It cannot answer all customer questions properly.
+Use this flow:
+Plain text
+Customer question
+↓
+Check fixed auto reply
+↓
+If no match → OpenAI smart reply
+↓
+If OpenAI fails → WhatsApp support message
+add this rule clearly in AI auto reply:
+Plain text
+Cancellation / Refund / Address Change Policy:
+
+Once your order is confirmed, cancellation is not available.
+Refund or credit is not available after order confirmation.
+Address change is not allowed after order confirmation.
+
+Please check your product list, address, mobile number, and transport details carefully before confirming the order.
+
+For any doubt before confirmation, contact WhatsApp: 9344468937.
+Paste this to Replit AI:
+Plain text
+Update my S K Crackers chatbot policy replies.
+
+Add strict rule:
+Once the order is confirmed:
+- No cancellation
+- No refund
+- No credit
+- No address change
+
+Before confirmation:
+Customer can contact WhatsApp 9344468937 for any correction.
+
+Update cancellation/refund/address related replies with this exact message:
+
+"Once your order is confirmed, cancellation, refund/credit, and address change are not available. Please check your product list, address, mobile number, and transport details carefully before confirmation. For any doubt before confirmation, contact WhatsApp: 9344468937."
