@@ -25,7 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle, MessageSquare, Send } from "lucide-react";
+import { Plus, Pencil, Trash2, Video, Image as ImageIcon, IndianRupee, CheckCircle2, ShieldCheck, LogOut, Eye, EyeOff, Lock, ChevronDown, ChevronRight, Package, Tag, LayoutGrid, Save, Upload, X, Link as LinkIcon, Mail, KeyRound, CheckCircle, MessageSquare, Send, Sparkles } from "lucide-react";
 import { z } from "zod";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PRODUCT_CATEGORIES } from "@shared/schema";
@@ -166,6 +166,170 @@ function AdminLogin({ onLogin }: { onLogin: () => void }) {
             </p>
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function OpenAIKeySection() {
+  const { toast } = useToast();
+  const { data, isLoading } = useQuery<{ value: string | null; configured?: boolean; masked?: string }>({
+    queryKey: ["/api/settings/openai-api-key"],
+  });
+  const [value, setValue] = useState("");
+  const [showKey, setShowKey] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string>("");
+
+  const isConfigured = !!data?.configured;
+  const masked = data?.masked || "";
+
+  const save = useMutation({
+    mutationFn: async (newVal: string) => {
+      await apiRequest("POST", "/api/settings/openai-api-key", { value: newVal });
+    },
+    onSuccess: (_d, newVal) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings/openai-api-key"] });
+      setValue("");
+      setTestResult("");
+      toast({
+        title: newVal ? "API Key Saved" : "API Key Removed",
+        description: newVal ? "AI Help chat is now active for all customers." : "AI Help chat key has been cleared.",
+      });
+    },
+    onError: (e: any) => {
+      toast({ title: "Save failed", description: e?.message || "Could not save", variant: "destructive" });
+    },
+  });
+
+  async function runTest() {
+    setTesting(true);
+    setTestResult("");
+    try {
+      const res = await apiRequest("POST", "/api/chat", { message: "Hello, what can you help me with?" });
+      const data = (await res.json()) as { reply?: string };
+      setTestResult(data.reply || "No reply");
+    } catch (e: any) {
+      setTestResult(`Test failed: ${e?.message || "unknown error"}`);
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  function clearKey() {
+    if (!window.confirm("Remove the saved OpenAI API key? AI chat will stop working for customers.")) return;
+    save.mutate("");
+  }
+
+  return (
+    <div className="space-y-5">
+      <p className="text-sm text-muted-foreground">
+        Powers the floating <strong>AI Help</strong> chat icon (purple sparkle) on the right side of every page.
+        Customers can ask product or order questions; the assistant always directs them to WhatsApp for confirmation.
+      </p>
+
+      {isLoading ? (
+        <div className="h-10 bg-muted/40 rounded-lg animate-pulse" />
+      ) : isConfigured ? (
+        <div className="flex flex-col gap-1 bg-green-500/10 border border-green-500/30 rounded-xl px-4 py-3">
+          <div className="flex items-center gap-2">
+            <CheckCircle className="w-4 h-4 text-green-500 shrink-0" />
+            <span className="text-sm text-green-400 font-medium">OpenAI key active — AI Help chat is live.</span>
+          </div>
+          {masked && (
+            <p className="text-xs text-green-300/80 font-mono pl-6" data-testid="text-openai-key-masked">
+              Saved key: {masked}
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 bg-yellow-500/10 border border-yellow-500/30 rounded-xl px-4 py-3">
+          <KeyRound className="w-4 h-4 text-yellow-500 shrink-0" />
+          <span className="text-sm text-yellow-400">No API key set — AI chat will reply with a fallback WhatsApp message.</span>
+        </div>
+      )}
+
+      <div className="space-y-1.5">
+        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1.5">
+          <KeyRound className="w-3 h-3" />
+          {isConfigured ? "Replace OpenAI API Key" : "OpenAI API Key"} <span className="text-red-400">*</span>
+        </label>
+        <div className="relative">
+          <Input
+            type={showKey ? "text" : "password"}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={isConfigured ? "Paste a new key to replace the saved one…" : "sk-proj-xxxxxxxxxxxxxxxxxxxxxxxxxxxx"}
+            className="pr-10 font-mono text-sm"
+            data-testid="input-openai-api-key"
+          />
+          <button
+            type="button"
+            onClick={() => setShowKey((v) => !v)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            data-testid="button-toggle-show-openai-key"
+          >
+            {showKey ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+          </button>
+        </div>
+        <p className="text-xs text-muted-foreground">
+          Stored in your database. Only a masked preview is ever returned for security.
+          Overrides the server <span className="font-mono">OPENAI_API_KEY</span> environment variable.
+        </p>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button
+          onClick={() => save.mutate(value.trim())}
+          disabled={save.isPending || !value.trim()}
+          data-testid="button-save-openai-key"
+          className="flex items-center gap-2"
+        >
+          <Save className="w-4 h-4" />
+          {save.isPending ? "Saving…" : isConfigured ? "Update API Key" : "Save API Key"}
+        </Button>
+        <Button
+          variant="outline"
+          onClick={runTest}
+          disabled={testing || !isConfigured}
+          data-testid="button-test-openai-key"
+          className="flex items-center gap-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          {testing ? "Testing…" : "Test Connection"}
+        </Button>
+        {isConfigured && (
+          <Button
+            variant="outline"
+            onClick={clearKey}
+            disabled={save.isPending}
+            data-testid="button-clear-openai-key"
+            className="flex items-center gap-2 text-red-400 hover:text-red-300"
+          >
+            <X className="w-4 h-4" />
+            Remove Key
+          </Button>
+        )}
+      </div>
+
+      {testResult && (
+        <div className="rounded-xl border border-border bg-muted/40 p-3">
+          <p className="text-xs font-semibold text-muted-foreground mb-1">Test Reply:</p>
+          <p className="text-sm text-foreground whitespace-pre-wrap" data-testid="text-openai-test-result">{testResult}</p>
+        </div>
+      )}
+
+      <div className="bg-muted/30 rounded-xl border border-border p-4 space-y-2">
+        <p className="text-xs font-semibold text-foreground flex items-center gap-2">
+          <Sparkles className="w-3.5 h-3.5" /> How to get your OpenAI API Key
+        </p>
+        <ol className="text-xs text-muted-foreground space-y-1 list-none">
+          <li>1. Sign in at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-primary underline">platform.openai.com/api-keys</a></li>
+          <li>2. Click <strong>Create new secret key</strong></li>
+          <li>3. Copy the key (starts with <span className="font-mono">sk-proj-</span> or <span className="font-mono">sk-</span>)</li>
+          <li>4. Paste it above and click <strong>Save API Key</strong></li>
+          <li>5. Click <strong>Test Connection</strong> to confirm the AI is responding</li>
+        </ol>
       </div>
     </div>
   );
@@ -954,6 +1118,10 @@ export default function Admin() {
           Logout
         </Button>
       </div>
+
+      <SectionPanel icon={<Sparkles className="h-5 w-5" />} title="AI Help Chat (OpenAI API Key)">
+        <OpenAIKeySection />
+      </SectionPanel>
 
       <SectionPanel icon={<MessageSquare className="h-5 w-5" />} title="WhatsApp Settings">
         <WhatsAppSettings />

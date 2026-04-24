@@ -8,6 +8,7 @@ import { products } from "@shared/schema";
 import { sendInvoiceEmail } from "./email";
 import { registerAdminProRoutes, seedDefaultStaff } from "./admin-pro-routes";
 import { sendOtpSms } from "./sms";
+import OpenAI from "openai";
 
 const otpStore = new Map<string, { otp: string; expiresAt: number }>();
 
@@ -158,9 +159,23 @@ export async function registerRoutes(
     res.status(204).end();
   });
 
+  const SECRET_SETTING_KEYS = new Set([
+    "openai-api-key",
+    "brevo-smtp-key",
+    "startmessaging-api-key",
+    "fast2sms-api-key",
+  ]);
+
   app.get("/api/settings/:key", async (req, res) => {
     try {
-      const value = await storage.getSetting(req.params.key);
+      const key = req.params.key;
+      const value = await storage.getSetting(key);
+      if (SECRET_SETTING_KEYS.has(key)) {
+        const v = (value ?? "").trim();
+        if (!v) return res.json({ value: "", configured: false, masked: "" });
+        const masked = v.length <= 6 ? "•".repeat(v.length) : `${v.slice(0, 3)}${"•".repeat(Math.max(4, v.length - 7))}${v.slice(-4)}`;
+        return res.json({ value: "", configured: true, masked });
+      }
       if (value === null) return res.json({ value: null });
       res.json({ value });
     } catch (err) {
@@ -435,6 +450,57 @@ export async function registerRoutes(
     } catch (err) {
       if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
       res.status(500).json({ message: "Failed to update profile" });
+    }
+  });
+
+  const chatRateLimit = new Map<string, { count: number; resetAt: number }>();
+  app.post("/api/chat", async (req, res) => {
+    try {
+      const ip = (req.headers["x-forwarded-for"]?.toString().split(",")[0].trim()) || req.ip || "unknown";
+      const now = Date.now();
+      const entry = chatRateLimit.get(ip);
+      if (entry && entry.resetAt > now) {
+        if (entry.count >= 12) {
+          return res.status(429).json({ reply: "Too many messages. Please wait a minute and try again." });
+        }
+        entry.count++;
+      } else {
+        chatRateLimit.set(ip, { count: 1, resetAt: now + 60_000 });
+      }
+      if (chatRateLimit.size > 5000) {
+        for (const [k, v] of chatRateLimit) if (v.resetAt < now) chatRateLimit.delete(k);
+      }
+      const { message } = z.object({ message: z.string().min(1).max(1000) }).parse(req.body);
+      const dbKey = await storage.getSetting("openai-api-key");
+      const apiKey = (dbKey && dbKey.trim()) || process.env.OPENAI_API_KEY || "";
+      if (!apiKey) {
+        return res.json({ reply: "AI help is not configured yet. Please contact us on WhatsApp: 9344468937" });
+      }
+      const waSetting = await storage.getSetting("whatsapp-number");
+      const waNumber = (waSetting || "919344468937").replace(/\D/g, "");
+      const openai = new OpenAI({ apiKey });
+      const completion = await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        max_tokens: 250,
+        messages: [
+          {
+            role: "system",
+            content:
+              `You are S K Crackers AI Help assistant.\n\nRules:\n- This website is only for product enquiry.\n- Do not confirm orders automatically.\n- Always tell the customer that orders are confirmed manually through WhatsApp.\n- WhatsApp number: ${waNumber}.\n- Share payment details only after order confirmation.\n- Do not explain how to make fireworks or anything unsafe.\n- Give short, simple, friendly answers (2-4 sentences).`,
+          },
+          { role: "user", content: message },
+        ],
+      });
+      const reply =
+        completion.choices?.[0]?.message?.content?.trim() ||
+        `AI help not available now. Please contact WhatsApp: ${waNumber}`;
+      res.json({ reply });
+    } catch (err: any) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error("AI chat error:", err?.message || err);
+      res.json({ reply: "AI help not available now. Please contact WhatsApp: 9344468937" });
     }
   });
 

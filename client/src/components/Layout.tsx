@@ -8,6 +8,7 @@ import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustrati
 import { useCart } from "@/hooks/use-cart";
 import { openWhatsApp } from "@/lib/whatsapp";
 import { LoginPopup } from "@/components/LoginPopup";
+import { AIChatBubble } from "@/components/AIChatBubble";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
@@ -194,6 +195,9 @@ export function Layout({ children }: LayoutProps) {
 
       <CustomerDrawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
       <SearchPopup open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+
+      {/* AI Help Chat */}
+      <AIChatBubble />
 
       {/* Floating WhatsApp Icon */}
       <button
