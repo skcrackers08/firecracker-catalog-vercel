@@ -867,10 +867,10 @@ export default function AdminPro() {
 
   return (
     <div className="min-h-screen flex bg-muted/30">
-      <aside className="w-60 bg-white dark:bg-zinc-900 border-r flex flex-col">
-        <div className="p-4 border-b">
-          <h2 className="font-bold text-lg">S K Crackers</h2>
-          <p className="text-xs text-muted-foreground">Admin Pro</p>
+      <aside className="w-60 bg-white dark:bg-zinc-900 border-r border-zinc-200 dark:border-zinc-800 text-zinc-900 dark:text-zinc-100 flex flex-col">
+        <div className="p-4 border-b border-zinc-200 dark:border-zinc-800">
+          <h2 className="font-bold text-lg text-zinc-900 dark:text-white">S K Crackers</h2>
+          <p className="text-xs text-zinc-600 dark:text-zinc-400">Admin Pro</p>
         </div>
         <nav className="flex-1 p-2 space-y-1">
           {NAV.filter((n) => !n.role || n.role === me.role).map((n) => (
@@ -878,20 +878,24 @@ export default function AdminPro() {
               key={n.id}
               data-testid={`nav-${n.id}`}
               onClick={() => setTab(n.id)}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors ${tab === n.id ? "bg-amber-500 text-white" : "hover:bg-muted"}`}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                tab === n.id
+                  ? "bg-amber-500 text-white shadow-sm"
+                  : "text-zinc-700 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-white"
+              }`}
             >
               <n.icon className="w-4 h-4" /> {n.label}
             </button>
           ))}
         </nav>
-        <div className="p-3 border-t">
-          <div className="text-xs text-muted-foreground mb-1">Signed in as</div>
-          <div className="text-sm font-semibold">{me.fullName}</div>
-          <div className="text-xs text-muted-foreground mb-2">{me.role}</div>
+        <div className="p-3 border-t border-zinc-200 dark:border-zinc-800">
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-1">Signed in as</div>
+          <div className="text-sm font-semibold text-zinc-900 dark:text-white">{me.fullName}</div>
+          <div className="text-xs text-zinc-600 dark:text-zinc-400 mb-2">{me.role}</div>
           <Button variant="outline" size="sm" className="w-full" onClick={() => logout.mutate()} data-testid="button-logout-staff">
             <LogOut className="w-4 h-4 mr-1" /> Sign out
           </Button>
-          <button onClick={() => setLocation("/")} className="text-xs text-muted-foreground mt-2 hover:underline w-full text-left">← Back to website</button>
+          <button onClick={() => setLocation("/")} className="text-xs text-zinc-600 dark:text-zinc-400 mt-2 hover:underline hover:text-zinc-900 dark:hover:text-white w-full text-left">← Back to website</button>
         </div>
       </aside>
       <main className="flex-1 p-4 md:p-6 overflow-x-auto">
