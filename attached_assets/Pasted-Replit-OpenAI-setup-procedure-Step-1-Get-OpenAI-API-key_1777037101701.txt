@@ -1,0 +1,136 @@
+Replit + OpenAI setup procedure
+Step 1: Get OpenAI API key
+Go to OpenAI Platform → API keys → Create new secret key.
+Copy the key. Keep it secret.
+Step 2: Add key in Replit
+In Replit:
+Tools → Secrets → New Secret
+Add:
+Plain text
+Key: OPENAI_API_KEY
+Value: your OpenAI API key
+Replit Secrets are used for private environment variables. �
+docs.replit.com
+Step 3: Install packages
+Open Shell in Replit and paste:
+Bash
+npm install express openai cors
+Step 4: Create server.js
+Paste this:
+JavaScript
+import express from "express";
+import cors from "cors";
+import OpenAI from "openai";
+
+const app = express();
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY
+});
+
+app.use(cors());
+app.use(express.json());
+app.use(express.static("public"));
+
+app.post("/api/chat", async (req, res) => {
+  try {
+    const userMessage = req.body.message;
+
+    const response = await openai.responses.create({
+      model: "gpt-4.1-mini",
+      input: `
+You are S K Crackers AI Help assistant.
+
+Rules:
+- This website is only for product enquiry.
+- Do not confirm orders automatically.
+- Tell customer: Order confirmed manually through WhatsApp.
+- WhatsApp number: 9344468937.
+- Payment details only after confirmation.
+- Do not explain how to make fireworks.
+- Give short simple answers.
+
+Customer message: ${userMessage}
+`
+    });
+
+    res.json({ reply: response.output_text });
+  } catch (err) {
+    console.error(err);
+    res.json({ reply: "AI help not available now. Please contact WhatsApp: 9344468937" });
+  }
+});
+
+app.listen(3000, "0.0.0.0", () => {
+  console.log("AI Help running on port 3000");
+});
+Step 5: Create public/index.html
+Create folder:
+Plain text
+public
+Inside create:
+Plain text
+index.html
+Paste:
+HTML
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2>S K Crackers AI Help</h2>
+
+<div id="chat"></div>
+
+<input id="msg" placeholder="Ask your question">
+<button onclick="sendMsg()">Send</button>
+
+<br><br>
+
+<a href="https://wa.me/919344468937?text=Hello%20S%20K%20Crackers,%20I%20want%20product%20enquiry"
+target="_blank">
+Send Enquiry on WhatsApp
+</a>
+
+<script>
+async function sendMsg() {
+  const msg = document.getElementById("msg").value;
+  document.getElementById("chat").innerHTML += "<p><b>You:</b> " + msg + "</p>";
+
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ message: msg })
+  });
+
+  const data = await res.json();
+  document.getElementById("chat").innerHTML += "<p><b>AI:</b> " + data.reply + "</p>";
+}
+</script>
+
+</body>
+</html>
+Step 6: Create / edit package.json
+JSON
+{
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "cors": "latest",
+    "express": "latest",
+    "openai": "latest"
+  }
+}
+Step 7: Run
+In Shell:
+Bash
+npm start
+Then open Replit preview.
+Step 8: Test these questions
+Plain text
+What is offer?
+How to order?
+Can I pay online?
+Flower pots available?
+Correct answer should guide to WhatsApp enquiry, not direct order.
+Replit deployment uses a run command like npm start, and published apps may need deployment secrets also added during publishing.
