@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import {
   Briefcase, Wallet, Share2, Copy, Sparkles, Users, History, Check, ArrowLeft,
   IndianRupee, Tag, TrendingUp, Building2, Edit2, Save, ArrowDownToLine, ShoppingBag,
   FileText, MessageCircle, X, Search, Plus, Minus, Trash2, ChevronRight, ChevronLeft,
+  Eye, EyeOff, Camera, Loader2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
@@ -14,6 +15,31 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { openWhatsApp } from "@/lib/whatsapp";
 import type { Product } from "@shared/schema";
+
+async function compressImage(file: File, maxSize: number, quality: number): Promise<string> {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("read failed"));
+    reader.readAsDataURL(file);
+  });
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSize / Math.max(img.width, img.height));
+      const w = Math.round(img.width * scale);
+      const h = Math.round(img.height * scale);
+      const canvas = document.createElement("canvas");
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return resolve(dataUrl);
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = () => reject(new Error("image decode failed"));
+    img.src = dataUrl;
+  });
+}
 
 interface BankDetails {
   accountHolder: string;
@@ -52,10 +78,39 @@ interface CartLine {
 }
 
 export default function PartnerPage() {
-  const { customer, isLoading } = useCustomerAuth();
+  const { customer, isLoading, updateProfile } = useCustomerAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { data: allProducts } = useProducts();
+  const photoFileRef = useRef<HTMLInputElement>(null);
+  const [savingPhoto, setSavingPhoto] = useState(false);
+  const [historyVisible, setHistoryVisible] = useState(false);
+
+  const handlePhotoPick = () => photoFileRef.current?.click();
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please pick an image under 5MB.", variant: "destructive" });
+      if (photoFileRef.current) photoFileRef.current.value = "";
+      return;
+    }
+    setSavingPhoto(true);
+    try {
+      const dataUrl = await compressImage(file, 320, 0.82);
+      const result = await updateProfile({ profilePhoto: dataUrl });
+      if (result.ok) {
+        toast({ title: "Profile photo updated" });
+      } else {
+        toast({ title: "Upload failed", description: result.message, variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Upload failed", description: "Could not process the image.", variant: "destructive" });
+    } finally {
+      setSavingPhoto(false);
+      if (photoFileRef.current) photoFileRef.current.value = "";
+    }
+  };
 
   const [percentage, setPercentage] = useState<number>(0);
   const [saving, setSaving] = useState(false);
@@ -364,20 +419,49 @@ export default function PartnerPage() {
           <ArrowLeft className="w-4 h-4 mr-1" /> Back to Home
         </button>
 
-        {/* Hero / Profile */}
+        {/* Hero / Profile (with photo upload from gallery) */}
         <Card className="p-5 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border-amber-500/30">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full bg-amber-500/20 border-2 border-amber-500/40 flex items-center justify-center overflow-hidden shrink-0">
+            <button
+              type="button"
+              onClick={handlePhotoPick}
+              disabled={savingPhoto}
+              data-testid="button-partner-photo-pick"
+              aria-label="Upload profile photo from gallery"
+              className="relative w-16 h-16 rounded-full bg-amber-500/20 border-2 border-amber-500/40 flex items-center justify-center overflow-hidden shrink-0 group hover-elevate active-elevate-2"
+            >
               {customer?.profilePhoto ? (
-                <img src={customer.profilePhoto} alt="profile" className="w-full h-full object-cover" />
+                <img src={customer.profilePhoto} alt="profile" className="w-full h-full object-cover" data-testid="img-partner-photo" />
               ) : (
                 <Briefcase className="w-7 h-7 text-amber-400" />
               )}
-            </div>
+              {savingPhoto ? (
+                <span className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                </span>
+              ) : (
+                <span className="absolute inset-0 bg-black/55 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Camera className="w-5 h-5 text-white" />
+                </span>
+              )}
+              <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-amber-500 border-2 border-background flex items-center justify-center">
+                <Camera className="w-2.5 h-2.5 text-black" />
+              </span>
+            </button>
+            <input
+              ref={photoFileRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handlePhotoChange}
+              className="hidden"
+              data-testid="input-partner-photo"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase tracking-widest text-amber-400 font-bold">Partner Program</p>
               <h1 className="font-display text-2xl text-white" data-testid="text-partner-name">{customer?.fullName || customer?.username}</h1>
               <p className="text-xs text-muted-foreground">+91 {customer?.phone}</p>
+              <p className="text-[10px] text-muted-foreground/80 mt-1">Tap photo to change from gallery / camera</p>
             </div>
           </div>
         </Card>
@@ -420,27 +504,48 @@ export default function PartnerPage() {
           </div>
         </Card>
 
-        {/* Wallet Transaction History (always visible right under wallet) */}
+        {/* Wallet Transaction History (collapsible View / Hide) */}
         <Card className="p-5 space-y-4">
           <div className="flex items-center gap-2">
             <History className="w-5 h-5 text-primary" />
             <h2 className="font-display text-lg text-white tracking-wide">Wallet Transaction History</h2>
-            <span className="ml-auto text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
+            <span className="ml-2 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
               {transactions.length} total
             </span>
+            <button
+              type="button"
+              onClick={() => setHistoryVisible(v => !v)}
+              data-testid="button-toggle-history"
+              aria-expanded={historyVisible}
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary hover-elevate active-elevate-2"
+            >
+              {historyVisible ? (
+                <><EyeOff className="w-3.5 h-3.5" /> Hide</>
+              ) : (
+                <><Eye className="w-3.5 h-3.5" /> View</>
+              )}
+            </button>
           </div>
-          <HistorySection
-            title="Withdrawals"
-            icon={<ArrowDownToLine className="w-4 h-4 text-emerald-400" />}
-            items={withdrawals}
-            emptyText="No withdrawals yet."
-          />
-          <HistorySection
-            title="Wallet Purchases"
-            icon={<ShoppingBag className="w-4 h-4 text-amber-400" />}
-            items={purchases}
-            emptyText="No wallet purchases yet."
-          />
+          {!historyVisible ? (
+            <p className="text-xs text-muted-foreground" data-testid="text-history-hidden">
+              Wallet transaction details are hidden. Tap <span className="text-primary font-bold">View</span> to see all your withdrawals and wallet purchases.
+            </p>
+          ) : (
+            <>
+              <HistorySection
+                title="Withdrawals"
+                icon={<ArrowDownToLine className="w-4 h-4 text-emerald-400" />}
+                items={withdrawals}
+                emptyText="No withdrawals yet."
+              />
+              <HistorySection
+                title="Wallet Purchases"
+                icon={<ShoppingBag className="w-4 h-4 text-amber-400" />}
+                items={purchases}
+                emptyText="No wallet purchases yet."
+              />
+            </>
+          )}
         </Card>
 
         {/* Bank Details */}

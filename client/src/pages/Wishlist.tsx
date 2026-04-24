@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "wouter";
-import { Heart, Share2, Check, ShoppingCart, ArrowLeft, Sparkles } from "lucide-react";
+import { Heart, Share2, Check, ShoppingCart, ArrowLeft, Sparkles, Plus, Minus } from "lucide-react";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useProducts } from "@/hooks/use-products";
 import { useCart } from "@/hooks/use-cart";
@@ -15,6 +15,7 @@ export default function Wishlist() {
   const { data: allProducts } = useProducts();
   const { addToCart } = useCart();
   const { toast } = useToast();
+  const [draftQty, setDraftQty] = useState<Record<number, number>>({});
 
   const urlParams = new URLSearchParams(window.location.search);
   const sharedIds = urlParams.get("ids")?.split(",").map(Number).filter(Boolean) ?? [];
@@ -111,12 +112,60 @@ export default function Wishlist() {
                   </div>
 
                   <div className="flex gap-2">
-                    <Button
-                      className="flex-1 gap-2"
-                      onClick={() => addToCart(product, 1)}
-                    >
-                      <ShoppingCart className="w-4 h-4" /> Add to Enquiry
-                    </Button>
+                    {(() => {
+                      const qty = draftQty[product.id] ?? 0;
+                      if (qty === 0) {
+                        return (
+                          <Button
+                            className="flex-1 gap-2"
+                            onClick={() => setDraftQty(prev => ({ ...prev, [product.id]: 1 }))}
+                            data-testid={`button-add-enquiry-${product.id}`}
+                          >
+                            <ShoppingCart className="w-4 h-4" /> Add to Enquiry
+                          </Button>
+                        );
+                      }
+                      return (
+                        <div className="flex-1 flex items-center gap-2">
+                          <div className="flex items-center bg-white/5 border border-white/10 rounded-xl p-1">
+                            <button
+                              type="button"
+                              onClick={() => setDraftQty(prev => ({ ...prev, [product.id]: Math.max(1, qty - 1) }))}
+                              data-testid={`button-qty-dec-${product.id}`}
+                              aria-label="Decrease quantity"
+                              className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
+                            >
+                              <Minus className="w-3.5 h-3.5" />
+                            </button>
+                            <span className="w-8 text-center text-sm font-bold text-white" data-testid={`text-qty-${product.id}`}>{qty}</span>
+                            <button
+                              type="button"
+                              onClick={() => setDraftQty(prev => ({ ...prev, [product.id]: qty + 1 }))}
+                              data-testid={`button-qty-inc-${product.id}`}
+                              aria-label="Increase quantity"
+                              className="w-8 h-8 rounded-lg hover:bg-white/10 flex items-center justify-center transition-colors"
+                            >
+                              <Plus className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                          <Button
+                            className="flex-1 gap-2"
+                            onClick={() => {
+                              addToCart(product, qty);
+                              toast({ title: "Added to enquiry", description: `${product.name} × ${qty}` });
+                              setDraftQty(prev => {
+                                const next = { ...prev };
+                                delete next[product.id];
+                                return next;
+                              });
+                            }}
+                            data-testid={`button-confirm-enquiry-${product.id}`}
+                          >
+                            <Check className="w-4 h-4" /> Confirm Enquiry
+                          </Button>
+                        </div>
+                      );
+                    })()}
 
                     {isSharedView ? (
                       <Button
