@@ -1,17 +1,25 @@
 export function openWhatsApp(phone: string, message: string) {
   const cleaned = (phone || "").replace(/\D/g, "");
   const text = encodeURIComponent(message || "");
-  const appLink = `whatsapp://send?phone=${cleaned}&text=${text}`;
-  const webLink = `https://wa.me/${cleaned}?text=${text}`;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isAndroid = /Android/i.test(ua);
+  const isIOS = /iPhone|iPad|iPod/i.test(ua);
 
-  const isMobile = typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-  if (isMobile) {
-    window.location.href = appLink;
+  if (isAndroid) {
+    const fallback = encodeURIComponent(`https://wa.me/${cleaned}?text=${text}`);
+    window.location.href =
+      `intent://send?phone=${cleaned}&text=${text}` +
+      `#Intent;scheme=whatsapp;package=com.whatsapp;` +
+      `S.browser_fallback_url=${fallback};end`;
+  } else if (isIOS) {
+    const start = Date.now();
+    window.location.href = `whatsapp://send?phone=${cleaned}&text=${text}`;
     setTimeout(() => {
-      window.location.href = webLink;
-    }, 1200);
+      if (Date.now() - start < 2200 && !document.hidden) {
+        window.location.href = `https://wa.me/${cleaned}?text=${text}`;
+      }
+    }, 1500);
   } else {
-    window.open(webLink, "_blank", "noopener,noreferrer");
+    window.open(`https://web.whatsapp.com/send?phone=${cleaned}&text=${text}`, "_blank", "noopener,noreferrer");
   }
 }

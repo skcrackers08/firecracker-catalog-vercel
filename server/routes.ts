@@ -398,12 +398,115 @@ export async function registerRoutes(
     const customer = await storage.getCustomerById(req.session.customerId);
     if (!customer) return res.status(404).json({ message: "Customer not found" });
     const history = await storage.getReferralHistory(customer.id);
+    const walletTx = await storage.getWalletTransactions(customer.id);
     res.json({
       referralCode: customer.referralCode,
       referralPercentage: customer.referralPercentage,
       walletBalance: customer.walletBalance,
+      bank: {
+        accountHolder: customer.bankAccountHolder || "",
+        bankName: customer.bankName || "",
+        accountNumber: customer.bankAccountNumber || "",
+        ifsc: customer.bankIfsc || "",
+        upi: customer.bankUpi || "",
+      },
       history,
+      walletTransactions: walletTx,
     });
+  });
+
+  app.patch("/api/customers/me/bank", async (req, res) => {
+    try {
+      if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+      const patch = z.object({
+        accountHolder: z.string().max(120).optional(),
+        bankName: z.string().max(120).optional(),
+        accountNumber: z.string().max(40).optional(),
+        ifsc: z.string().max(20).optional(),
+        upi: z.string().max(80).optional(),
+      }).parse(req.body);
+      const cleaned: any = {};
+      if (patch.accountHolder !== undefined) cleaned.bankAccountHolder = patch.accountHolder.trim() || null;
+      if (patch.bankName !== undefined) cleaned.bankName = patch.bankName.trim() || null;
+      if (patch.accountNumber !== undefined) cleaned.bankAccountNumber = patch.accountNumber.trim() || null;
+      if (patch.ifsc !== undefined) cleaned.bankIfsc = patch.ifsc.trim().toUpperCase() || null;
+      if (patch.upi !== undefined) cleaned.bankUpi = patch.upi.trim() || null;
+      const updated = await storage.updateCustomerBank(req.session.customerId, cleaned);
+      if (!updated) return res.status(404).json({ message: "Customer not found" });
+      res.json({
+        accountHolder: updated.bankAccountHolder || "",
+        bankName: updated.bankName || "",
+        accountNumber: updated.bankAccountNumber || "",
+        ifsc: updated.bankIfsc || "",
+        upi: updated.bankUpi || "",
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Failed to update bank details" });
+    }
+  });
+
+  app.post("/api/customers/me/wallet/withdraw", async (req, res) => {
+    try {
+      if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+      const { amount, notes } = z.object({
+        amount: z.number().positive().max(1_000_000),
+        notes: z.string().max(300).optional(),
+      }).parse(req.body);
+      const customer = await storage.getCustomerById(req.session.customerId);
+      if (!customer) return res.status(404).json({ message: "Customer not found" });
+      if (!customer.bankAccountNumber && !customer.bankUpi) {
+        return res.status(400).json({ message: "Add bank or UPI details first" });
+      }
+      const bankSnapshot = JSON.stringify({
+        accountHolder: customer.bankAccountHolder || "",
+        bankName: customer.bankName || "",
+        accountNumber: customer.bankAccountNumber || "",
+        ifsc: customer.bankIfsc || "",
+        upi: customer.bankUpi || "",
+      });
+      const result = await storage.createWalletTransaction({
+        customerId: customer.id,
+        type: "withdrawal",
+        amount: amount.toFixed(2),
+        notes: notes || null,
+        bankSnapshot,
+      });
+      if ("error" in result) {
+        return res.status(400).json({ message: result.error === "insufficient" ? "Insufficient wallet balance" : "Invalid amount" });
+      }
+      res.json({ tx: result.tx, newBalance: result.newBalance });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Withdrawal failed" });
+    }
+  });
+
+  app.post("/api/customers/me/wallet/purchase", async (req, res) => {
+    try {
+      if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+      const { amount, productDetails, notes } = z.object({
+        amount: z.number().positive().max(1_000_000),
+        productDetails: z.string().min(1).max(2000),
+        notes: z.string().max(300).optional(),
+      }).parse(req.body);
+      const customer = await storage.getCustomerById(req.session.customerId);
+      if (!customer) return res.status(404).json({ message: "Customer not found" });
+      const result = await storage.createWalletTransaction({
+        customerId: customer.id,
+        type: "purchase",
+        amount: amount.toFixed(2),
+        productDetails,
+        notes: notes || null,
+      });
+      if ("error" in result) {
+        return res.status(400).json({ message: result.error === "insufficient" ? "Insufficient wallet balance" : "Invalid amount" });
+      }
+      res.json({ tx: result.tx, newBalance: result.newBalance });
+    } catch (err) {
+      if (err instanceof z.ZodError) return res.status(400).json({ message: err.errors[0].message });
+      res.status(500).json({ message: "Purchase request failed" });
+    }
   });
 
   app.post("/api/customers/me/partner", async (req, res) => {

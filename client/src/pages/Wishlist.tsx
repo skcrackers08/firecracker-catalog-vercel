@@ -108,11 +108,27 @@ export default function Wishlist() {
                     </div>
                   </Link>
 
-                  <div className="flex-1">
+                  <div className="flex-1 space-y-2">
                     <Link href={`/product/${product.id}`}>
                       <h3 className="font-bold text-white text-lg mb-1 hover:text-primary transition-colors line-clamp-2">{product.name}</h3>
                     </Link>
-                    <p className="text-2xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</p>
+                    {product.productCode && (
+                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Code: <span className="text-white/80">{product.productCode}</span></p>
+                    )}
+                    {product.category && (
+                      <p className="text-[10px] uppercase tracking-wider text-amber-400">{product.category}</p>
+                    )}
+                    {product.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{product.description}</p>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <p className="text-2xl font-bold text-primary">₹{Number(product.price).toFixed(2)}</p>
+                      {Number(product.stockQuantity) > 0 ? (
+                        <span className="text-[10px] font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full border border-emerald-500/30">In stock</span>
+                      ) : (
+                        <span className="text-[10px] font-bold text-red-400 bg-red-500/10 px-2 py-1 rounded-full border border-red-500/30">Out of stock</span>
+                      )}
+                    </div>
                   </div>
 
                   <div className="flex gap-2">
@@ -143,6 +159,33 @@ export default function Wishlist() {
                       </Button>
                     )}
                   </div>
+
+                  <Button
+                    data-testid={`button-share-product-${product.id}`}
+                    variant="outline"
+                    className="w-full gap-2 border-white/10 text-white hover:bg-white/5 text-xs"
+                    onClick={async () => {
+                      const websiteUrl = `${window.location.origin}/product/${product.id}`;
+                      const shareData = {
+                        title: product.name,
+                        text: `${product.name}\n${websiteUrl}`,
+                        url: websiteUrl,
+                      };
+                      if (navigator.share) {
+                        try { await navigator.share(shareData); }
+                        catch { /* user cancelled */ }
+                      } else {
+                        try {
+                          await navigator.clipboard.writeText(`${product.name}\n${websiteUrl}`);
+                          toast({ title: "Link copied!", description: "Product name and website link copied." });
+                        } catch {
+                          toast({ title: "Copy failed", variant: "destructive" });
+                        }
+                      }
+                    }}
+                  >
+                    <Share2 className="w-3.5 h-3.5" /> Share product link
+                  </Button>
                 </Card>
               </motion.div>
             ))}

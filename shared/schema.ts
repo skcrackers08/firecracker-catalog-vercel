@@ -60,6 +60,30 @@ export const customers = pgTable("customers", {
   referralCode: text("referral_code").unique(),
   referralPercentage: integer("referral_percentage").notNull().default(0),
   walletBalance: numeric("wallet_balance", { precision: 10, scale: 2 }).notNull().default("0"),
+  bankAccountHolder: text("bank_account_holder"),
+  bankName: text("bank_name"),
+  bankAccountNumber: text("bank_account_number"),
+  bankIfsc: text("bank_ifsc"),
+  bankUpi: text("bank_upi"),
+});
+
+export const WALLET_TX_TYPES = ["withdrawal", "purchase"] as const;
+export type WalletTxType = typeof WALLET_TX_TYPES[number];
+export const WALLET_TX_STATUSES = ["pending", "completed", "rejected"] as const;
+export type WalletTxStatus = typeof WALLET_TX_STATUSES[number];
+
+export const walletTransactions = pgTable("wallet_transactions", {
+  id: serial("id").primaryKey(),
+  customerId: integer("customer_id").notNull(),
+  type: text("type").notNull(),
+  amount: numeric("amount", { precision: 10, scale: 2 }).notNull(),
+  status: text("status").notNull().default("pending"),
+  notes: text("notes"),
+  productDetails: text("product_details"),
+  bankSnapshot: text("bank_snapshot"),
+  invoiceNumber: text("invoice_number"),
+  transactionRef: text("transaction_ref"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 export const referralUses = pgTable("referral_uses", {
@@ -139,6 +163,10 @@ export type ReferralUse = typeof referralUses.$inferSelect;
 
 export type Customer = typeof customers.$inferSelect;
 export type InsertCustomer = z.infer<typeof insertCustomerSchema>;
+
+export type WalletTransaction = typeof walletTransactions.$inferSelect;
+export const insertWalletTxSchema = createInsertSchema(walletTransactions).omit({ id: true, createdAt: true });
+export type InsertWalletTransaction = z.infer<typeof insertWalletTxSchema>;
 
 export type Staff = typeof staff.$inferSelect;
 export type InsertStaff = z.infer<typeof insertStaffSchema>;

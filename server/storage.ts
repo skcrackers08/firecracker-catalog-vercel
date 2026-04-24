@@ -6,12 +6,14 @@ import {
   staff,
   stockMovements,
   referralUses,
+  walletTransactions,
   type Product,
   type Order,
   type Customer,
   type Staff,
   type StockMovement,
   type ReferralUse,
+  type WalletTransaction,
   type InsertProduct,
   type InsertOrder,
   type InsertCustomer,
@@ -63,10 +65,14 @@ export interface IStorage {
   validateCustomerPassword(username: string, password: string): Promise<Customer | null>;
   updateCustomerPassword(customerId: number, newPassword: string): Promise<void>;
   updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined>;
+  updateCustomerBank(customerId: number, patch: Partial<{ bankAccountHolder: string | null; bankName: string | null; bankAccountNumber: string | null; bankIfsc: string | null; bankUpi: string | null }>): Promise<Customer | undefined>;
   setCustomerReferral(customerId: number, percentage: number): Promise<Customer | undefined>;
   getCustomerByReferralCode(code: string): Promise<Customer | undefined>;
   creditReferralUse(data: { referrerCustomerId: number; usedByCustomerId: number | null; usedByName: string; usedByPhone?: string | null; orderId?: number | null; amountCredited: string }): Promise<void>;
   getReferralHistory(customerId: number): Promise<ReferralUse[]>;
+  createWalletTransaction(data: { customerId: number; type: string; amount: string; notes?: string | null; productDetails?: string | null; bankSnapshot?: string | null }): Promise<{ tx: WalletTransaction; newBalance: string } | { error: "insufficient" | "invalid" }>;
+  getWalletTransactions(customerId: number): Promise<WalletTransaction[]>;
+  updateWalletTransactionStatus(id: number, status: string, transactionRef?: string | null): Promise<WalletTransaction | undefined>;
 
   createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff>;
   getStaff(): Promise<Staff[]>;
@@ -225,6 +231,72 @@ export class DatabaseStorage implements IStorage {
   }
   async updateCustomerProfile(customerId: number, patch: Partial<{ fullName: string | null; email: string | null; address: string | null; profilePhoto: string | null }>): Promise<Customer | undefined> {
     const [row] = await db.update(customers).set(patch).where(eq(customers.id, customerId)).returning();
+    return row;
+  }
+  async updateCustomerBank(customerId: number, patch: Partial<{ bankAccountHolder: string | null; bankName: string | null; bankAccountNumber: string | null; bankIfsc: string | null; bankUpi: string | null }>): Promise<Customer | undefined> {
+    const [row] = await db.update(customers).set(patch).where(eq(customers.id, customerId)).returning();
+    return row;
+  }
+  async createWalletTransaction(data: { customerId: number; type: string; amount: string; notes?: string | null; productDetails?: string | null; bankSnapshot?: string | null }): Promise<{ tx: WalletTransaction; newBalance: string } | { error: "insufficient" | "invalid" }> {
+    const amt = Number(data.amount);
+    if (!Number.isFinite(amt) || amt <= 0) return { error: "invalid" };
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const balRes = await client.query(`SELECT wallet_balance FROM customers WHERE id = $1 FOR UPDATE`, [data.customerId]);
+      if (balRes.rows.length === 0) {
+        await client.query("ROLLBACK");
+        return { error: "invalid" };
+      }
+      const current = Number(balRes.rows[0].wallet_balance || 0);
+      if (current < amt) {
+        await client.query("ROLLBACK");
+        return { error: "insufficient" };
+      }
+      const updRes = await client.query(
+        `UPDATE customers SET wallet_balance = wallet_balance - $1 WHERE id = $2 RETURNING wallet_balance`,
+        [amt.toFixed(2), data.customerId]
+      );
+      const newBalance = String(updRes.rows[0].wallet_balance);
+      const txRes = await client.query(
+        `INSERT INTO wallet_transactions (customer_id, type, amount, status, notes, product_details, bank_snapshot) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
+        [data.customerId, data.type, amt.toFixed(2), "pending", data.notes ?? null, data.productDetails ?? null, data.bankSnapshot ?? null]
+      );
+      await client.query(
+        `UPDATE wallet_transactions SET invoice_number = $1 WHERE id = $2`,
+        [`SK-WT-${String(txRes.rows[0].id).padStart(5, "0")}`, txRes.rows[0].id]
+      );
+      const finalRes = await client.query(`SELECT * FROM wallet_transactions WHERE id = $1`, [txRes.rows[0].id]);
+      await client.query("COMMIT");
+      const r = finalRes.rows[0];
+      const tx: WalletTransaction = {
+        id: r.id,
+        customerId: r.customer_id,
+        type: r.type,
+        amount: r.amount,
+        status: r.status,
+        notes: r.notes,
+        productDetails: r.product_details,
+        bankSnapshot: r.bank_snapshot,
+        invoiceNumber: r.invoice_number,
+        transactionRef: r.transaction_ref,
+        createdAt: r.created_at,
+      };
+      return { tx, newBalance };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
+  }
+  async getWalletTransactions(customerId: number): Promise<WalletTransaction[]> {
+    return await db.select().from(walletTransactions).where(eq(walletTransactions.customerId, customerId)).orderBy(desc(walletTransactions.id));
+  }
+  async updateWalletTransactionStatus(id: number, status: string, transactionRef?: string | null): Promise<WalletTransaction | undefined> {
+    const patch: any = { status };
+    if (transactionRef !== undefined) patch.transactionRef = transactionRef;
+    const [row] = await db.update(walletTransactions).set(patch).where(eq(walletTransactions.id, id)).returning();
     return row;
   }
   async setCustomerReferral(customerId: number, percentage: number): Promise<Customer | undefined> {

@@ -1,14 +1,13 @@
 import { ReactNode, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings, MessageCircle, Briefcase } from "lucide-react";
+import { ShoppingBag, X, ShoppingCart, ArrowRight, Heart, User, Home, Search, Package, Bell, Menu, Settings, Briefcase } from "lucide-react";
 import { CustomerDrawer } from "@/components/CustomerDrawer";
 import { SearchPopup } from "@/components/SearchPopup";
-import { useQuery } from "@tanstack/react-query";
 import logoPng from "@assets/pngtree-logo-template-for-esports-vector-illustration-of-a-lio_1772309271956.png";
 import { useCart } from "@/hooks/use-cart";
-import { openWhatsApp } from "@/lib/whatsapp";
 import { LoginPopup } from "@/components/LoginPopup";
 import { AIChatBubble } from "@/components/AIChatBubble";
+import { NotificationBubble, openNotifications } from "@/components/NotificationBubble";
 import { useWishlist } from "@/hooks/use-wishlist";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { Button, Card, cn } from "@/components/ui-custom";
@@ -36,11 +35,6 @@ export function Layout({ children }: LayoutProps) {
     { label: "My Requests", icon: Package, href: customer ? "/account" : "/login" },
     { label: "Partner", icon: Briefcase, href: customer ? "/partner" : "/login" },
   ];
-
-  const { data: waSetting } = useQuery<{ value: string | null }>({
-    queryKey: ["/api/settings/whatsapp-number"],
-  });
-  const whatsappNumber = (waSetting?.value || "919344468937").replace(/\D/g, "");
 
   return (
     <div className="min-h-screen flex flex-col relative overflow-hidden">
@@ -91,7 +85,13 @@ export function Layout({ children }: LayoutProps) {
                 </span>
               )}
             </Link>
-            <button className="relative p-2 text-muted-foreground hover:text-primary transition-colors">
+            <button
+              type="button"
+              onClick={openNotifications}
+              data-testid="button-navbar-bell"
+              aria-label="Open notifications and offers"
+              className="relative p-2 text-muted-foreground hover:text-primary transition-colors"
+            >
               <Bell className="w-5 h-5" />
             </button>
             {!isCheckoutPage && (
@@ -196,19 +196,11 @@ export function Layout({ children }: LayoutProps) {
       <CustomerDrawer open={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
       <SearchPopup open={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
 
+      {/* Notifications & Offers */}
+      <NotificationBubble />
+
       {/* AI Help Chat */}
       <AIChatBubble />
-
-      {/* Floating WhatsApp Icon */}
-      <button
-        type="button"
-        onClick={() => openWhatsApp(whatsappNumber, "Hi S K Crackers, I would like to enquire about your products.")}
-        data-testid="link-whatsapp-float"
-        className="fixed bottom-20 right-4 z-[60] w-14 h-14 rounded-full bg-[#25D366] hover:bg-[#1ebe57] shadow-2xl flex items-center justify-center transition-transform hover:scale-110 ring-4 ring-[#25D366]/30"
-        aria-label="Chat on WhatsApp"
-      >
-        <MessageCircle className="w-7 h-7 text-white fill-white" />
-      </button>
 
       {/* Cart Drawer/Modal */}
       <AnimatePresence>
