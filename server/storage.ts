@@ -111,7 +111,7 @@ export interface IStorage {
   // Admin wallet tx
   listWalletTransactions(filter?: { status?: string; type?: string }): Promise<WalletTransaction[]>;
   getWalletTransactionById(id: number): Promise<WalletTransaction | undefined>;
-  refundWalletTransaction(id: number): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }>;
+  refundWalletTransaction(id: number, reason?: string | null): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -529,7 +529,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
 
-  async refundWalletTransaction(id: number): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }> {
+  async refundWalletTransaction(id: number, reason?: string | null): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }> {
     const client = await pool.connect();
     try {
       await client.query("BEGIN");
@@ -537,7 +537,12 @@ export class DatabaseStorage implements IStorage {
       if (txRes.rows.length === 0) { await client.query("ROLLBACK"); return { ok: false, error: "Not found" }; }
       const r = txRes.rows[0];
       if (r.status !== "pending") { await client.query("ROLLBACK"); return { ok: false, error: "Already processed" }; }
-      await client.query(`UPDATE wallet_transactions SET status = 'rejected' WHERE id = $1`, [id]);
+      // Save admin's rejection remark in notes (preserve original notes if any).
+      const cleanReason = (reason || "").trim();
+      const newNotes = cleanReason
+        ? (r.notes ? `${r.notes}\n[Admin remark] ${cleanReason}` : `[Admin remark] ${cleanReason}`)
+        : r.notes;
+      await client.query(`UPDATE wallet_transactions SET status = 'rejected', notes = $1 WHERE id = $2`, [newNotes, id]);
       await client.query(`UPDATE customers SET wallet_balance = wallet_balance + $1 WHERE id = $2`, [r.amount, r.customer_id]);
       const finalRes = await client.query(`SELECT * FROM wallet_transactions WHERE id = $1`, [id]);
       await client.query("COMMIT");

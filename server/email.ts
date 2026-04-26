@@ -152,33 +152,37 @@ function buildWalletTxHtml(opts: {
   const accent = isApproved ? "#065f46" : "#991b1b";
   const accentBg = isApproved ? "#ecfdf5" : "#fef2f2";
   const accentBorder = isApproved ? "#6ee7b7" : "#fecaca";
+  // HTML-escape any user/admin-provided dynamic content to prevent injection.
+  const esc = (v: string | null | undefined) =>
+    String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   let bank: any = {};
   try { bank = opts.bankSnapshot ? JSON.parse(opts.bankSnapshot) : {}; } catch {}
+  const cleanedNotes = opts.notes ? opts.notes.replace(/\[Admin remark\]\s*/g, "") : "";
   return `<!DOCTYPE html>
-<html><head><meta charset="UTF-8"><title>${opts.fromName} - ${headTitle}</title></head>
+<html><head><meta charset="UTF-8"><title>${esc(opts.fromName)} - ${headTitle}</title></head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
 <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:24px 0;"><tr><td align="center">
 <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
 <tr><td style="background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);padding:28px 32px;color:#fff;">
-<h1 style="margin:0;font-size:22px;letter-spacing:1px;">${opts.fromName}</h1>
+<h1 style="margin:0;font-size:22px;letter-spacing:1px;">${esc(opts.fromName)}</h1>
 <p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:2px;">${headTitle}</p>
 </td></tr>
 <tr><td style="padding:28px 32px;">
-<p style="margin:0 0 12px;font-size:14px;color:#374151;">Hi <b>${opts.customerName || "Partner"}</b>,</p>
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">Hi <b>${esc(opts.customerName) || "Partner"}</b>,</p>
 <table width="100%" cellpadding="0" cellspacing="0" style="background:${accentBg};border:1px solid ${accentBorder};border-radius:10px;margin-bottom:20px;">
 <tr><td style="padding:14px 16px;text-align:center;">
 <p style="margin:0;font-size:15px;font-weight:600;color:${accent};">${headTitle}</p>
-<p style="margin:4px 0 0;font-size:13px;color:${accent};">Invoice <b>${opts.invoiceNumber}</b> &middot; Amount <b>₹${Number(opts.amount).toFixed(2)}</b></p>
+<p style="margin:4px 0 0;font-size:13px;color:${accent};">Invoice <b>${esc(opts.invoiceNumber)}</b> &middot; Amount <b>₹${Number(opts.amount).toFixed(2)}</b></p>
 </td></tr></table>
-${opts.transactionRef ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>Reference:</b> ${opts.transactionRef}</p>` : ""}
-${isWithdraw && bank?.accountNumber ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>Bank:</b> ${bank.bankName || "-"} &middot; A/C ${bank.accountNumber} &middot; IFSC ${bank.ifsc || "-"}</p>` : ""}
-${isWithdraw && bank?.upi ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>UPI:</b> ${bank.upi}</p>` : ""}
-${!isWithdraw && opts.productDetails ? `<p style="margin:8px 0 4px;font-size:13px;color:#111827;font-weight:600;">Selected Items</p><pre style="margin:0;padding:10px;background:#f3f4f6;border-radius:6px;font-family:inherit;font-size:12px;color:#111827;white-space:pre-wrap;">${opts.productDetails}</pre>` : ""}
-${opts.notes ? `<p style="margin:12px 0 0;font-size:12px;color:#6b7280;"><b>Notes:</b> ${opts.notes}</p>` : ""}
-<p style="margin:16px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">For any queries, reply to this email or message us on WhatsApp. Thank you for partnering with ${opts.fromName}.</p>
+${!isWithdraw && isApproved ? `<p style="margin:0 0 12px;font-size:13px;font-weight:600;color:#065f46;text-align:center;background:#ecfdf5;border:1px solid #6ee7b7;padding:10px 12px;border-radius:8px;">Your order successfully confirmed</p>` : ""}
+${opts.transactionRef ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>${isWithdraw ? "Reference Number" : "Remarks"}:</b> ${esc(opts.transactionRef)}</p>` : ""}
+${isWithdraw && bank?.accountNumber ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>Bank:</b> ${esc(bank.bankName) || "-"} &middot; A/C ${esc(bank.accountNumber)} &middot; IFSC ${esc(bank.ifsc) || "-"}</p>` : ""}
+${!isWithdraw && opts.productDetails ? `<p style="margin:8px 0 4px;font-size:13px;color:#111827;font-weight:600;">Selected Items</p><pre style="margin:0;padding:10px;background:#f3f4f6;border-radius:6px;font-family:inherit;font-size:12px;color:#111827;white-space:pre-wrap;">${esc(opts.productDetails)}</pre>` : ""}
+${cleanedNotes ? `<p style="margin:12px 0 0;font-size:12px;color:#6b7280;"><b>${opts.status === "rejected" ? "Reason" : "Notes"}:</b> ${esc(cleanedNotes)}</p>` : ""}
+<p style="margin:16px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">For any queries, reply to this email or message us on WhatsApp. Thank you for partnering with ${esc(opts.fromName)}.</p>
 </td></tr>
 <tr><td style="background:#fef3c7;padding:14px 32px;text-align:center;border-top:1px solid #fde68a;">
-<p style="margin:0;font-size:12px;color:#92400e;">© ${new Date().getFullYear()} ${opts.fromName}. All rights reserved.</p>
+<p style="margin:0;font-size:12px;color:#92400e;">© ${new Date().getFullYear()} ${esc(opts.fromName)}. All rights reserved.</p>
 </td></tr></table></td></tr></table></body></html>`;
 }
 

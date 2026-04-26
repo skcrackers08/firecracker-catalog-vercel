@@ -145,6 +145,15 @@ A typed `api` manifest object defines each endpoint with its HTTP method, path, 
 
 ---
 
+## Recent Updates (Apr 2026)
+
+- **Admin OrderEditDialog** restructured: transport/dispatch fields removed from inline edit form and moved to a dedicated "Transport / Dispatch" sub-dialog opened from the main edit dialog. Destination auto-fills from `customerAddress` and Remarks auto-fills with the standard policy text. New "Save & Generate Transport Bill PDF" button opens `/admin-pro/transport-bill/:id` (auto-prints; A4 landscape-friendly).
+- **Email Invoice button** added to OrderEditDialog footer (visible when `customerEmail` is set). Calls `POST /api/admin-pro/orders/:id/email-invoice`.
+- **Schema:** `orders.transportRemarks` (text, nullable) added to keep transport bill remarks separate from general order remarks (prevents overwrite between the two dialogs).
+- **Wallet rejection workflow:** admin now picks one of two predefined remarks via a `RejectWalletTxDialog` (radio options) — server (`/api/admin-pro/wallet-tx/:id/reject`) enforces the enum (defence-in-depth). Reason is stored in `walletTransactions.notes` prefixed `[Admin remark]` and surfaced to the customer in email + in-app notification + receipt PDF.
+- **Receipt label changes:** withdrawals show "Reference Number"; purchases show "Remarks" (replacing "UTR"). UPI line removed from bank details. Completed wallet purchases display a green "Your order successfully confirmed" banner on the receipt PDF, view modal, and email.
+- **Email security hardening:** `buildWalletTxHtml` now HTML-escapes all dynamic fields (notes, transactionRef, customerName, fromName, bank fields) to prevent injection from admin/user input.
+
 ## External Dependencies
 
 | Dependency | Purpose |

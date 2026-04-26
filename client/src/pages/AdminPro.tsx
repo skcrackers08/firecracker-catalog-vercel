@@ -13,11 +13,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, ShoppingBag, Package, Users, BarChart3, Truck, UserCog, LogOut,
   TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer, MessageCircle,
-  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check,
+  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check, Mail,
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, type Order, type Product, type Staff } from "@shared/schema";
@@ -271,21 +272,19 @@ function OrdersModule() {
   );
 }
 
+const DEFAULT_TRANSPORT_REMARKS = "Transport/Delivery charges should be paid by the customer at the time of receiving the goods.";
+
 function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void }) {
   const { toast } = useToast();
   const [orderStatus, setOrderStatus] = useState(order.orderStatus);
   const [paymentStatus, setPaymentStatus] = useState(order.paymentStatus);
   const [paidAmount, setPaidAmount] = useState(order.paidAmount);
-  const [lorryName, setLorryName] = useState(order.lorryName ?? "");
-  const [lrNumber, setLrNumber] = useState(order.lrNumber ?? "");
-  const [transportContact, setTransportContact] = useState(order.transportContact ?? "");
-  const [dispatchDate, setDispatchDate] = useState(order.dispatchDate ?? "");
-  const [destination, setDestination] = useState(order.destination ?? "");
   const [remarks, setRemarks] = useState(order.remarks ?? "");
+  const [showTransport, setShowTransport] = useState(false);
 
   const m = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
-      orderStatus, paymentStatus, paidAmount, lorryName, lrNumber, transportContact, dispatchDate, destination, remarks,
+      orderStatus, paymentStatus, paidAmount, remarks,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] });
@@ -296,6 +295,12 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
     onError: (e: any) => toast({ title: "Update failed", description: e?.message, variant: "destructive" }),
   });
 
+  const emailInvoice = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/admin-pro/orders/${order.id}/email-invoice`),
+    onSuccess: () => toast({ title: "Invoice email sent", description: order.customerEmail || "" }),
+    onError: (e: any) => toast({ title: "Email failed", description: e?.message || "Customer email or SMTP not configured", variant: "destructive" }),
+  });
+
   let cartItems: any[] = [];
   try { cartItems = order.cartItems ? JSON.parse(order.cartItems) : []; } catch {}
 
@@ -303,81 +308,157 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
   const sendWhatsApp = () => {
     const phone = order.customerPhone.replace(/\D/g, "");
     const formatted = phone.length === 10 ? "91" + phone : phone;
-    const msg = `Hi ${order.customerName}, your S K Crackers order #${order.id} status: ${orderStatus.toUpperCase()}. Total: ${fmtINR(order.totalAmount)}, Paid: ${fmtINR(paidAmount)}. ${lrNumber ? `LR: ${lrNumber}, Transport: ${lorryName}` : ""} Thank you!`;
+    const msg = `Hi ${order.customerName}, your S K Crackers order #${order.id} status: ${orderStatus.toUpperCase()}. Total: ${fmtINR(order.totalAmount)}, Paid: ${fmtINR(paidAmount)}. Thank you!`;
     openWhatsApp(formatted, msg);
   };
 
   return (
-    <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Order #{order.id} — {order.customerName}</DialogTitle>
-        </DialogHeader>
-        <div className="grid md:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm">Customer</h3>
-            <div className="text-sm space-y-1 bg-muted p-3 rounded">
-              <div><b>Name:</b> {order.customerName}</div>
-              <div><b>Phone:</b> {order.customerPhone}</div>
-              {order.customerEmail && <div><b>Email:</b> {order.customerEmail}</div>}
-              <div><b>Address:</b> {order.customerAddress}</div>
-              <div><b>Payment Method:</b> {order.paymentMethod}</div>
-              <div><b>Date:</b> {fmtDate(order.createdAt)}</div>
+    <>
+      <Dialog open onOpenChange={onClose}>
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Order #{order.id} — {order.customerName}</DialogTitle>
+          </DialogHeader>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm">Customer</h3>
+              <div className="text-sm space-y-1 bg-muted p-3 rounded">
+                <div><b>Name:</b> {order.customerName}</div>
+                <div><b>Phone:</b> {order.customerPhone}</div>
+                {order.customerEmail && <div><b>Email:</b> {order.customerEmail}</div>}
+                <div><b>Address:</b> {order.customerAddress}</div>
+                <div><b>Payment Method:</b> {order.paymentMethod}</div>
+                <div><b>Date:</b> {fmtDate(order.createdAt)}</div>
+              </div>
+
+              <h3 className="font-semibold text-sm">Items</h3>
+              <div className="border rounded text-sm max-h-48 overflow-y-auto">
+                {cartItems.length > 0 ? cartItems.map((it, i) => (
+                  <div key={i} className="flex justify-between p-2 border-b last:border-0">
+                    <span>{it.name ?? `#${it.id}`} × {it.quantity}</span>
+                    <span>{fmtINR((it.price ?? 0) * (it.quantity ?? 0))}</span>
+                  </div>
+                )) : <div className="p-2">Product #{order.productId} × {order.quantity}</div>}
+                <div className="p-2 bg-muted font-semibold flex justify-between"><span>Total</span><span>{fmtINR(order.totalAmount)}</span></div>
+              </div>
             </div>
 
-            <h3 className="font-semibold text-sm">Items</h3>
-            <div className="border rounded text-sm max-h-48 overflow-y-auto">
-              {cartItems.length > 0 ? cartItems.map((it, i) => (
-                <div key={i} className="flex justify-between p-2 border-b last:border-0">
-                  <span>{it.name ?? `#${it.id}`} × {it.quantity}</span>
-                  <span>{fmtINR((it.price ?? 0) * (it.quantity ?? 0))}</span>
+            <div className="space-y-3">
+              <h3 className="font-semibold text-sm">Status & Payment</h3>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label>Order Status</Label>
+                  <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as any)}>
+                    <SelectTrigger data-testid="select-edit-order-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>{ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
                 </div>
-              )) : <div className="p-2">Product #{order.productId} × {order.quantity}</div>}
-              <div className="p-2 bg-muted font-semibold flex justify-between"><span>Total</span><span>{fmtINR(order.totalAmount)}</span></div>
+                <div>
+                  <Label>Payment Status</Label>
+                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
+                    <SelectTrigger data-testid="select-edit-payment-status"><SelectValue /></SelectTrigger>
+                    <SelectContent>{PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div>
+                <Label>Paid Amount</Label>
+                <Input data-testid="input-paid-amount" type="number" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
+              </div>
+              <div>
+                <Label>Remarks</Label>
+                <Textarea data-testid="input-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
+              </div>
+
+              <div className="rounded-lg border border-dashed p-3 space-y-2 bg-muted/40">
+                <h3 className="font-semibold text-sm flex items-center gap-2"><Truck className="w-4 h-4" /> Transport / Dispatch</h3>
+                <p className="text-xs text-muted-foreground">Manage transport details &amp; generate the transport bill PDF.</p>
+                {(order.lrNumber || order.lorryName) && (
+                  <p className="text-xs"><b>Current:</b> {order.lrNumber || "-"} {order.lorryName ? `· ${order.lorryName}` : ""}</p>
+                )}
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowTransport(true)} data-testid="button-open-transport">
+                  Open Transport / Dispatch
+                </Button>
+              </div>
             </div>
           </div>
+          <DialogFooter className="flex-wrap gap-2">
+            <Button variant="outline" onClick={printInvoice} data-testid="button-print-invoice"><Printer className="w-4 h-4 mr-1" /> Print Invoice</Button>
+            {order.customerEmail && (
+              <Button variant="outline" onClick={() => emailInvoice.mutate()} disabled={emailInvoice.isPending} data-testid="button-email-invoice">
+                <Mail className="w-4 h-4 mr-1" /> {emailInvoice.isPending ? "Sending…" : "Email Invoice"}
+              </Button>
+            )}
+            <Button variant="outline" onClick={sendWhatsApp} data-testid="button-whatsapp"><MessageCircle className="w-4 h-4 mr-1" /> Send WhatsApp</Button>
+            <Button onClick={() => m.mutate()} disabled={m.isPending} data-testid="button-save-order">{m.isPending ? "Saving…" : "Save Changes"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-          <div className="space-y-3">
-            <h3 className="font-semibold text-sm">Status & Payment</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label>Order Status</Label>
-                <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as any)}>
-                  <SelectTrigger data-testid="select-edit-order-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>{ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label>Payment Status</Label>
-                <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
-                  <SelectTrigger data-testid="select-edit-payment-status"><SelectValue /></SelectTrigger>
-                  <SelectContent>{PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                </Select>
-              </div>
-            </div>
-            <div>
-              <Label>Paid Amount</Label>
-              <Input data-testid="input-paid-amount" type="number" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
-            </div>
+      {showTransport && (
+        <TransportDispatchDialog order={order} onClose={() => setShowTransport(false)} />
+      )}
+    </>
+  );
+}
 
-            <h3 className="font-semibold text-sm pt-2">Transport / Dispatch</h3>
-            <div className="grid grid-cols-2 gap-2">
-              <div><Label>Lorry / Transport Name</Label><Input data-testid="input-lorry" value={lorryName} onChange={(e) => setLorryName(e.target.value)} /></div>
-              <div><Label>LR Number</Label><Input data-testid="input-lr" value={lrNumber} onChange={(e) => setLrNumber(e.target.value)} /></div>
-              <div><Label>Transport Contact</Label><Input data-testid="input-transport-contact" value={transportContact} onChange={(e) => setTransportContact(e.target.value)} /></div>
-              <div><Label>Dispatch Date</Label><Input data-testid="input-dispatch-date" type="date" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} /></div>
-              <div className="col-span-2"><Label>Destination</Label><Input data-testid="input-destination" value={destination} onChange={(e) => setDestination(e.target.value)} /></div>
-            </div>
-            <div>
-              <Label>Remarks</Label>
-              <Textarea data-testid="input-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-            </div>
+function TransportDispatchDialog({ order, onClose }: { order: Order; onClose: () => void }) {
+  const { toast } = useToast();
+  const [lorryName, setLorryName] = useState(order.lorryName ?? "");
+  const [lrNumber, setLrNumber] = useState(order.lrNumber ?? "");
+  const [transportContact, setTransportContact] = useState(order.transportContact ?? "");
+  const [dispatchDate, setDispatchDate] = useState(order.dispatchDate ?? new Date().toISOString().slice(0, 10));
+  // Auto-fill destination from customer address if not yet set
+  const [destination, setDestination] = useState(order.destination || order.customerAddress || "");
+  // Auto-fill remarks with the default policy text if not yet set
+  const [transportRemarks, setTransportRemarks] = useState(order.transportRemarks || DEFAULT_TRANSPORT_REMARKS);
+
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
+      lorryName, lrNumber, transportContact, dispatchDate, destination, transportRemarks,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] });
+      toast({ title: "Transport details saved" });
+    },
+    onError: (e: any) => toast({ title: "Save failed", description: e?.message, variant: "destructive" }),
+  });
+
+  const generatePdf = async () => {
+    try { await save.mutateAsync(); } catch { return; }
+    window.open(`/admin-pro/transport-bill/${order.id}`, "_blank");
+  };
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="dialog-transport">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2"><Truck className="w-5 h-5" /> Transport / Dispatch — Order #{order.id}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><Label>Lorry / Transport Name</Label><Input data-testid="input-lorry" value={lorryName} onChange={(e) => setLorryName(e.target.value)} /></div>
+            <div><Label>LR Number</Label><Input data-testid="input-lr" value={lrNumber} onChange={(e) => setLrNumber(e.target.value)} /></div>
+            <div><Label>Transport Contact</Label><Input data-testid="input-transport-contact" value={transportContact} onChange={(e) => setTransportContact(e.target.value)} /></div>
+            <div><Label>Dispatch Date</Label><Input data-testid="input-dispatch-date" type="date" value={dispatchDate} onChange={(e) => setDispatchDate(e.target.value)} /></div>
+          </div>
+          <div>
+            <Label>Destination <span className="text-xs text-muted-foreground">(auto-filled from customer address)</span></Label>
+            <Textarea data-testid="input-destination" rows={2} value={destination} onChange={(e) => setDestination(e.target.value)} />
+          </div>
+          <div>
+            <Label>Remarks <span className="text-xs text-muted-foreground">(default policy auto-filled)</span></Label>
+            <Textarea data-testid="input-transport-remarks" rows={3} value={transportRemarks} onChange={(e) => setTransportRemarks(e.target.value)} />
           </div>
         </div>
         <DialogFooter className="flex-wrap gap-2">
-          <Button variant="outline" onClick={printInvoice} data-testid="button-print-invoice"><Printer className="w-4 h-4 mr-1" /> Print Invoice</Button>
-          <Button variant="outline" onClick={sendWhatsApp} data-testid="button-whatsapp"><MessageCircle className="w-4 h-4 mr-1" /> Send WhatsApp</Button>
-          <Button onClick={() => m.mutate()} disabled={m.isPending} data-testid="button-save-order">{m.isPending ? "Saving…" : "Save Changes"}</Button>
+          <Button variant="outline" onClick={onClose}>Close</Button>
+          <Button variant="outline" onClick={() => save.mutate()} disabled={save.isPending} data-testid="button-save-transport">
+            {save.isPending ? "Saving…" : "Save"}
+          </Button>
+          <Button onClick={generatePdf} disabled={save.isPending} data-testid="button-transport-pdf">
+            <Printer className="w-4 h-4 mr-1" /> Save &amp; Generate Transport Bill PDF
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -986,6 +1067,7 @@ function WalletApprovalsModule() {
 
   const [refDraft, setRefDraft] = useState<Record<number, string>>({});
   const [viewing, setViewing] = useState<WalletTxRow | null>(null);
+  const [rejecting, setRejecting] = useState<WalletTxRow | null>(null);
 
   const approve = useMutation({
     mutationFn: ({ id, transactionRef }: { id: number; transactionRef?: string }) =>
@@ -997,7 +1079,11 @@ function WalletApprovalsModule() {
       try {
         const phone = (data?.customerPhone || "").replace(/\D/g, "");
         if (phone) {
-          const msg = `Hi ${data?.customerName || "there"}, your ${data.type === "withdrawal" ? "withdrawal" : "wallet purchase"} ${data.invoiceNumber || ""} for ₹${Number(data.amount).toFixed(2)} has been approved.${data.transactionRef ? ` Reference: ${data.transactionRef}.` : ""} Thank you!`;
+          const isWithdraw = data.type === "withdrawal";
+          const refLabel = isWithdraw ? "Reference Number" : "Remarks";
+          const msg = isWithdraw
+            ? `Hi ${data?.customerName || "there"}, your withdrawal ${data.invoiceNumber || ""} for ₹${Number(data.amount).toFixed(2)} has been approved.${data.transactionRef ? ` ${refLabel}: ${data.transactionRef}.` : ""} Thank you!`
+            : `Hi ${data?.customerName || "there"}, your wallet purchase ${data.invoiceNumber || ""} for ₹${Number(data.amount).toFixed(2)} is successfully confirmed.${data.transactionRef ? ` ${refLabel}: ${data.transactionRef}.` : ""} Thank you!`;
           openWhatsApp(phone, msg);
         }
       } catch {}
@@ -1006,10 +1092,12 @@ function WalletApprovalsModule() {
   });
 
   const reject = useMutation({
-    mutationFn: (id: number) => apiRequest("POST", `/api/admin-pro/wallet-tx/${id}/reject`),
+    mutationFn: ({ id, reason }: { id: number; reason: string }) =>
+      apiRequest("POST", `/api/admin-pro/wallet-tx/${id}/reject`, { reason }),
     onSuccess: () => {
-      toast({ title: "Rejected & refunded to wallet" });
+      toast({ title: "Rejected & refunded to wallet", description: "Customer has been notified by email + in-app." });
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/wallet-tx"] });
+      setRejecting(null);
     },
     onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
   });
@@ -1089,7 +1177,7 @@ function WalletApprovalsModule() {
                         <Button size="sm" onClick={() => approve.mutate({ id: t.id, transactionRef: refDraft[t.id] })} disabled={approve.isPending} data-testid={`button-approve-wtx-${t.id}`}>
                           <Check className="w-3 h-3 mr-1" /> Approve
                         </Button>
-                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject and refund this transaction?")) reject.mutate(t.id); }} disabled={reject.isPending} data-testid={`button-reject-wtx-${t.id}`}>
+                        <Button size="sm" variant="destructive" onClick={() => setRejecting(t)} disabled={reject.isPending} data-testid={`button-reject-wtx-${t.id}`}>
                           <XIcon className="w-3 h-3" />
                         </Button>
                       </>
@@ -1120,21 +1208,74 @@ function WalletApprovalsModule() {
               {viewing.productDetails && <div><div className="text-xs text-muted-foreground mb-1">Product Details</div><pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">{viewing.productDetails}</pre></div>}
               {viewing.status === "pending" && (
                 <div>
-                  <Label>Reference / UTR (optional)</Label>
+                  <Label>{viewing.type === "withdrawal" ? "Reference Number (optional)" : "Remarks (optional)"}</Label>
                   <Input
                     value={refDraft[viewing.id] || ""}
                     onChange={(e) => setRefDraft({ ...refDraft, [viewing.id]: e.target.value })}
-                    placeholder="e.g. UPI ref number"
+                    placeholder={viewing.type === "withdrawal" ? "Bank/UTR reference number" : "e.g. Order confirmed"}
                     data-testid={`input-ref-${viewing.id}`}
                   />
                 </div>
               )}
-              {viewing.transactionRef && <div><div className="text-xs text-muted-foreground">Reference</div><div className="font-mono">{viewing.transactionRef}</div></div>}
+              {viewing.transactionRef && <div><div className="text-xs text-muted-foreground">{viewing.type === "withdrawal" ? "Reference Number" : "Remarks"}</div><div className="font-mono">{viewing.transactionRef}</div></div>}
             </div>
           )}
         </DialogContent>
       </Dialog>
+
+      {rejecting && (
+        <RejectWalletTxDialog
+          tx={rejecting}
+          onClose={() => setRejecting(null)}
+          onConfirm={(reason) => reject.mutate({ id: rejecting.id, reason })}
+          loading={reject.isPending}
+        />
+      )}
     </div>
+  );
+}
+
+const REJECT_REASON_OPTIONS = [
+  { value: "account-details", label: "Your account details may be entered incorrectly. Please double-check or update if you have a different account." },
+  { value: "other", label: "Other reasons — please contact our team within 24 to 48 hours." },
+];
+
+function RejectWalletTxDialog({ tx, onClose, onConfirm, loading }: { tx: WalletTxRow; onClose: () => void; onConfirm: (reason: string) => void; loading: boolean }) {
+  const [choice, setChoice] = useState<string>(REJECT_REASON_OPTIONS[0].value);
+  const reason = REJECT_REASON_OPTIONS.find((o) => o.value === choice)?.label || "";
+
+  return (
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-lg" data-testid="dialog-reject-wtx">
+        <DialogHeader>
+          <DialogTitle>Reject &amp; Refund — {tx.invoiceNumber || `#${tx.id}`}</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3">
+          <div className="text-sm bg-muted p-3 rounded">
+            <div><b>Customer:</b> {tx.customerName || `Cust #${tx.customerId}`}</div>
+            <div><b>Type:</b> {tx.type} · <b>Amount:</b> ₹{Number(tx.amount).toFixed(2)}</div>
+          </div>
+          <div>
+            <Label className="mb-2 block">Choose remark (will be visible to customer on receipt)</Label>
+            <RadioGroup value={choice} onValueChange={setChoice}>
+              {REJECT_REASON_OPTIONS.map((o) => (
+                <label key={o.value} className="flex items-start gap-2 p-3 border rounded-lg cursor-pointer hover:bg-muted/40" data-testid={`reject-opt-${o.value}`}>
+                  <RadioGroupItem value={o.value} className="mt-1" />
+                  <span className="text-sm leading-relaxed">{o.label}</span>
+                </label>
+              ))}
+            </RadioGroup>
+          </div>
+          <p className="text-xs text-muted-foreground">The amount will be automatically refunded to the customer's wallet and a notification will be sent.</p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button variant="destructive" onClick={() => onConfirm(reason)} disabled={loading} data-testid="button-confirm-reject">
+            {loading ? "Rejecting…" : "Reject & Refund"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 

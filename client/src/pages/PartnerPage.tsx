@@ -993,6 +993,7 @@ function buildWalletTxInvoiceHtml(tx: WalletTx, partner: { name: string; phone: 
   </div>
   <div class="body">
     <div class="row"><div><div class="label">Invoice #</div><div class="val">${e(tx.invoiceNumber || `#${tx.id}`)}</div></div><span class="badge">${e(status)}</span></div>
+    ${!isWithdraw && tx.status === "completed" ? `<div style="margin:0 0 16px;padding:12px;background:#ecfdf5;border:1px solid #6ee7b7;border-radius:8px;text-align:center;color:#065f46;font-weight:700;font-size:14px;">Your order successfully confirmed</div>` : ""}
     <div class="grid">
       <div><div class="label">Partner</div><div class="val">${e(partner.name) || "-"}</div></div>
       <div><div class="label">Phone</div><div class="val">${partner.phone ? "+91 " + e(partner.phone) : "-"}</div></div>
@@ -1000,7 +1001,7 @@ function buildWalletTxInvoiceHtml(tx: WalletTx, partner: { name: string; phone: 
       <div><div class="label">Date</div><div class="val">${e(new Date(tx.createdAt).toLocaleString())}</div></div>
       <div><div class="label">Type</div><div class="val">${isWithdraw ? "Wallet Withdrawal" : "Wallet Purchase"}</div></div>
       <div><div class="label">Amount</div><div class="val">₹ ${Number(tx.amount).toFixed(2)}</div></div>
-      ${tx.transactionRef ? `<div><div class="label">Reference / UTR</div><div class="val">${e(tx.transactionRef)}</div></div>` : ""}
+      ${tx.transactionRef ? `<div><div class="label">${isWithdraw ? "Reference Number" : "Remarks"}</div><div class="val">${e(tx.transactionRef)}</div></div>` : ""}
     </div>
     ${isWithdraw && bank?.accountNumber ? `<h3 style="margin:0 0 8px;font-size:14px;">Bank Account</h3>
       <div class="grid">
@@ -1008,10 +1009,9 @@ function buildWalletTxInvoiceHtml(tx: WalletTx, partner: { name: string; phone: 
         ${bank.bankName ? `<div><div class="label">Bank</div><div class="val">${e(bank.bankName)}</div></div>` : ""}
         ${bank.accountNumber ? `<div><div class="label">A/C No.</div><div class="val">${e(bank.accountNumber)}</div></div>` : ""}
         ${bank.ifsc ? `<div><div class="label">IFSC</div><div class="val">${e(bank.ifsc)}</div></div>` : ""}
-        ${bank.upi ? `<div><div class="label">UPI</div><div class="val">${e(bank.upi)}</div></div>` : ""}
       </div>` : ""}
     ${!isWithdraw && tx.productDetails ? `<h3 style="margin:18px 0 8px;font-size:14px;">Selected Items</h3><div class="pre">${e(tx.productDetails)}</div>` : ""}
-    ${tx.notes ? `<p style="margin:14px 0 0;font-size:12px;color:#6b7280"><b>Notes:</b> ${e(tx.notes)}</p>` : ""}
+    ${tx.notes ? `<p style="margin:14px 0 0;font-size:13px;color:${tx.status === "rejected" ? "#991b1b" : "#6b7280"};background:${tx.status === "rejected" ? "#fef2f2" : "transparent"};border:${tx.status === "rejected" ? "1px solid #fecaca" : "0"};padding:${tx.status === "rejected" ? "10px" : "0"};border-radius:6px;"><b>${tx.status === "rejected" ? "Reason" : "Notes"}:</b> ${e(tx.notes.replace(/\[Admin remark\]\s*/g, ""))}</p>` : ""}
     <div style="margin-top:24px;text-align:center" class="noprint">
       <button onclick="window.print()" style="background:#ea580c;color:#fff;border:0;padding:10px 24px;border-radius:8px;font-weight:600;cursor:pointer">Print / Save as PDF</button>
     </div>
@@ -1084,7 +1084,7 @@ function HistorySection({ title, icon, items, emptyText, partner }: { title: str
                 } catch { return null; }
               })()}
               {tx.transactionRef && (
-                <p className="text-[10px] text-emerald-400 mt-1">UTR: {tx.transactionRef}</p>
+                <p className="text-[10px] text-emerald-400 mt-1">{tx.type === "withdrawal" ? "Ref" : "Remarks"}: {tx.transactionRef}</p>
               )}
               <div className="flex gap-2 mt-2">
                 <button
@@ -1129,8 +1129,13 @@ function HistorySection({ title, icon, items, emptyText, partner }: { title: str
               </div>
               <div className="text-xl font-extrabold text-white flex items-center"><IndianRupee className="w-5 h-5" />{Number(viewing.amount).toFixed(2)}</div>
               <div className="text-xs text-muted-foreground capitalize">{viewing.type === "withdrawal" ? "Wallet Withdrawal" : "Wallet Purchase"}</div>
+              {viewing.type === "purchase" && viewing.status === "completed" && (
+                <div className="text-xs font-bold text-center bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg py-2 px-3">
+                  Your order successfully confirmed
+                </div>
+              )}
               {viewing.transactionRef && (
-                <div className="text-xs"><span className="text-muted-foreground">Reference / UTR: </span><span className="text-emerald-400 font-mono">{viewing.transactionRef}</span></div>
+                <div className="text-xs"><span className="text-muted-foreground">{viewing.type === "withdrawal" ? "Reference Number" : "Remarks"}: </span><span className="text-emerald-400 font-mono">{viewing.transactionRef}</span></div>
               )}
               {viewing.bankSnapshot && (() => {
                 try {
@@ -1142,7 +1147,6 @@ function HistorySection({ title, icon, items, emptyText, partner }: { title: str
                       {b.bankName && <p><span className="text-muted-foreground">Bank:</span> <span className="text-white">{b.bankName}</span></p>}
                       {b.accountNumber && <p><span className="text-muted-foreground">A/C:</span> <span className="text-white font-mono">{b.accountNumber}</span></p>}
                       {b.ifsc && <p><span className="text-muted-foreground">IFSC:</span> <span className="text-white font-mono">{b.ifsc}</span></p>}
-                      {b.upi && <p><span className="text-muted-foreground">UPI:</span> <span className="text-white">{b.upi}</span></p>}
                     </div>
                   );
                 } catch { return null; }
@@ -1154,7 +1158,12 @@ function HistorySection({ title, icon, items, emptyText, partner }: { title: str
                 </div>
               )}
               {viewing.notes && (
-                <p className="text-xs text-muted-foreground"><b>Notes:</b> {viewing.notes}</p>
+                <div className={viewing.status === "rejected"
+                  ? "text-xs text-red-300 bg-red-500/10 border border-red-500/30 rounded-lg p-3"
+                  : "text-xs text-muted-foreground"
+                }>
+                  <b>{viewing.status === "rejected" ? "Reason" : "Notes"}:</b> {viewing.notes.replace(/\[Admin remark\]\s*/g, "")}
+                </div>
               )}
               <button
                 type="button"

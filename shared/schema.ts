@@ -120,6 +120,7 @@ export const orders = pgTable("orders", {
   dispatchDate: text("dispatch_date"),
   destination: text("destination"),
   remarks: text("remarks"),
+  transportRemarks: text("transport_remarks"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

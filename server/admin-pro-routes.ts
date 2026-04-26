@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, insertOfferSchema } from "@shared/schema";
-import { sendWalletTxEmail } from "./email";
+import { sendWalletTxEmail, sendInvoiceEmail } from "./email";
 
 async function requireStaff(req: Request, res: Response, next: NextFunction) {
   if (!req.session.staffId) {
@@ -216,6 +216,7 @@ export function registerAdminProRoutes(app: Express) {
         dispatchDate: z.string().nullable().optional(),
         destination: z.string().nullable().optional(),
         remarks: z.string().nullable().optional(),
+        transportRemarks: z.string().nullable().optional(),
       }).parse(req.body);
       const cleaned: any = { ...patch };
       if (cleaned.paidAmount !== undefined) cleaned.paidAmount = String(cleaned.paidAmount);
@@ -244,6 +245,19 @@ export function registerAdminProRoutes(app: Express) {
     const order = await storage.getOrder(Number(req.params.id));
     if (!order) return res.status(404).json({ message: "Not found" });
     res.json(order);
+  });
+
+  app.post("/api/admin-pro/orders/:id/email-invoice", requireStaff, async (req, res) => {
+    try {
+      const order = await storage.getOrder(Number(req.params.id));
+      if (!order) return res.status(404).json({ message: "Order not found" });
+      if (!order.customerEmail) return res.status(400).json({ message: "Customer has no email on file" });
+      await sendInvoiceEmail(order);
+      res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[admin-pro] email-invoice failed", err);
+      res.status(500).json({ message: err?.message || "Failed to send email" });
+    }
   });
 
   // ============== STOCK ==============
@@ -537,7 +551,14 @@ export function registerAdminProRoutes(app: Express) {
   app.post("/api/admin-pro/wallet-tx/:id/reject", requireStaff, async (req, res) => {
     try {
       const id = Number(req.params.id);
-      const result = await storage.refundWalletTransaction(id);
+      // Only allow the two predefined remark options the UI offers (defence-in-depth).
+      const ALLOWED_REASONS = [
+        "Your account details may be entered incorrectly. Please double-check or update if you have a different account.",
+        "Other reasons — please contact our team within 24 to 48 hours.",
+      ];
+      const { reason: rawReason } = z.object({ reason: z.string().optional() }).parse(req.body || {});
+      const reason = rawReason && ALLOWED_REASONS.includes(rawReason) ? rawReason : null;
+      const result = await storage.refundWalletTransaction(id, reason);
       if (!result.ok) return res.status(400).json({ message: result.error });
       const updated = result.tx;
       const cust = await storage.getCustomerById(updated.customerId);
@@ -546,7 +567,7 @@ export function registerAdminProRoutes(app: Express) {
           customerId: updated.customerId,
           type: "wallet",
           title: updated.type === "withdrawal" ? "Withdrawal Rejected" : "Wallet Purchase Rejected",
-          message: `Invoice ${updated.invoiceNumber || `#${updated.id}`} for ₹${Number(updated.amount).toFixed(2)} was rejected. The amount has been refunded to your wallet.`,
+          message: `Invoice ${updated.invoiceNumber || `#${updated.id}`} for ₹${Number(updated.amount).toFixed(2)} was rejected. The amount has been refunded to your wallet.${reason ? ` Reason: ${reason}` : ""}`.slice(0, 500),
           link: "/partner",
         });
       } catch {}
