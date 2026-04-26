@@ -222,20 +222,47 @@ export function registerAdminProRoutes(app: Express) {
       if (cleaned.paidAmount !== undefined) cleaned.paidAmount = String(cleaned.paidAmount);
       const updated = await storage.updateOrder(id, cleaned);
       if (!updated) return res.status(404).json({ message: "Order not found" });
+
+      // Idempotent confirm-invoice trigger.
+      // We only consider it a "just confirmed" transition when we can atomically claim
+      // the invoice-sent slot (invoiceSentAt was previously NULL). This guards against
+      // duplicate emails from concurrent PATCH requests, repeat clicks, or repeated
+      // PATCHes that set the same status.
+      let justConfirmed = false;
+      if (patch.orderStatus === "confirmed" && updated.customerEmail) {
+        justConfirmed = await storage.claimInvoiceSent(id);
+      }
+
       // Notify customer on order status changes (best-effort)
       if (patch.orderStatus && updated.customerId) {
         const isCancel = patch.orderStatus === "cancelled";
         storage.createNotification({
           customerId: updated.customerId,
           type: isCancel ? "order_cancelled" : "order_status",
-          title: isCancel ? `Order #${updated.id} cancelled` : `Order #${updated.id}: ${patch.orderStatus}`,
+          title: isCancel
+            ? `Order #${updated.id} cancelled`
+            : justConfirmed
+              ? `Order #${updated.id} confirmed`
+              : `Order #${updated.id}: ${patch.orderStatus}`,
           message: isCancel
             ? `Sorry, your order has been cancelled. Please contact us on WhatsApp for any clarification.`
-            : `Your order is now ${patch.orderStatus}. Total ₹${Number(updated.totalAmount).toFixed(2)}.`,
+            : justConfirmed
+              ? `Your order has been confirmed by our team. Your invoice has been emailed to ${updated.customerEmail || "your registered email"}.`
+              : `Your order is now ${patch.orderStatus}. Total ₹${Number(updated.totalAmount).toFixed(2)}.`,
           link: `/account`,
         }).catch(() => {});
       }
-      res.json(updated);
+
+      // Auto-send invoice email when admin confirms the order (best-effort, non-blocking).
+      if (justConfirmed) {
+        sendInvoiceEmail(updated).catch((err) => {
+          console.error("[Email] Failed to send invoice on confirm:", err?.message ?? err);
+          // Roll back the claim so a retry can re-send.
+          storage.clearInvoiceSent(id).catch(() => {});
+        });
+      }
+
+      res.json({ ...updated, _justConfirmed: justConfirmed });
     } catch (err: any) {
       res.status(400).json({ message: err?.message ?? "Update failed" });
     }

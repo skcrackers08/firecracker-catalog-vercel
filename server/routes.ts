@@ -79,18 +79,15 @@ export async function registerRoutes(
       const customerId = req.session.customerId ?? null;
       const order = await storage.createOrder({ ...input, customerId });
       res.status(201).json(order);
-      if (order.customerEmail) {
-        sendInvoiceEmail(order).catch((err) => {
-          console.error("[Email] Failed to send invoice:", err?.message ?? err);
-        });
-      }
-      // Notify the customer about their order placement (best-effort)
+      // Invoice email is no longer auto-sent on order placement.
+      // It is sent only when the admin confirms the order (orderStatus -> "confirmed")
+      // from the admin pro dashboard. See server/admin-pro-routes.ts (PATCH /orders/:id).
       if (customerId) {
         storage.createNotification({
           customerId,
           type: "order_confirmed",
-          title: "Order received",
-          message: `Your enquiry #${order.id} for ₹${Number(order.totalAmount).toFixed(2)} has been received. We'll confirm via WhatsApp shortly.`,
+          title: "Enquiry received",
+          message: `Your enquiry #${order.id} for ₹${Number(order.totalAmount).toFixed(2)} has been received. Once our team confirms it on WhatsApp, your invoice will be sent to your email.`,
           link: `/account`,
         }).catch((e) => console.error("[Notif] order create:", (e as Error).message));
       }

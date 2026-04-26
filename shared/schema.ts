@@ -121,6 +121,7 @@ export const orders = pgTable("orders", {
   destination: text("destination"),
   remarks: text("remarks"),
   transportRemarks: text("transport_remarks"),
+  invoiceSentAt: timestamp("invoice_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

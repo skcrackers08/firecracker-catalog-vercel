@@ -12,6 +12,9 @@ import Admin from "@/pages/Admin";
 import AdminPro from "@/pages/AdminPro";
 import AdminProInvoice from "@/pages/AdminProInvoice";
 import AdminProTransportBill from "@/pages/AdminProTransportBill";
+import PartnerWalletHistory from "@/pages/PartnerWalletHistory";
+import PartnerReferrals from "@/pages/PartnerReferrals";
+import PartnerBank from "@/pages/PartnerBank";
 import ProductDetails from "@/pages/ProductDetails";
 import ProductGroups from "@/pages/ProductGroups";
 import GroupProducts from "@/pages/GroupProducts";
@@ -41,6 +44,9 @@ function Router() {
       <Route path="/login" component={CustomerLogin} />
       <Route path="/account" component={CustomerAccount} />
       <Route path="/partner" component={PartnerPage} />
+      <Route path="/partner/wallet-history" component={PartnerWalletHistory} />
+      <Route path="/partner/referrals" component={PartnerReferrals} />
+      <Route path="/partner/bank" component={PartnerBank} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -4,7 +4,7 @@ import {
   Briefcase, Wallet, Share2, Copy, Sparkles, Users, History, Check, ArrowLeft,
   IndianRupee, Tag, TrendingUp, Building2, Edit2, Save, ArrowDownToLine, ShoppingBag,
   FileText, MessageCircle, X, Search, Plus, Minus, Trash2, ChevronRight, ChevronLeft,
-  Eye, EyeOff, Camera, Loader2, Download,
+  Eye, EyeOff, Camera, Loader2, Download, Maximize2,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
@@ -514,10 +514,18 @@ export default function PartnerPage() {
             </span>
             <button
               type="button"
+              onClick={() => setLocation("/partner/wallet-history")}
+              data-testid="button-open-wallet-history"
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
+            >
+              <Maximize2 className="w-3.5 h-3.5" /> Open
+            </button>
+            <button
+              type="button"
               onClick={() => setHistoryVisible(v => !v)}
               data-testid="button-toggle-history"
               aria-expanded={historyVisible}
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary hover-elevate active-elevate-2"
+              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary hover-elevate active-elevate-2"
             >
               {historyVisible ? (
                 <><EyeOff className="w-3.5 h-3.5" /> Hide</>
@@ -557,6 +565,15 @@ export default function PartnerPage() {
               <Building2 className="w-5 h-5 text-primary" />
               <h2 className="font-display text-lg text-white tracking-wide">Bank Details</h2>
             </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setLocation("/partner/bank")}
+                data-testid="button-open-bank"
+                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
+              >
+                <Maximize2 className="w-3.5 h-3.5" /> Open
+              </button>
             {!editingBank ? (
               <Button
                 data-testid="button-bank-edit"
@@ -576,6 +593,7 @@ export default function PartnerPage() {
                 <Save className="w-3.5 h-3.5" /> Save
               </Button>
             )}
+            </div>
           </div>
 
           {!editingBank ? (
@@ -675,10 +693,18 @@ export default function PartnerPage() {
             <Users className="w-5 h-5 text-primary" />
             <h2 className="font-display text-lg text-white tracking-wide">Referral Earnings</h2>
             {data?.history && (
-              <span className="ml-auto text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
+              <span className="ml-2 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
                 {data.history.length} member{data.history.length !== 1 ? "s" : ""}
               </span>
             )}
+            <button
+              type="button"
+              onClick={() => setLocation("/partner/referrals")}
+              data-testid="button-open-referrals"
+              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
+            >
+              <Maximize2 className="w-3.5 h-3.5" /> Open
+            </button>
           </div>
 
           {loadingPartner ? (

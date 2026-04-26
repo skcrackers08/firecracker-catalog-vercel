@@ -60,6 +60,8 @@ export interface IStorage {
   getOrdersByCustomer(customerId: number): Promise<Order[]>;
   getOrdersByPhone(phone: string): Promise<Order[]>;
   updateOrder(id: number, patch: Partial<Order>): Promise<Order | undefined>;
+  claimInvoiceSent(id: number): Promise<boolean>;
+  clearInvoiceSent(id: number): Promise<void>;
   getOrdersInRange(start: Date, end: Date): Promise<Order[]>;
 
   getCustomers(): Promise<Customer[]>;
@@ -203,6 +205,19 @@ export class DatabaseStorage implements IStorage {
   async updateOrder(id: number, patch: Partial<Order>): Promise<Order | undefined> {
     const [updated] = await db.update(orders).set(patch).where(eq(orders.id, id)).returning();
     return updated;
+  }
+  // Atomically claims the invoice-sent flag. Returns true if this caller is the one
+  // that flipped it from NULL -> now() (i.e. the invoice email should be sent now).
+  async claimInvoiceSent(id: number): Promise<boolean> {
+    const result = await db.execute(
+      sql`UPDATE orders SET invoice_sent_at = NOW() WHERE id = ${id} AND invoice_sent_at IS NULL RETURNING id`
+    );
+    // node-postgres style result vs neon-driver result
+    const rows: any[] = (result as any).rows ?? (result as any);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+  async clearInvoiceSent(id: number): Promise<void> {
+    await db.execute(sql`UPDATE orders SET invoice_sent_at = NULL WHERE id = ${id}`);
   }
   async getOrdersInRange(start: Date, end: Date): Promise<Order[]> {
     return await db.select().from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end))).orderBy(desc(orders.createdAt));
@@ -375,8 +390,25 @@ export class DatabaseStorage implements IStorage {
     });
     await db.execute(sql`UPDATE customers SET wallet_balance = wallet_balance + ${data.amountCredited} WHERE id = ${data.referrerCustomerId}`);
   }
-  async getReferralHistory(customerId: number): Promise<ReferralUse[]> {
-    return db.select().from(referralUses).where(eq(referralUses.referrerCustomerId, customerId)).orderBy(desc(referralUses.createdAt));
+  async getReferralHistory(customerId: number): Promise<(ReferralUse & { orderSubtotal?: string | null })[]> {
+    // Join with orders so the partner-side history can show product price (subtotal only, no GST/handling).
+    const rows = await db
+      .select({
+        id: referralUses.id,
+        referrerCustomerId: referralUses.referrerCustomerId,
+        usedByCustomerId: referralUses.usedByCustomerId,
+        usedByName: referralUses.usedByName,
+        usedByPhone: referralUses.usedByPhone,
+        orderId: referralUses.orderId,
+        amountCredited: referralUses.amountCredited,
+        createdAt: referralUses.createdAt,
+        orderSubtotal: orders.subtotal,
+      })
+      .from(referralUses)
+      .leftJoin(orders, eq(orders.id, referralUses.orderId))
+      .where(eq(referralUses.referrerCustomerId, customerId))
+      .orderBy(desc(referralUses.createdAt));
+    return rows as any;
   }
 
   async createStaff(data: { username: string; password: string; fullName: string; role: string; permissions?: string }): Promise<Staff> {

@@ -283,13 +283,31 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
   const [showTransport, setShowTransport] = useState(false);
 
   const m = useMutation({
-    mutationFn: () => apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
-      orderStatus, paymentStatus, paidAmount, remarks,
-    }),
-    onSuccess: () => {
+    mutationFn: async () => {
+      const r = await apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
+        orderStatus, paymentStatus, paidAmount, remarks,
+      });
+      return r.json();
+    },
+    onSuccess: (data: any) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/dashboard"] });
-      toast({ title: "Order updated" });
+      const justConfirmed = !!data?._justConfirmed;
+      toast({
+        title: justConfirmed ? "Order confirmed" : "Order updated",
+        description: justConfirmed
+          ? `Invoice email ${order.customerEmail ? "sent to " + order.customerEmail : "skipped (no email on file)"}. Opening WhatsApp…`
+          : undefined,
+      });
+      // Auto-open WhatsApp with confirmation + invoice link when newly confirmed.
+      if (justConfirmed) {
+        try {
+          const phone = order.customerPhone.replace(/\D/g, "");
+          const formatted = phone.length === 10 ? "91" + phone : phone;
+          const msg = `Hi ${order.customerName}, your S K Crackers order #SK-${String(order.id).padStart(4, "0")} has been CONFIRMED. Total: ${fmtINR(order.totalAmount)}. Your invoice has been sent to your email. Thank you!`;
+          openWhatsApp(formatted, msg);
+        } catch {}
+      }
       onClose();
     },
     onError: (e: any) => toast({ title: "Update failed", description: e?.message, variant: "destructive" }),

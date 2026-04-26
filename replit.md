@@ -183,3 +183,17 @@ A typed `api` manifest object defines each endpoint with its HTTP method, path, 
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | PostgreSQL connection string (required at startup) |
+
+### Recent Changes (2026-04-26)
+
+- **Partner page sub-screens**: Added three full-screen routes accessible from the Partner page via "Open" buttons.
+  - `/partner/wallet-history` — Wallet Transaction History with status/type/text filters, totals, and CSV download.
+  - `/partner/referrals` — Referral Earnings with serial IDs (`SK-RF-00001` format), referral code shown at top, **product-price-only totals (excludes GST and handling charges)**, and CSV download. Backend `getReferralHistory` now joins `orders` to surface `orderSubtotal`.
+  - `/partner/bank` — Read-only bank details view with copy-to-clipboard fields and a Print option.
+  - All three pages have client auth guards (redirect to `/login` if not signed in).
+- **Order invoice flow** changed from auto-on-create to admin-confirmation-triggered:
+  - Removed auto invoice email at order creation in `server/routes.ts`.
+  - When admin sets `orderStatus = "confirmed"` in admin-pro, the invoice email is sent automatically and the admin's WhatsApp opens with a pre-filled confirmation message.
+  - Idempotent send via new `orders.invoice_sent_at` timestamp + `claimInvoiceSent`/`clearInvoiceSent` storage methods (race-safe; rolled back on email failure so retries work).
+  - Order-received notification text updated to indicate invoice will arrive after admin confirmation.
+- **Schema additions**: `orders.invoice_sent_at TIMESTAMP NULL` (added in dev DB; production deploy reconciliation will run `db:push`).
