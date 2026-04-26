@@ -49,6 +49,26 @@ export async function seedDefaultStaff() {
       role: "superadmin",
     });
     console.log("[admin-pro] Seeded default superadmin (username: superadmin / password: super@123)");
+    return;
+  }
+  // Lockout protection: ensure at least one ACTIVE superadmin always exists.
+  // If everyone got deactivated, restore the default superadmin so the owner can sign in.
+  const activeSuperadmin = existing.find((s) => s.active && s.role === "superadmin");
+  if (!activeSuperadmin) {
+    const sa = existing.find((s) => s.username === "superadmin");
+    if (sa) {
+      await storage.updateStaff(sa.id, { active: true, role: "superadmin" });
+      await storage.resetStaffPassword(sa.id, "super@123");
+      console.log("[admin-pro] WARNING: superadmin was inactive — reactivated and reset password to default 'super@123'. Please change it after login.");
+    } else {
+      await storage.createStaff({
+        username: "superadmin",
+        password: "super@123",
+        fullName: "Super Admin",
+        role: "superadmin",
+      });
+      console.log("[admin-pro] WARNING: no active superadmin found — created default 'superadmin' / 'super@123'. Please change the password after login.");
+    }
   }
 }
 
