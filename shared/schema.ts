@@ -161,6 +161,24 @@ export type Notification = typeof notifications.$inferSelect;
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true, isRead: true });
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 
+export const offers = pgTable("offers", {
+  id: serial("id").primaryKey(),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  whatsappText: text("whatsapp_text").default(""),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const insertOfferSchema = createInsertSchema(offers).omit({ id: true, createdAt: true }).extend({
+  startDate: z.coerce.date(),
+  endDate: z.coerce.date(),
+});
+export type Offer = typeof offers.$inferSelect;
+export type InsertOffer = z.infer<typeof insertOfferSchema>;
+
 export const stockMovements = pgTable("stock_movements", {
   id: serial("id").primaryKey(),
   productId: integer("product_id").notNull(),

@@ -1,7 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
-import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES } from "@shared/schema";
+import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, insertOfferSchema } from "@shared/schema";
+import { sendWalletTxEmail } from "./email";
 
 async function requireStaff(req: Request, res: Response, next: NextFunction) {
   if (!req.session.staffId) {
@@ -421,5 +422,131 @@ export function registerAdminProRoutes(app: Express) {
     if (id === req.session.staffId) return res.status(400).json({ message: "Cannot delete your own account" });
     await storage.deleteStaff(id);
     res.json({ success: true });
+  });
+
+  // ============== OFFERS (Admin) ==============
+  app.get("/api/admin-pro/offers", requireStaff, async (_req, res) => {
+    const list = await storage.listOffers();
+    res.json(list);
+  });
+
+  app.post("/api/admin-pro/offers", requireStaff, async (req, res) => {
+    try {
+      const data = insertOfferSchema.parse(req.body);
+      const o = await storage.createOffer(data);
+      res.status(201).json(o);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message ?? "Failed" });
+    }
+  });
+
+  app.patch("/api/admin-pro/offers/:id", requireStaff, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const patch = insertOfferSchema.partial().parse(req.body);
+      const o = await storage.updateOffer(id, patch);
+      if (!o) return res.status(404).json({ message: "Not found" });
+      res.json(o);
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message ?? "Failed" });
+    }
+  });
+
+  app.delete("/api/admin-pro/offers/:id", requireStaff, async (req, res) => {
+    const id = Number(req.params.id);
+    await storage.deleteOffer(id);
+    res.json({ success: true });
+  });
+
+  // ============== WALLET TRANSACTIONS APPROVAL (Admin) ==============
+  app.get("/api/admin-pro/wallet-tx", requireStaff, async (req, res) => {
+    const status = (req.query.status as string) || undefined;
+    const type = (req.query.type as string) || undefined;
+    const list = await storage.listWalletTransactions({ status, type });
+    // Hydrate customer name/email/phone for admin UI
+    const enriched = await Promise.all(list.map(async (t) => {
+      const c = await storage.getCustomerById(t.customerId);
+      return { ...t, customerName: c?.fullName || c?.username || null, customerEmail: c?.email || null, customerPhone: c?.phone || null };
+    }));
+    res.json(enriched);
+  });
+
+  app.post("/api/admin-pro/wallet-tx/:id/approve", requireStaff, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { transactionRef } = z.object({ transactionRef: z.string().optional() }).parse(req.body || {});
+      // Atomic: only updates when current status is 'pending'. Prevents concurrent double-approve.
+      const updated = await storage.approveWalletTransactionIfPending(id, transactionRef ?? null);
+      if (!updated) {
+        const exists = await storage.getWalletTransactionById(id);
+        if (!exists) return res.status(404).json({ message: "Not found" });
+        return res.status(409).json({ message: "Already processed" });
+      }
+      const cust = await storage.getCustomerById(updated.customerId);
+      // Notification (in-app)
+      try {
+        await storage.createNotification({
+          customerId: updated.customerId,
+          type: "wallet",
+          title: updated.type === "withdrawal" ? "Withdrawal Approved" : "Wallet Purchase Confirmed",
+          message: `Invoice ${updated.invoiceNumber || `#${updated.id}`} for ₹${Number(updated.amount).toFixed(2)} has been approved.`,
+          link: "/partner",
+        });
+      } catch (e) { console.warn("[wallet-tx] notify failed", e); }
+      // Email
+      try {
+        await sendWalletTxEmail({
+          customerEmail: cust?.email || null,
+          customerName: cust?.fullName || cust?.username || null,
+          invoiceNumber: updated.invoiceNumber || `SK-WT-${String(updated.id).padStart(5, "0")}`,
+          amount: updated.amount,
+          type: (updated.type === "withdrawal" ? "withdrawal" : "purchase"),
+          status: "completed",
+          productDetails: updated.productDetails,
+          bankSnapshot: updated.bankSnapshot,
+          transactionRef: updated.transactionRef,
+          notes: updated.notes,
+        });
+      } catch (e) { console.warn("[wallet-tx] email failed", e); }
+      res.json({ ...updated, customerPhone: cust?.phone || null, customerName: cust?.fullName || cust?.username || null, customerEmail: cust?.email || null });
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message ?? "Failed" });
+    }
+  });
+
+  app.post("/api/admin-pro/wallet-tx/:id/reject", requireStaff, async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const result = await storage.refundWalletTransaction(id);
+      if (!result.ok) return res.status(400).json({ message: result.error });
+      const updated = result.tx;
+      const cust = await storage.getCustomerById(updated.customerId);
+      try {
+        await storage.createNotification({
+          customerId: updated.customerId,
+          type: "wallet",
+          title: updated.type === "withdrawal" ? "Withdrawal Rejected" : "Wallet Purchase Rejected",
+          message: `Invoice ${updated.invoiceNumber || `#${updated.id}`} for ₹${Number(updated.amount).toFixed(2)} was rejected. The amount has been refunded to your wallet.`,
+          link: "/partner",
+        });
+      } catch {}
+      try {
+        await sendWalletTxEmail({
+          customerEmail: cust?.email || null,
+          customerName: cust?.fullName || cust?.username || null,
+          invoiceNumber: updated.invoiceNumber || `SK-WT-${String(updated.id).padStart(5, "0")}`,
+          amount: updated.amount,
+          type: (updated.type === "withdrawal" ? "withdrawal" : "purchase"),
+          status: "rejected",
+          productDetails: updated.productDetails,
+          bankSnapshot: updated.bankSnapshot,
+          transactionRef: updated.transactionRef,
+          notes: updated.notes,
+        });
+      } catch {}
+      res.json({ ...updated, customerPhone: cust?.phone || null, customerName: cust?.fullName || cust?.username || null, customerEmail: cust?.email || null });
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message ?? "Failed" });
+    }
   });
 }

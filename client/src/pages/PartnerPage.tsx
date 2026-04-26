@@ -4,7 +4,7 @@ import {
   Briefcase, Wallet, Share2, Copy, Sparkles, Users, History, Check, ArrowLeft,
   IndianRupee, Tag, TrendingUp, Building2, Edit2, Save, ArrowDownToLine, ShoppingBag,
   FileText, MessageCircle, X, Search, Plus, Minus, Trash2, ChevronRight, ChevronLeft,
-  Eye, EyeOff, Camera, Loader2,
+  Eye, EyeOff, Camera, Loader2, Download,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
@@ -537,12 +537,14 @@ export default function PartnerPage() {
                 icon={<ArrowDownToLine className="w-4 h-4 text-emerald-400" />}
                 items={withdrawals}
                 emptyText="No withdrawals yet."
+                partner={{ name: customer?.fullName || customer?.username || "", phone: customer?.phone || "", email: customer?.email || "" }}
               />
               <HistorySection
                 title="Wallet Purchases"
                 icon={<ShoppingBag className="w-4 h-4 text-amber-400" />}
                 items={purchases}
                 emptyText="No wallet purchases yet."
+                partner={{ name: customer?.fullName || customer?.username || "", phone: customer?.phone || "", email: customer?.email || "" }}
               />
             </>
           )}
@@ -950,7 +952,98 @@ function BankInput({ label, value, onChange, testId, placeholder }: { label: str
   );
 }
 
-function HistorySection({ title, icon, items, emptyText }: { title: string; icon: React.ReactNode; items: WalletTx[]; emptyText: string }) {
+function escapeHtml(s: any): string {
+  if (s === null || s === undefined) return "";
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+function buildWalletTxInvoiceHtml(tx: WalletTx, partner: { name: string; phone: string; email: string }): string {
+  let bank: any = {};
+  try { bank = tx.bankSnapshot ? JSON.parse(tx.bankSnapshot) : {}; } catch {}
+  const isWithdraw = tx.type === "withdrawal";
+  const status = (tx.status || "pending").toUpperCase();
+  const statusColor = tx.status === "completed" ? "#10b981" : tx.status === "rejected" ? "#ef4444" : "#f59e0b";
+  const e = escapeHtml;
+  return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${e(tx.invoiceNumber || "Invoice")}</title>
+<style>
+  body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;margin:0;padding:24px;color:#111827;background:#f9fafb}
+  .card{max-width:720px;margin:auto;background:#fff;border-radius:14px;box-shadow:0 4px 20px rgba(0,0,0,.08);overflow:hidden}
+  .head{background:linear-gradient(135deg,#f97316,#ea580c);padding:28px 32px;color:#fff}
+  .head h1{margin:0;font-size:22px;letter-spacing:1px}
+  .head p{margin:4px 0 0;font-size:13px;opacity:.92;text-transform:uppercase;letter-spacing:2px}
+  .body{padding:24px 32px}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px}
+  .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:#6b7280;margin-bottom:2px}
+  .val{font-size:14px;font-weight:600;color:#111827}
+  .badge{display:inline-block;padding:4px 12px;border-radius:999px;font-size:11px;font-weight:700;color:#fff;background:${statusColor}}
+  .pre{background:#f3f4f6;padding:12px;border-radius:8px;font-size:12px;white-space:pre-wrap;font-family:inherit;color:#111827}
+  .foot{background:#fef3c7;padding:14px 32px;text-align:center;font-size:12px;color:#92400e;border-top:1px solid #fde68a}
+  .row{display:flex;justify-content:space-between;align-items:center;margin:10px 0;padding-bottom:10px;border-bottom:1px dashed #e5e7eb}
+  @media print{.noprint{display:none}body{background:#fff;padding:0}.card{box-shadow:none;border-radius:0}}
+</style></head><body>
+<div class="card">
+  <div class="head">
+    <h1>S K Crackers</h1>
+    <p>${isWithdraw ? "Withdrawal Receipt" : "Wallet Purchase Invoice"}</p>
+  </div>
+  <div class="body">
+    <div class="row"><div><div class="label">Invoice #</div><div class="val">${e(tx.invoiceNumber || `#${tx.id}`)}</div></div><span class="badge">${e(status)}</span></div>
+    <div class="grid">
+      <div><div class="label">Partner</div><div class="val">${e(partner.name) || "-"}</div></div>
+      <div><div class="label">Phone</div><div class="val">${partner.phone ? "+91 " + e(partner.phone) : "-"}</div></div>
+      <div><div class="label">Email</div><div class="val">${e(partner.email) || "-"}</div></div>
+      <div><div class="label">Date</div><div class="val">${e(new Date(tx.createdAt).toLocaleString())}</div></div>
+      <div><div class="label">Type</div><div class="val">${isWithdraw ? "Wallet Withdrawal" : "Wallet Purchase"}</div></div>
+      <div><div class="label">Amount</div><div class="val">₹ ${Number(tx.amount).toFixed(2)}</div></div>
+      ${tx.transactionRef ? `<div><div class="label">Reference / UTR</div><div class="val">${e(tx.transactionRef)}</div></div>` : ""}
+    </div>
+    ${isWithdraw && bank?.accountNumber ? `<h3 style="margin:0 0 8px;font-size:14px;">Bank Account</h3>
+      <div class="grid">
+        ${bank.accountHolder ? `<div><div class="label">Holder</div><div class="val">${e(bank.accountHolder)}</div></div>` : ""}
+        ${bank.bankName ? `<div><div class="label">Bank</div><div class="val">${e(bank.bankName)}</div></div>` : ""}
+        ${bank.accountNumber ? `<div><div class="label">A/C No.</div><div class="val">${e(bank.accountNumber)}</div></div>` : ""}
+        ${bank.ifsc ? `<div><div class="label">IFSC</div><div class="val">${e(bank.ifsc)}</div></div>` : ""}
+        ${bank.upi ? `<div><div class="label">UPI</div><div class="val">${e(bank.upi)}</div></div>` : ""}
+      </div>` : ""}
+    ${!isWithdraw && tx.productDetails ? `<h3 style="margin:18px 0 8px;font-size:14px;">Selected Items</h3><div class="pre">${e(tx.productDetails)}</div>` : ""}
+    ${tx.notes ? `<p style="margin:14px 0 0;font-size:12px;color:#6b7280"><b>Notes:</b> ${e(tx.notes)}</p>` : ""}
+    <div style="margin-top:24px;text-align:center" class="noprint">
+      <button onclick="window.print()" style="background:#ea580c;color:#fff;border:0;padding:10px 24px;border-radius:8px;font-weight:600;cursor:pointer">Print / Save as PDF</button>
+    </div>
+  </div>
+  <div class="foot">© ${new Date().getFullYear()} S K Crackers. Thank you for partnering with us.</div>
+</div>
+</body></html>`;
+}
+
+function downloadWalletTxInvoice(tx: WalletTx, partner: { name: string; phone: string; email: string }) {
+  const html = buildWalletTxInvoiceHtml(tx, partner);
+  // Try popup window first (best for printing). Fall back to blob download.
+  const w = window.open("", "_blank");
+  if (w) {
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    return;
+  }
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${tx.invoiceNumber || `wallet-${tx.id}`}.html`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+}
+
+function HistorySection({ title, icon, items, emptyText, partner }: { title: string; icon: React.ReactNode; items: WalletTx[]; emptyText: string; partner: { name: string; phone: string; email: string } }) {
+  const [viewing, setViewing] = useState<WalletTx | null>(null);
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
@@ -993,8 +1086,86 @@ function HistorySection({ title, icon, items, emptyText }: { title: string; icon
               {tx.transactionRef && (
                 <p className="text-[10px] text-emerald-400 mt-1">UTR: {tx.transactionRef}</p>
               )}
+              <div className="flex gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setViewing(tx)}
+                  className="flex-1 inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg bg-white/5 border border-white/15 text-white hover:bg-white/10"
+                  data-testid={`button-view-tx-${tx.id}`}
+                >
+                  <Eye className="w-3 h-3" /> View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadWalletTxInvoice(tx, partner)}
+                  className="flex-1 inline-flex items-center justify-center gap-1 text-[11px] font-bold px-2 py-1.5 rounded-lg bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25"
+                  data-testid={`button-download-tx-${tx.id}`}
+                >
+                  <Download className="w-3 h-3" /> Download
+                </button>
+              </div>
             </div>
           ))}
+        </div>
+      )}
+      {viewing && (
+        <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center sm:p-4" onClick={() => setViewing(null)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative w-full sm:max-w-md max-h-[92vh] bg-background border border-white/10 sm:rounded-2xl rounded-t-2xl shadow-2xl flex flex-col overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">
+              <p className="text-sm font-bold text-white" data-testid={`text-tx-detail-invoice-${viewing.id}`}>{viewing.invoiceNumber || `#${viewing.id}`}</p>
+              <button onClick={() => setViewing(null)} aria-label="Close" className="w-8 h-8 rounded-full hover:bg-white/10 flex items-center justify-center text-muted-foreground hover:text-white" data-testid="button-close-tx-detail">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${
+                  viewing.status === "completed" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30"
+                  : viewing.status === "rejected" ? "bg-red-500/10 text-red-400 border-red-500/30"
+                  : "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                }`}>{viewing.status}</span>
+                <span className="text-[11px] text-muted-foreground">{new Date(viewing.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="text-xl font-extrabold text-white flex items-center"><IndianRupee className="w-5 h-5" />{Number(viewing.amount).toFixed(2)}</div>
+              <div className="text-xs text-muted-foreground capitalize">{viewing.type === "withdrawal" ? "Wallet Withdrawal" : "Wallet Purchase"}</div>
+              {viewing.transactionRef && (
+                <div className="text-xs"><span className="text-muted-foreground">Reference / UTR: </span><span className="text-emerald-400 font-mono">{viewing.transactionRef}</span></div>
+              )}
+              {viewing.bankSnapshot && (() => {
+                try {
+                  const b = JSON.parse(viewing.bankSnapshot);
+                  return (
+                    <div className="space-y-1 text-xs bg-white/5 border border-white/10 rounded-lg p-3">
+                      <p className="font-bold text-white text-[11px] uppercase tracking-wider">Bank Details</p>
+                      {b.accountHolder && <p><span className="text-muted-foreground">Holder:</span> <span className="text-white">{b.accountHolder}</span></p>}
+                      {b.bankName && <p><span className="text-muted-foreground">Bank:</span> <span className="text-white">{b.bankName}</span></p>}
+                      {b.accountNumber && <p><span className="text-muted-foreground">A/C:</span> <span className="text-white font-mono">{b.accountNumber}</span></p>}
+                      {b.ifsc && <p><span className="text-muted-foreground">IFSC:</span> <span className="text-white font-mono">{b.ifsc}</span></p>}
+                      {b.upi && <p><span className="text-muted-foreground">UPI:</span> <span className="text-white">{b.upi}</span></p>}
+                    </div>
+                  );
+                } catch { return null; }
+              })()}
+              {viewing.productDetails && (
+                <div className="space-y-1">
+                  <p className="font-bold text-white text-[11px] uppercase tracking-wider">Selected Items</p>
+                  <pre className="text-xs bg-white/5 border border-white/10 rounded-lg p-3 whitespace-pre-wrap text-muted-foreground">{viewing.productDetails}</pre>
+                </div>
+              )}
+              {viewing.notes && (
+                <p className="text-xs text-muted-foreground"><b>Notes:</b> {viewing.notes}</p>
+              )}
+              <button
+                type="button"
+                onClick={() => downloadWalletTxInvoice(viewing, partner)}
+                className="w-full mt-2 inline-flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                data-testid={`button-download-tx-modal-${viewing.id}`}
+              >
+                <Download className="w-4 h-4" /> Download Invoice
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

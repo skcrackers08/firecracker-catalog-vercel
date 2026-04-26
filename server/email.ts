@@ -132,6 +132,100 @@ async function getBrevoConfig(): Promise<BrevoConfig | null> {
   };
 }
 
+function buildWalletTxHtml(opts: {
+  fromName: string;
+  customerName: string;
+  invoiceNumber: string;
+  amount: string;
+  type: "withdrawal" | "purchase";
+  status: "completed" | "rejected";
+  productDetails?: string | null;
+  bankSnapshot?: string | null;
+  transactionRef?: string | null;
+  notes?: string | null;
+}): string {
+  const isWithdraw = opts.type === "withdrawal";
+  const isApproved = opts.status === "completed";
+  const headTitle = isWithdraw
+    ? (isApproved ? "Withdrawal Approved" : "Withdrawal Rejected")
+    : (isApproved ? "Wallet Purchase Confirmed" : "Wallet Purchase Rejected");
+  const accent = isApproved ? "#065f46" : "#991b1b";
+  const accentBg = isApproved ? "#ecfdf5" : "#fef2f2";
+  const accentBorder = isApproved ? "#6ee7b7" : "#fecaca";
+  let bank: any = {};
+  try { bank = opts.bankSnapshot ? JSON.parse(opts.bankSnapshot) : {}; } catch {}
+  return `<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><title>${opts.fromName} - ${headTitle}</title></head>
+<body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#111827;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:24px 0;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+<tr><td style="background:linear-gradient(135deg,#f97316 0%,#ea580c 100%);padding:28px 32px;color:#fff;">
+<h1 style="margin:0;font-size:22px;letter-spacing:1px;">${opts.fromName}</h1>
+<p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.9);text-transform:uppercase;letter-spacing:2px;">${headTitle}</p>
+</td></tr>
+<tr><td style="padding:28px 32px;">
+<p style="margin:0 0 12px;font-size:14px;color:#374151;">Hi <b>${opts.customerName || "Partner"}</b>,</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:${accentBg};border:1px solid ${accentBorder};border-radius:10px;margin-bottom:20px;">
+<tr><td style="padding:14px 16px;text-align:center;">
+<p style="margin:0;font-size:15px;font-weight:600;color:${accent};">${headTitle}</p>
+<p style="margin:4px 0 0;font-size:13px;color:${accent};">Invoice <b>${opts.invoiceNumber}</b> &middot; Amount <b>₹${Number(opts.amount).toFixed(2)}</b></p>
+</td></tr></table>
+${opts.transactionRef ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>Reference:</b> ${opts.transactionRef}</p>` : ""}
+${isWithdraw && bank?.accountNumber ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>Bank:</b> ${bank.bankName || "-"} &middot; A/C ${bank.accountNumber} &middot; IFSC ${bank.ifsc || "-"}</p>` : ""}
+${isWithdraw && bank?.upi ? `<p style="margin:0 0 8px;font-size:13px;color:#374151;"><b>UPI:</b> ${bank.upi}</p>` : ""}
+${!isWithdraw && opts.productDetails ? `<p style="margin:8px 0 4px;font-size:13px;color:#111827;font-weight:600;">Selected Items</p><pre style="margin:0;padding:10px;background:#f3f4f6;border-radius:6px;font-family:inherit;font-size:12px;color:#111827;white-space:pre-wrap;">${opts.productDetails}</pre>` : ""}
+${opts.notes ? `<p style="margin:12px 0 0;font-size:12px;color:#6b7280;"><b>Notes:</b> ${opts.notes}</p>` : ""}
+<p style="margin:16px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">For any queries, reply to this email or message us on WhatsApp. Thank you for partnering with ${opts.fromName}.</p>
+</td></tr>
+<tr><td style="background:#fef3c7;padding:14px 32px;text-align:center;border-top:1px solid #fde68a;">
+<p style="margin:0;font-size:12px;color:#92400e;">© ${new Date().getFullYear()} ${opts.fromName}. All rights reserved.</p>
+</td></tr></table></td></tr></table></body></html>`;
+}
+
+export async function sendWalletTxEmail(opts: {
+  customerEmail: string | null;
+  customerName: string | null;
+  invoiceNumber: string;
+  amount: string;
+  type: "withdrawal" | "purchase";
+  status: "completed" | "rejected";
+  productDetails?: string | null;
+  bankSnapshot?: string | null;
+  transactionRef?: string | null;
+  notes?: string | null;
+}): Promise<void> {
+  if (!opts.customerEmail) return;
+  const cfg = await getBrevoConfig();
+  if (!cfg) {
+    console.warn("[Email] Brevo SMTP key not configured – skipping wallet tx email.");
+    return;
+  }
+  const transporter = nodemailer.createTransport({
+    host: cfg.host, port: cfg.port, secure: false,
+    auth: { user: cfg.login, pass: cfg.key },
+  });
+  const html = buildWalletTxHtml({
+    fromName: cfg.fromName,
+    customerName: opts.customerName || "Partner",
+    invoiceNumber: opts.invoiceNumber,
+    amount: opts.amount,
+    type: opts.type,
+    status: opts.status,
+    productDetails: opts.productDetails,
+    bankSnapshot: opts.bankSnapshot,
+    transactionRef: opts.transactionRef,
+    notes: opts.notes,
+  });
+  const subject = `${opts.status === "completed" ? "✅" : "⚠️"} ${opts.type === "withdrawal" ? "Withdrawal" : "Wallet Purchase"} ${opts.status === "completed" ? "Approved" : "Rejected"} – ${opts.invoiceNumber}`;
+  await transporter.sendMail({
+    from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
+    to: opts.customerEmail,
+    subject,
+    html,
+  });
+  console.log(`[Email] Wallet ${opts.type} ${opts.status} email sent to ${opts.customerEmail} (${opts.invoiceNumber})`);
+}
+
 export async function sendInvoiceEmail(order: Order): Promise<void> {
   if (!order.customerEmail) return;
 

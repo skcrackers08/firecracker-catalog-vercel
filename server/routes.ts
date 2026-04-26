@@ -406,6 +406,16 @@ export async function registerRoutes(
     });
   });
 
+  // Public: active offer (banner/popup)
+  app.get("/api/offers/active", async (_req, res) => {
+    try {
+      const o = await storage.getActiveOffer();
+      res.json(o ?? null);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message ?? "Failed" });
+    }
+  });
+
   app.get("/api/customers/me", async (req, res) => {
     if (!req.session.customerId) {
       return res.status(401).json({ message: "Not logged in" });

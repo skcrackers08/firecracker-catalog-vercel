@@ -21,6 +21,9 @@ import {
   type InsertCustomer,
   type InsertStockMovement,
   type InsertNotification,
+  offers,
+  type Offer,
+  type InsertOffer,
 } from "@shared/schema";
 import { eq, desc, gte, lte, and, sql } from "drizzle-orm";
 import { scryptSync, randomBytes, timingSafeEqual } from "crypto";
@@ -97,6 +100,18 @@ export interface IStorage {
   markNotificationRead(id: number, customerId: number): Promise<boolean>;
   markAllNotificationsRead(customerId: number): Promise<number>;
   broadcastNotification(data: Omit<InsertNotification, "customerId">): Promise<number>;
+
+  // Offers
+  listOffers(): Promise<Offer[]>;
+  getActiveOffer(): Promise<Offer | undefined>;
+  createOffer(data: InsertOffer): Promise<Offer>;
+  updateOffer(id: number, patch: Partial<InsertOffer>): Promise<Offer | undefined>;
+  deleteOffer(id: number): Promise<boolean>;
+
+  // Admin wallet tx
+  listWalletTransactions(filter?: { status?: string; type?: string }): Promise<WalletTransaction[]>;
+  getWalletTransactionById(id: number): Promise<WalletTransaction | undefined>;
+  refundWalletTransaction(id: number): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -309,6 +324,25 @@ export class DatabaseStorage implements IStorage {
     const [row] = await db.update(walletTransactions).set(patch).where(eq(walletTransactions.id, id)).returning();
     return row;
   }
+
+  // Atomic approve: only updates if currently pending. Returns undefined if no row was updated.
+  async approveWalletTransactionIfPending(id: number, transactionRef?: string | null): Promise<WalletTransaction | undefined> {
+    const result = await pool.query(
+      `UPDATE wallet_transactions
+         SET status = 'completed',
+             transaction_ref = COALESCE($1, transaction_ref)
+       WHERE id = $2 AND status = 'pending'
+       RETURNING *`,
+      [transactionRef ?? null, id]
+    );
+    if (result.rows.length === 0) return undefined;
+    const r = result.rows[0];
+    return {
+      id: r.id, customerId: r.customer_id, type: r.type, amount: r.amount, status: r.status,
+      notes: r.notes, productDetails: r.product_details, bankSnapshot: r.bank_snapshot,
+      invoiceNumber: r.invoice_number, transactionRef: r.transaction_ref, createdAt: r.created_at,
+    };
+  }
   async setCustomerReferral(customerId: number, percentage: number): Promise<Customer | undefined> {
     const cust = await this.getCustomerById(customerId);
     if (!cust) return undefined;
@@ -450,6 +484,78 @@ export class DatabaseStorage implements IStorage {
       [data.type, data.title, data.message, data.link ?? null]
     );
     return r.rowCount ?? 0;
+  }
+
+  // ---------------- Offers ----------------
+  async listOffers(): Promise<Offer[]> {
+    return await db.select().from(offers).orderBy(desc(offers.id));
+  }
+
+  async getActiveOffer(): Promise<Offer | undefined> {
+    const now = new Date();
+    const [row] = await db.select().from(offers)
+      .where(and(eq(offers.isActive, true), lte(offers.startDate, now), gte(offers.endDate, now)))
+      .orderBy(desc(offers.id))
+      .limit(1);
+    return row;
+  }
+
+  async createOffer(data: InsertOffer): Promise<Offer> {
+    const [row] = await db.insert(offers).values(data).returning();
+    return row;
+  }
+
+  async updateOffer(id: number, patch: Partial<InsertOffer>): Promise<Offer | undefined> {
+    const [row] = await db.update(offers).set(patch).where(eq(offers.id, id)).returning();
+    return row;
+  }
+
+  async deleteOffer(id: number): Promise<boolean> {
+    await db.delete(offers).where(eq(offers.id, id));
+    return true;
+  }
+
+  // ---------------- Admin wallet TX ----------------
+  async listWalletTransactions(filter?: { status?: string; type?: string }): Promise<WalletTransaction[]> {
+    const conds: any[] = [];
+    if (filter?.status) conds.push(eq(walletTransactions.status, filter.status));
+    if (filter?.type) conds.push(eq(walletTransactions.type, filter.type));
+    const q = conds.length ? db.select().from(walletTransactions).where(and(...conds)) : db.select().from(walletTransactions);
+    return await q.orderBy(desc(walletTransactions.id));
+  }
+
+  async getWalletTransactionById(id: number): Promise<WalletTransaction | undefined> {
+    const [row] = await db.select().from(walletTransactions).where(eq(walletTransactions.id, id));
+    return row;
+  }
+
+  async refundWalletTransaction(id: number): Promise<{ ok: true; tx: WalletTransaction } | { ok: false; error: string }> {
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      const txRes = await client.query(`SELECT * FROM wallet_transactions WHERE id = $1 FOR UPDATE`, [id]);
+      if (txRes.rows.length === 0) { await client.query("ROLLBACK"); return { ok: false, error: "Not found" }; }
+      const r = txRes.rows[0];
+      if (r.status !== "pending") { await client.query("ROLLBACK"); return { ok: false, error: "Already processed" }; }
+      await client.query(`UPDATE wallet_transactions SET status = 'rejected' WHERE id = $1`, [id]);
+      await client.query(`UPDATE customers SET wallet_balance = wallet_balance + $1 WHERE id = $2`, [r.amount, r.customer_id]);
+      const finalRes = await client.query(`SELECT * FROM wallet_transactions WHERE id = $1`, [id]);
+      await client.query("COMMIT");
+      const fr = finalRes.rows[0];
+      return {
+        ok: true,
+        tx: {
+          id: fr.id, customerId: fr.customer_id, type: fr.type, amount: fr.amount, status: fr.status,
+          notes: fr.notes, productDetails: fr.product_details, bankSnapshot: fr.bank_snapshot,
+          invoiceNumber: fr.invoice_number, transactionRef: fr.transaction_ref, createdAt: fr.created_at,
+        }
+      };
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   }
 }
 

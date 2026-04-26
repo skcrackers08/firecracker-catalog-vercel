@@ -1,9 +1,36 @@
 import { Link, useLocation } from "wouter";
-import { User, Package, ChevronRight, ShoppingBag } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { User, Package, ChevronRight, ShoppingBag, Camera, Loader2 } from "lucide-react";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button, Card } from "@/components/ui-custom";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
+import { useRef } from "react";
+import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+async function compressImage(file: File, maxDim = 480, quality = 0.8): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("Failed to read file"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("Invalid image"));
+      img.onload = () => {
+        const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+        const w = Math.round(img.width * scale);
+        const h = Math.round(img.height * scale);
+        const canvas = document.createElement("canvas");
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return reject(new Error("Canvas not supported"));
+        ctx.drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  });
+}
 
 interface Order {
   id: number;
@@ -22,6 +49,40 @@ interface Order {
 export default function CustomerAccount() {
   const { customer, isLoading } = useCustomerAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadPhoto = useMutation({
+    mutationFn: (profilePhoto: string) => apiRequest("PATCH", "/api/customers/me", { profilePhoto }),
+    onSuccess: () => {
+      toast({ title: "Profile photo updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/me"] });
+    },
+    onError: (e: any) => toast({ title: "Upload failed", description: e?.message, variant: "destructive" }),
+  });
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Max 8 MB", variant: "destructive" });
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    try {
+      const dataUrl = await compressImage(file);
+      uploadPhoto.mutate(dataUrl);
+    } catch (err: any) {
+      toast({ title: "Compression failed", description: err?.message, variant: "destructive" });
+    } finally {
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
 
   const { data: orders, isLoading: ordersLoading } = useQuery<Order[]>({
     queryKey: ["/api/customers/orders"],
@@ -79,18 +140,46 @@ export default function CustomerAccount() {
       <div className="max-w-2xl mx-auto py-4 space-y-6">
         <Card className="p-6">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 bg-primary/20 rounded-full flex items-center justify-center border border-primary/30 overflow-hidden">
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              disabled={uploadPhoto.isPending}
+              className="relative w-16 h-16 bg-primary/20 rounded-full flex items-center justify-center border border-primary/30 overflow-hidden group focus:outline-none focus:ring-2 focus:ring-primary/60"
+              data-testid="button-account-photo"
+              aria-label="Change profile photo"
+            >
               {customer.profilePhoto ? (
                 <img src={customer.profilePhoto} alt="profile" className="w-full h-full object-cover" />
               ) : (
-                <Package className="w-7 h-7 text-primary" />
+                <User className="w-8 h-8 text-primary" />
               )}
-            </div>
+              <span className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                {uploadPhoto.isPending ? (
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-5 h-5 text-white" />
+                )}
+              </span>
+              {uploadPhoto.isPending && !customer.profilePhoto && (
+                <span className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 text-white animate-spin" />
+                </span>
+              )}
+            </button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+              data-testid="input-account-photo"
+            />
             <div className="flex-1 min-w-0">
               <p className="text-xs uppercase tracking-wider text-muted-foreground">My Requests</p>
               <h2 className="font-bold text-lg text-white truncate" data-testid="text-account-name">
                 {customer.fullName || customer.username}
               </h2>
+              <p className="text-[10px] text-muted-foreground mt-1">Tap photo to {customer.profilePhoto ? "change" : "upload"}</p>
             </div>
           </div>
         </Card>

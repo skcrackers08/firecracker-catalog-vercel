@@ -17,7 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, ShoppingBag, Package, Users, BarChart3, Truck, UserCog, LogOut,
   TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer, MessageCircle,
-  Search, RefreshCcw, Wallet,
+  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check,
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, type Order, type Product, type Staff } from "@shared/schema";
@@ -831,6 +831,313 @@ function CreateStaffDialog({ onClose }: { onClose: () => void }) {
   );
 }
 
+// ============ OFFERS MODULE ============
+type OfferRow = {
+  id: number; title: string; message: string; startDate: string; endDate: string;
+  isActive: boolean; whatsappText: string | null; createdAt: string;
+};
+
+function toLocalDateInput(d: string | Date): string {
+  const dt = typeof d === "string" ? new Date(d) : d;
+  if (isNaN(dt.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${dt.getFullYear()}-${pad(dt.getMonth() + 1)}-${pad(dt.getDate())}T${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
+}
+
+function OffersModule() {
+  const { toast } = useToast();
+  const { data: offers = [], isLoading } = useQuery<OfferRow[]>({ queryKey: ["/api/admin-pro/offers"] });
+  const [open, setOpen] = useState(false);
+  const [editing, setEditing] = useState<OfferRow | null>(null);
+  const blank = { title: "", message: "", startDate: toLocalDateInput(new Date()), endDate: toLocalDateInput(new Date(Date.now() + 7 * 86400000)), isActive: true, whatsappText: "" };
+  const [form, setForm] = useState(blank);
+
+  function openNew() { setEditing(null); setForm(blank); setOpen(true); }
+  function openEdit(o: OfferRow) {
+    setEditing(o);
+    setForm({ title: o.title, message: o.message, startDate: toLocalDateInput(o.startDate), endDate: toLocalDateInput(o.endDate), isActive: o.isActive, whatsappText: o.whatsappText || "" });
+    setOpen(true);
+  }
+
+  const save = useMutation({
+    mutationFn: async () => {
+      const payload = { ...form, startDate: new Date(form.startDate).toISOString(), endDate: new Date(form.endDate).toISOString() };
+      if (editing) return apiRequest("PATCH", `/api/admin-pro/offers/${editing.id}`, payload);
+      return apiRequest("POST", "/api/admin-pro/offers", payload);
+    },
+    onSuccess: () => {
+      toast({ title: editing ? "Offer updated" : "Offer created" });
+      setOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/offers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/offers/active"] });
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
+  });
+
+  const toggle = useMutation({
+    mutationFn: ({ id, isActive }: { id: number; isActive: boolean }) =>
+      apiRequest("PATCH", `/api/admin-pro/offers/${id}`, { isActive }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/offers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/offers/active"] });
+    },
+  });
+
+  const del = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/admin-pro/offers/${id}`),
+    onSuccess: () => {
+      toast({ title: "Offer deleted" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/offers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/offers/active"] });
+    },
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold">Offer Notifications</h1>
+          <p className="text-sm text-muted-foreground">Show banners & popups to customers. Only one active in-date offer is displayed.</p>
+        </div>
+        <Button onClick={openNew} data-testid="button-new-offer"><Plus className="w-4 h-4 mr-1" /> New Offer</Button>
+      </div>
+      <Card><CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Title</TableHead><TableHead>Window</TableHead>
+            <TableHead>Active</TableHead><TableHead className="text-right">Actions</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={4} className="text-center py-6">Loading…</TableCell></TableRow>}
+            {!isLoading && offers.length === 0 && <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">No offers yet.</TableCell></TableRow>}
+            {offers.map((o) => (
+              <TableRow key={o.id} data-testid={`row-offer-${o.id}`}>
+                <TableCell>
+                  <div className="font-medium">{o.title}</div>
+                  <div className="text-xs text-muted-foreground line-clamp-1">{o.message}</div>
+                </TableCell>
+                <TableCell className="text-xs">
+                  {new Date(o.startDate).toLocaleString()}<br/>→ {new Date(o.endDate).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <Button size="sm" variant={o.isActive ? "default" : "outline"} onClick={() => toggle.mutate({ id: o.id, isActive: !o.isActive })} data-testid={`button-toggle-offer-${o.id}`}>
+                    {o.isActive ? "Active" : "Inactive"}
+                  </Button>
+                </TableCell>
+                <TableCell className="text-right space-x-2">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(o)} data-testid={`button-edit-offer-${o.id}`}><Edit2 className="w-3 h-3" /></Button>
+                  <Button size="sm" variant="destructive" onClick={() => { if (confirm("Delete this offer?")) del.mutate(o.id); }} data-testid={`button-delete-offer-${o.id}`}><Trash2 className="w-3 h-3" /></Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent></Card>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editing ? "Edit Offer" : "New Offer"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div><Label>Title</Label><Input value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="e.g. Diwali Mega Sale 30% OFF" data-testid="input-offer-title" /></div>
+            <div><Label>Message</Label><textarea className="w-full border rounded-md p-2 text-sm bg-background" rows={3} value={form.message} onChange={(e) => setForm({ ...form, message: e.target.value })} placeholder="Detailed message shown in banner & popup" data-testid="input-offer-message" /></div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><Label>Starts</Label><Input type="datetime-local" value={form.startDate} onChange={(e) => setForm({ ...form, startDate: e.target.value })} data-testid="input-offer-start" /></div>
+              <div><Label>Ends</Label><Input type="datetime-local" value={form.endDate} onChange={(e) => setForm({ ...form, endDate: e.target.value })} data-testid="input-offer-end" /></div>
+            </div>
+            <div><Label>WhatsApp Text (optional)</Label><Input value={form.whatsappText} onChange={(e) => setForm({ ...form, whatsappText: e.target.value })} placeholder="Hi! I'm interested in the Diwali Sale offer." data-testid="input-offer-whatsapp" /></div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={form.isActive} onChange={(e) => setForm({ ...form, isActive: e.target.checked })} data-testid="checkbox-offer-active" />
+              Active
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button onClick={() => save.mutate()} disabled={save.isPending || !form.title || !form.message} data-testid="button-save-offer">{save.isPending ? "Saving…" : "Save"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// ============ WALLET APPROVALS MODULE ============
+type WalletTxRow = {
+  id: number; customerId: number; type: string; amount: string; status: string;
+  notes: string | null; productDetails: string | null; bankSnapshot: string | null;
+  invoiceNumber: string | null; transactionRef: string | null; createdAt: string;
+  customerName: string | null; customerEmail: string | null; customerPhone: string | null;
+};
+
+function WalletApprovalsModule() {
+  const { toast } = useToast();
+  const [statusFilter, setStatusFilter] = useState<string>("pending");
+  const [typeFilter, setTypeFilter] = useState<string>("");
+  const { data: rows = [], isLoading } = useQuery<WalletTxRow[]>({
+    queryKey: ["/api/admin-pro/wallet-tx", statusFilter, typeFilter],
+    queryFn: async () => {
+      const qs = new URLSearchParams();
+      if (statusFilter) qs.set("status", statusFilter);
+      if (typeFilter) qs.set("type", typeFilter);
+      const r = await fetch(`/api/admin-pro/wallet-tx?${qs.toString()}`);
+      if (!r.ok) throw new Error("Failed to load");
+      return r.json();
+    },
+  });
+
+  const [refDraft, setRefDraft] = useState<Record<number, string>>({});
+  const [viewing, setViewing] = useState<WalletTxRow | null>(null);
+
+  const approve = useMutation({
+    mutationFn: ({ id, transactionRef }: { id: number; transactionRef?: string }) =>
+      apiRequest("POST", `/api/admin-pro/wallet-tx/${id}/approve`, { transactionRef }),
+    onSuccess: (data: any) => {
+      toast({ title: "Approved", description: `Email + notification sent. Use WhatsApp to message customer.` });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/wallet-tx"] });
+      // Open WhatsApp with prefilled message
+      try {
+        const phone = (data?.customerPhone || "").replace(/\D/g, "");
+        if (phone) {
+          const msg = `Hi ${data?.customerName || "there"}, your ${data.type === "withdrawal" ? "withdrawal" : "wallet purchase"} ${data.invoiceNumber || ""} for ₹${Number(data.amount).toFixed(2)} has been approved.${data.transactionRef ? ` Reference: ${data.transactionRef}.` : ""} Thank you!`;
+          openWhatsApp(phone, msg);
+        }
+      } catch {}
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
+  });
+
+  const reject = useMutation({
+    mutationFn: (id: number) => apiRequest("POST", `/api/admin-pro/wallet-tx/${id}/reject`),
+    onSuccess: () => {
+      toast({ title: "Rejected & refunded to wallet" });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/wallet-tx"] });
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
+  });
+
+  const renderBank = (snapshot: string | null) => {
+    if (!snapshot) return null;
+    try {
+      const b = JSON.parse(snapshot);
+      return (
+        <div className="text-xs space-y-0.5">
+          {b.accountHolder && <div><b>Holder:</b> {b.accountHolder}</div>}
+          {b.bankName && <div><b>Bank:</b> {b.bankName}</div>}
+          {b.accountNumber && <div><b>A/C:</b> {b.accountNumber}</div>}
+          {b.ifsc && <div><b>IFSC:</b> {b.ifsc}</div>}
+          {b.upi && <div><b>UPI:</b> {b.upi}</div>}
+        </div>
+      );
+    } catch { return <div className="text-xs text-muted-foreground">{snapshot}</div>; }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Wallet Approvals</h1>
+          <p className="text-sm text-muted-foreground">Approve or reject partner withdrawals & wallet purchases. Approval triggers email + WhatsApp.</p>
+        </div>
+        <div className="flex gap-2">
+          <Select value={statusFilter || "all"} onValueChange={(v) => setStatusFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[140px]" data-testid="select-wtx-status"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All status</SelectItem>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="completed">Completed</SelectItem>
+              <SelectItem value="rejected">Rejected</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={typeFilter || "all"} onValueChange={(v) => setTypeFilter(v === "all" ? "" : v)}>
+            <SelectTrigger className="w-[140px]" data-testid="select-wtx-type"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="withdrawal">Withdrawal</SelectItem>
+              <SelectItem value="purchase">Purchase</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      <Card><CardContent className="p-0 overflow-x-auto">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Invoice</TableHead><TableHead>Customer</TableHead><TableHead>Type</TableHead>
+            <TableHead className="text-right">Amount</TableHead><TableHead>Status</TableHead>
+            <TableHead>Created</TableHead><TableHead className="text-right">Actions</TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {isLoading && <TableRow><TableCell colSpan={7} className="text-center py-6">Loading…</TableCell></TableRow>}
+            {!isLoading && rows.length === 0 && <TableRow><TableCell colSpan={7} className="text-center py-6 text-muted-foreground">No transactions.</TableCell></TableRow>}
+            {rows.map((t) => (
+              <TableRow key={t.id} data-testid={`row-wtx-${t.id}`}>
+                <TableCell className="font-mono text-xs">{t.invoiceNumber || `#${t.id}`}</TableCell>
+                <TableCell>
+                  <div className="font-medium text-sm">{t.customerName || `Cust #${t.customerId}`}</div>
+                  <div className="text-xs text-muted-foreground">{t.customerPhone}</div>
+                </TableCell>
+                <TableCell><Badge variant="outline">{t.type}</Badge></TableCell>
+                <TableCell className="text-right font-semibold">₹{Number(t.amount).toFixed(2)}</TableCell>
+                <TableCell>
+                  <Badge variant={t.status === "completed" ? "default" : t.status === "rejected" ? "destructive" : "secondary"}>{t.status}</Badge>
+                </TableCell>
+                <TableCell className="text-xs">{new Date(t.createdAt).toLocaleString()}</TableCell>
+                <TableCell className="text-right">
+                  <div className="flex gap-1 justify-end">
+                    <Button size="sm" variant="outline" onClick={() => setViewing(t)} data-testid={`button-view-wtx-${t.id}`}>View</Button>
+                    {t.status === "pending" && (
+                      <>
+                        <Button size="sm" onClick={() => approve.mutate({ id: t.id, transactionRef: refDraft[t.id] })} disabled={approve.isPending} data-testid={`button-approve-wtx-${t.id}`}>
+                          <Check className="w-3 h-3 mr-1" /> Approve
+                        </Button>
+                        <Button size="sm" variant="destructive" onClick={() => { if (confirm("Reject and refund this transaction?")) reject.mutate(t.id); }} disabled={reject.isPending} data-testid={`button-reject-wtx-${t.id}`}>
+                          <XIcon className="w-3 h-3" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </CardContent></Card>
+
+      <Dialog open={!!viewing} onOpenChange={(o) => !o && setViewing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>{viewing?.invoiceNumber || `#${viewing?.id}`} – {viewing?.type}</DialogTitle></DialogHeader>
+          {viewing && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div><div className="text-xs text-muted-foreground">Customer</div><div className="font-medium">{viewing.customerName || `Cust #${viewing.customerId}`}</div></div>
+                <div><div className="text-xs text-muted-foreground">Phone</div><div>{viewing.customerPhone || "-"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Email</div><div>{viewing.customerEmail || "-"}</div></div>
+                <div><div className="text-xs text-muted-foreground">Amount</div><div className="font-semibold">₹{Number(viewing.amount).toFixed(2)}</div></div>
+                <div><div className="text-xs text-muted-foreground">Status</div><div>{viewing.status}</div></div>
+                <div><div className="text-xs text-muted-foreground">Created</div><div>{new Date(viewing.createdAt).toLocaleString()}</div></div>
+              </div>
+              {viewing.notes && <div><div className="text-xs text-muted-foreground">Notes</div><div>{viewing.notes}</div></div>}
+              {viewing.bankSnapshot && <div><div className="text-xs text-muted-foreground mb-1">Bank Details</div>{renderBank(viewing.bankSnapshot)}</div>}
+              {viewing.productDetails && <div><div className="text-xs text-muted-foreground mb-1">Product Details</div><pre className="bg-muted p-2 rounded text-xs whitespace-pre-wrap">{viewing.productDetails}</pre></div>}
+              {viewing.status === "pending" && (
+                <div>
+                  <Label>Reference / UTR (optional)</Label>
+                  <Input
+                    value={refDraft[viewing.id] || ""}
+                    onChange={(e) => setRefDraft({ ...refDraft, [viewing.id]: e.target.value })}
+                    placeholder="e.g. UPI ref number"
+                    data-testid={`input-ref-${viewing.id}`}
+                  />
+                </div>
+              )}
+              {viewing.transactionRef && <div><div className="text-xs text-muted-foreground">Reference</div><div className="font-mono">{viewing.transactionRef}</div></div>}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
 // ============ MAIN SHELL ============
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -840,6 +1147,8 @@ const NAV = [
   { id: "reports", label: "Sales Reports", icon: BarChart3 },
   { id: "profit", label: "Profit", icon: TrendingUp },
   { id: "transport", label: "Transport", icon: Truck },
+  { id: "offers", label: "Offers", icon: Megaphone },
+  { id: "wallet-approvals", label: "Wallet Approvals", icon: BadgeCheck },
   { id: "staff", label: "Staff", icon: UserCog, role: "superadmin" },
 ];
 
@@ -906,6 +1215,8 @@ export default function AdminPro() {
         {tab === "reports" && <ReportsModule />}
         {tab === "profit" && <ProfitModule />}
         {tab === "transport" && <TransportModule />}
+        {tab === "offers" && <OffersModule />}
+        {tab === "wallet-approvals" && <WalletApprovalsModule />}
         {tab === "staff" && <StaffModule me={me} />}
       </main>
     </div>

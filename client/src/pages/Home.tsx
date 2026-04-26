@@ -2,6 +2,7 @@ import { Link, useLocation } from "wouter";
 import { motion, AnimatePresence } from "framer-motion";
 import { useProducts } from "@/hooks/use-products";
 import { Layout } from "@/components/Layout";
+import { OfferBanner } from "@/components/OfferBanner";
 import { Card, Button } from "@/components/ui-custom";
 import { ChevronLeft, ChevronRight, ShoppingCart, Heart, Search, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
@@ -53,6 +54,7 @@ export default function Home() {
 
   return (
     <Layout>
+      <OfferBanner context="home" />
       {/* Search Bar */}
       <div className="relative mb-5">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />

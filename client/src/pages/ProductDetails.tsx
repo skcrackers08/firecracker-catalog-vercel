@@ -3,6 +3,7 @@ import { useRoute, Link, useLocation } from "wouter";
 import { Product } from "@shared/schema";
 import { api, buildUrl } from "@shared/routes";
 import { Layout } from "@/components/Layout";
+import { OfferBanner } from "@/components/OfferBanner";
 import { Button } from "@/components/ui-custom";
 import { ArrowLeft, ShoppingCart, Video, Sparkles, Plus, Minus, Heart, Tag } from "lucide-react";
 import { motion } from "framer-motion";
@@ -51,6 +52,7 @@ export default function ProductDetails() {
 
   return (
     <Layout>
+      <OfferBanner context="product" />
       <div className="max-w-2xl mx-auto w-full">
         {/* Back Button */}
         <button
