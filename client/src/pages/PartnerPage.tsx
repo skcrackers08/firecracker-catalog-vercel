@@ -504,238 +504,45 @@ export default function PartnerPage() {
           </div>
         </Card>
 
-        {/* Wallet Transaction History (collapsible View / Hide) */}
-        <Card className="p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <History className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-lg text-white tracking-wide">Wallet Transaction History</h2>
-            <span className="ml-2 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
-              {transactions.length} total
-            </span>
-            <button
-              type="button"
-              onClick={() => setLocation("/partner/wallet-history")}
-              data-testid="button-open-wallet-history"
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
-            >
-              <Maximize2 className="w-3.5 h-3.5" /> Open
-            </button>
-            <button
-              type="button"
-              onClick={() => setHistoryVisible(v => !v)}
-              data-testid="button-toggle-history"
-              aria-expanded={historyVisible}
-              className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-primary/40 bg-primary/10 text-primary hover-elevate active-elevate-2"
-            >
-              {historyVisible ? (
-                <><EyeOff className="w-3.5 h-3.5" /> Hide</>
-              ) : (
-                <><Eye className="w-3.5 h-3.5" /> View</>
-              )}
-            </button>
-          </div>
-          {!historyVisible ? (
-            <p className="text-xs text-muted-foreground" data-testid="text-history-hidden">
-              Wallet transaction details are hidden. Tap <span className="text-primary font-bold">View</span> to see all your withdrawals and wallet purchases.
-            </p>
-          ) : (
-            <>
-              <HistorySection
-                title="Withdrawals"
-                icon={<ArrowDownToLine className="w-4 h-4 text-emerald-400" />}
-                items={withdrawals}
-                emptyText="No withdrawals yet."
-                partner={{ name: customer?.fullName || customer?.username || "", phone: customer?.phone || "", email: customer?.email || "" }}
-              />
-              <HistorySection
-                title="Wallet Purchases"
-                icon={<ShoppingBag className="w-4 h-4 text-amber-400" />}
-                items={purchases}
-                emptyText="No wallet purchases yet."
-                partner={{ name: customer?.fullName || customer?.username || "", phone: customer?.phone || "", email: customer?.email || "" }}
-              />
-            </>
-          )}
-        </Card>
-
-        {/* Bank Details */}
-        <Card className="p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
-              <h2 className="font-display text-lg text-white tracking-wide">Bank Details</h2>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setLocation("/partner/bank")}
-                data-testid="button-open-bank"
-                className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
-              >
-                <Maximize2 className="w-3.5 h-3.5" /> Open
-              </button>
-            {!editingBank ? (
-              <Button
-                data-testid="button-bank-edit"
-                onClick={() => setEditingBank(true)}
-                variant="outline"
-                className="h-9 gap-1.5 border-white/10 text-white hover:bg-white/5 text-xs"
-              >
-                <Edit2 className="w-3.5 h-3.5" /> Edit
-              </Button>
-            ) : (
-              <Button
-                data-testid="button-bank-save"
-                onClick={handleSaveBank}
-                isLoading={savingBank}
-                className="h-9 gap-1.5 text-xs"
-              >
-                <Save className="w-3.5 h-3.5" /> Save
-              </Button>
-            )}
-            </div>
-          </div>
-
-          {!editingBank ? (
-            <div className="space-y-2 text-sm">
-              <DetailRow label="Account Holder" value={bank.accountHolder} />
-              <DetailRow label="Bank Name" value={bank.bankName} />
-              <DetailRow label="Account Number" value={bank.accountNumber ? `••••${bank.accountNumber.slice(-4)}` : ""} />
-              <DetailRow label="IFSC" value={bank.ifsc} />
-              <DetailRow label="UPI ID" value={bank.upi} />
-              {!bank.accountNumber && !bank.upi && (
-                <p className="text-xs text-amber-400 mt-2">⚠ Add at least bank account or UPI to enable withdrawal.</p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-3">
-              <BankInput label="Account Holder Name" value={bank.accountHolder} onChange={v => setBank({ ...bank, accountHolder: v })} testId="input-bank-holder" />
-              <BankInput label="Bank Name" value={bank.bankName} onChange={v => setBank({ ...bank, bankName: v })} testId="input-bank-name" />
-              <BankInput label="Account Number" value={bank.accountNumber} onChange={v => setBank({ ...bank, accountNumber: v.replace(/[^0-9]/g, "") })} testId="input-bank-acct" />
-              <BankInput label="IFSC Code" value={bank.ifsc} onChange={v => setBank({ ...bank, ifsc: v.toUpperCase() })} testId="input-bank-ifsc" />
-              <BankInput label="UPI ID (optional)" value={bank.upi} onChange={v => setBank({ ...bank, upi: v })} testId="input-bank-upi" placeholder="example@upi" />
-              <Button
-                onClick={() => { setEditingBank(false); if (data?.bank) setBank(data.bank); }}
-                variant="outline"
-                className="w-full h-9 border-white/10 text-muted-foreground hover:bg-white/5 text-xs"
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
-        </Card>
-
-        {/* Generate / Edit Referral Code */}
-        <Card className="p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-lg text-white tracking-wide">Your Referral Code</h2>
-          </div>
-
-          <div className="space-y-2">
-            <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-              <Tag className="w-3 h-3" /> Profit Percentage (0% – 20%)
-            </Label>
-            <div className="flex gap-2">
-              <Input
-                data-testid="input-percentage"
-                type="number"
-                min={0}
-                max={20}
-                value={percentage}
-                onChange={e => setPercentage(Math.max(0, Math.min(20, Number(e.target.value) || 0)))}
-                className="h-12 text-lg font-bold bg-white/5 border-white/10 flex-1"
-              />
-              <div className="flex items-center px-4 text-2xl font-bold text-primary">%</div>
-            </div>
-            <input
-              type="range"
-              min={0}
-              max={20}
-              value={percentage}
-              onChange={e => setPercentage(Number(e.target.value))}
-              className="w-full accent-primary"
-              data-testid="slider-percentage"
-            />
-            <p className="text-xs text-muted-foreground">
-              You will earn <span className="text-primary font-bold">{percentage}%</span> of every order placed using your referral code (max 20%).
-            </p>
-          </div>
-
-          <Button onClick={handleSave} isLoading={saving} className="w-full h-11 font-bold" data-testid="button-save-referral">
-            <Sparkles className="w-4 h-4" /> {data?.referralCode ? "Update Percentage" : "Generate Referral Code"}
-          </Button>
-
-          {loadingPartner ? (
-            <div className="h-20 bg-white/5 rounded-xl animate-pulse" />
-          ) : data?.referralCode ? (
-            <div className="rounded-2xl bg-black/40 border-2 border-dashed border-primary/40 p-4 text-center">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Your Code</p>
-              <p className="font-display text-3xl text-gradient-gold tracking-[0.3em] mb-3" data-testid="text-referral-code">{data.referralCode}</p>
-              <div className="flex gap-2">
-                <Button onClick={handleCopy} className="flex-1 h-10 bg-white/5 hover:bg-white/10 border border-white/10 text-white text-sm" data-testid="button-copy-code">
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? "Copied" : "Copy Code"}
-                </Button>
-                <Button onClick={handleShare} className="flex-1 h-10 font-bold text-sm" data-testid="button-share-referral">
-                  <Share2 className="w-4 h-4" /> Share Code & Website
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <p className="text-xs text-center text-muted-foreground py-2">Set a percentage and tap Generate to create your unique code.</p>
-          )}
-        </Card>
-
-        {/* Referral History */}
-        <Card className="p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Users className="w-5 h-5 text-primary" />
-            <h2 className="font-display text-lg text-white tracking-wide">Referral Earnings</h2>
-            {data?.history && (
-              <span className="ml-2 text-xs text-muted-foreground bg-white/5 px-2 py-1 rounded-full border border-white/10">
-                {data.history.length} member{data.history.length !== 1 ? "s" : ""}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => setLocation("/partner/referrals")}
-              data-testid="button-open-referrals"
-              className="ml-auto inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider px-3 py-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 text-amber-300 hover-elevate active-elevate-2"
-            >
-              <Maximize2 className="w-3.5 h-3.5" /> Open
-            </button>
-          </div>
-
-          {loadingPartner ? (
-            <div className="space-y-2">
-              {[1, 2].map(i => <div key={i} className="h-14 bg-white/5 rounded-xl animate-pulse" />)}
-            </div>
-          ) : !data?.history || data.history.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm">
-              <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
-              <p>No one has used your referral code yet.</p>
-              <p className="text-xs mt-1">Share your code to start earning!</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {data.history.map(h => (
-                <div key={h.id} className="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10" data-testid={`history-${h.id}`}>
-                  <div className="w-9 h-9 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
-                    <Users className="w-4 h-4 text-primary" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-white truncate" data-testid={`history-name-${h.id}`}>{h.usedByName}</p>
-                    <p className="text-[10px] text-muted-foreground">{new Date(h.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-                  </div>
-                  <p className="font-bold text-emerald-400 text-sm flex items-center" data-testid={`history-amount-${h.id}`}>
-                    <IndianRupee className="w-3 h-3" />{Number(h.amountCredited).toFixed(2)}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        {/* Menu Cards */}
+        <div className="space-y-3">
+          <MenuCard
+            href="/partner/wallet-history"
+            icon={<History className="w-5 h-5" />}
+            iconBg="bg-amber-500/15 text-amber-400 border-amber-500/30"
+            title="Wallet Transaction History"
+            description="View all withdrawals & wallet purchases"
+            testId="menu-wallet-history"
+            onNavigate={setLocation}
+          />
+          <MenuCard
+            href="/partner/bank"
+            icon={<Building2 className="w-5 h-5" />}
+            iconBg="bg-blue-500/15 text-blue-400 border-blue-500/30"
+            title="Bank Details"
+            description="Manage account & UPI for withdrawals"
+            testId="menu-bank-details"
+            onNavigate={setLocation}
+          />
+          <MenuCard
+            href="/partner/code"
+            icon={<Sparkles className="w-5 h-5" />}
+            iconBg="bg-primary/15 text-primary border-primary/30"
+            title="Your Referral Code"
+            description="Generate or update your earning %"
+            testId="menu-referral-code"
+            onNavigate={setLocation}
+          />
+          <MenuCard
+            href="/partner/referrals"
+            icon={<Users className="w-5 h-5" />}
+            iconBg="bg-emerald-500/15 text-emerald-400 border-emerald-500/30"
+            title="Referral Earnings"
+            description="See members & rupees earned"
+            testId="menu-referral-earnings"
+            onNavigate={setLocation}
+          />
+        </div>
       </div>
 
       {/* Withdraw Modal */}
@@ -951,6 +758,26 @@ export default function PartnerPage() {
         </ActionModal>
       )}
     </Layout>
+  );
+}
+
+function MenuCard({ href, icon, iconBg, title, description, testId, onNavigate }: { href: string; icon: React.ReactNode; iconBg: string; title: string; description: string; testId: string; onNavigate: (path: string) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onNavigate(href)}
+      data-testid={testId}
+      className="w-full text-left rounded-2xl border border-white/10 bg-white/[0.04] hover-elevate active-elevate-2 p-4 flex items-center gap-4 transition-colors"
+    >
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border ${iconBg}`}>
+        {icon}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="font-bold text-white text-sm tracking-wide">{title}</p>
+        <p className="text-xs text-muted-foreground mt-0.5 truncate">{description}</p>
+      </div>
+      <ChevronRight className="w-5 h-5 text-muted-foreground shrink-0" />
+    </button>
   );
 }
 

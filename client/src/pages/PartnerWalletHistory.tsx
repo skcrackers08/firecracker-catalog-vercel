@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Download, History, IndianRupee, Search } from "lucide-react";
+import { ArrowLeft, History, IndianRupee, Search } from "lucide-react";
 
 type WalletTx = {
   id: number;
@@ -68,41 +68,14 @@ export default function PartnerWalletHistory() {
     return { withdrawn, purchased };
   }, [filtered]);
 
-  const downloadCsv = () => {
-    const header = ["Invoice #", "Type", "Amount (INR)", "Status", "Reference / Remarks", "Date"];
-    const rows = filtered.map((t) => [
-      t.invoiceNumber || `#${t.id}`,
-      t.type,
-      Number(t.amount).toFixed(2),
-      t.status,
-      (t.transactionRef || "").replace(/[\n,]/g, " "),
-      new Date(t.createdAt).toLocaleString("en-IN"),
-    ]);
-    const csv = [header, ...rows]
-      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(","))
-      .join("\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `wallet-history-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
   return (
     <Layout>
       <div className="container mx-auto px-4 py-6 space-y-4 max-w-6xl">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <Link href="/partner">
-            <Button variant="outline" className="gap-2 border-white/10" data-testid="button-back">
-              <ArrowLeft className="w-4 h-4" /> Back to Partner
-            </Button>
-          </Link>
-          <Button onClick={downloadCsv} disabled={!filtered.length} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold" data-testid="button-download-csv">
-            <Download className="w-4 h-4" /> Download CSV
+        <Link href="/partner">
+          <Button variant="outline" className="gap-2 border-white/10" data-testid="button-back">
+            <ArrowLeft className="w-4 h-4" /> Back to Partner
           </Button>
-        </div>
+        </Link>
 
         <Card className="p-5 bg-black/40 border-white/10">
           <div className="flex items-center gap-2 mb-4">

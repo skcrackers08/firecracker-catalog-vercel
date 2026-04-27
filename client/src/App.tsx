@@ -15,6 +15,7 @@ import AdminProTransportBill from "@/pages/AdminProTransportBill";
 import PartnerWalletHistory from "@/pages/PartnerWalletHistory";
 import PartnerReferrals from "@/pages/PartnerReferrals";
 import PartnerBank from "@/pages/PartnerBank";
+import PartnerReferralCode from "@/pages/PartnerReferralCode";
 import ProductDetails from "@/pages/ProductDetails";
 import ProductGroups from "@/pages/ProductGroups";
 import GroupProducts from "@/pages/GroupProducts";
@@ -47,6 +48,7 @@ function Router() {
       <Route path="/partner/wallet-history" component={PartnerWalletHistory} />
       <Route path="/partner/referrals" component={PartnerReferrals} />
       <Route path="/partner/bank" component={PartnerBank} />
+      <Route path="/partner/code" component={PartnerReferralCode} />
       <Route component={NotFound} />
     </Switch>
   );

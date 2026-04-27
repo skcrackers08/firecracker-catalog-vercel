@@ -1,22 +1,27 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Building2, Copy, Edit2, Printer } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, Building2, Copy, Edit2, Printer, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 
-type PartnerData = {
-  bank: {
-    accountHolder: string;
-    bankName: string;
-    accountNumber: string;
-    ifsc: string;
-    upi: string;
-  };
+type Bank = {
+  accountHolder: string;
+  bankName: string;
+  accountNumber: string;
+  ifsc: string;
+  upi: string;
 };
+
+type PartnerData = { bank: Bank };
+
+const EMPTY_BANK: Bank = { accountHolder: "", bankName: "", accountNumber: "", ifsc: "", upi: "" };
 
 function Row({ label, value, copyable, testId }: { label: string; value: string; copyable?: boolean; testId: string }) {
   const { toast } = useToast();
@@ -39,9 +44,25 @@ function Row({ label, value, copyable, testId }: { label: string; value: string;
   );
 }
 
+function Field({ label, value, onChange, testId, placeholder, transform }: { label: string; value: string; onChange: (v: string) => void; testId: string; placeholder?: string; transform?: (v: string) => string }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</Label>
+      <Input
+        data-testid={testId}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(transform ? transform(e.target.value) : e.target.value)}
+        className="h-10 bg-white/5 border-white/10 text-white"
+      />
+    </div>
+  );
+}
+
 export default function PartnerBank() {
   const { customer, isLoading: authLoading } = useCustomerAuth();
   const [, setLocation] = useLocation();
+  const { toast } = useToast();
   useEffect(() => {
     if (!authLoading && !customer) setLocation("/login");
   }, [authLoading, customer, setLocation]);
@@ -49,6 +70,23 @@ export default function PartnerBank() {
   const { data, isLoading, isError, error } = useQuery<PartnerData>({
     queryKey: ["/api/customers/me/partner"],
     enabled: !!customer,
+  });
+
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Bank>(EMPTY_BANK);
+
+  useEffect(() => {
+    if (data?.bank) setDraft(data.bank);
+  }, [data]);
+
+  const save = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/customers/me/bank", draft),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/customers/me/partner"] });
+      toast({ title: "Bank details saved" });
+      setEditing(false);
+    },
+    onError: (e: any) => toast({ title: "Save failed", description: e?.message, variant: "destructive" }),
   });
 
   const b = data?.bank;
@@ -64,14 +102,35 @@ export default function PartnerBank() {
             </Button>
           </Link>
           <div className="flex gap-2">
-            <Button onClick={printPage} variant="outline" className="gap-2 border-white/10" data-testid="button-print">
-              <Printer className="w-4 h-4" /> Print
-            </Button>
-            <Link href="/partner">
-              <Button className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold" data-testid="button-edit">
-                <Edit2 className="w-4 h-4" /> Edit on Partner
+            {!editing && (
+              <Button onClick={printPage} variant="outline" className="gap-2 border-white/10" data-testid="button-print">
+                <Printer className="w-4 h-4" /> Print
               </Button>
-            </Link>
+            )}
+            {editing ? (
+              <>
+                <Button
+                  onClick={() => { setEditing(false); if (data?.bank) setDraft(data.bank); }}
+                  variant="outline"
+                  className="gap-2 border-white/10"
+                  data-testid="button-cancel-bank"
+                >
+                  <X className="w-4 h-4" /> Cancel
+                </Button>
+                <Button
+                  onClick={() => save.mutate()}
+                  isLoading={save.isPending}
+                  className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                  data-testid="button-save-bank"
+                >
+                  <Save className="w-4 h-4" /> Save
+                </Button>
+              </>
+            ) : (
+              <Button onClick={() => setEditing(true)} className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-bold" data-testid="button-edit-bank">
+                <Edit2 className="w-4 h-4" /> Edit
+              </Button>
+            )}
           </div>
         </div>
 
@@ -85,6 +144,14 @@ export default function PartnerBank() {
             <div className="space-y-3">{[1, 2, 3, 4, 5].map((i) => <div key={i} className="h-10 bg-white/5 rounded animate-pulse" />)}</div>
           ) : isError ? (
             <p className="text-sm text-red-400">{(error as Error)?.message || "Failed to load."}</p>
+          ) : editing ? (
+            <div className="space-y-4">
+              <Field label="Account Holder Name" value={draft.accountHolder} onChange={(v) => setDraft({ ...draft, accountHolder: v })} testId="input-bank-holder" />
+              <Field label="Bank Name" value={draft.bankName} onChange={(v) => setDraft({ ...draft, bankName: v })} testId="input-bank-name" />
+              <Field label="Account Number" value={draft.accountNumber} onChange={(v) => setDraft({ ...draft, accountNumber: v })} testId="input-bank-acct" transform={(v) => v.replace(/[^0-9]/g, "")} />
+              <Field label="IFSC Code" value={draft.ifsc} onChange={(v) => setDraft({ ...draft, ifsc: v })} testId="input-bank-ifsc" transform={(v) => v.toUpperCase()} />
+              <Field label="UPI ID (optional)" value={draft.upi} onChange={(v) => setDraft({ ...draft, upi: v })} testId="input-bank-upi" placeholder="example@upi" />
+            </div>
           ) : (
             <div>
               <Row label="Account Holder" value={b?.accountHolder || ""} testId="text-holder" />
@@ -94,7 +161,7 @@ export default function PartnerBank() {
               <Row label="UPI ID" value={b?.upi || ""} copyable testId="text-upi" />
 
               {b && !b.accountNumber && !b.upi && (
-                <p className="text-xs text-amber-400 mt-4">Add at least a bank account or UPI ID on the Partner page to enable withdrawals.</p>
+                <p className="text-xs text-amber-400 mt-4">Tap <span className="text-amber-300 font-bold">Edit</span> above to add at least a bank account or UPI ID and enable withdrawals.</p>
               )}
             </div>
           )}

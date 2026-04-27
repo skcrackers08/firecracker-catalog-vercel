@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { User, Package, ChevronRight, ShoppingBag, Camera, Loader2 } from "lucide-react";
+import { User, Package, ShoppingBag, Camera, Loader2, FileText, Clock } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button, Card } from "@/components/ui-custom";
@@ -44,6 +44,7 @@ interface Order {
   gstAmount: string;
   totalAmount: string;
   customerId: number | null;
+  orderStatus?: string | null;
 }
 
 export default function CustomerAccount() {
@@ -212,11 +213,15 @@ export default function CustomerAccount() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {[...orders].reverse().map(order => (
-                <Link key={order.id} href={`/bill/${order.id}`}>
+              {[...orders].reverse().map(order => {
+                const status = (order.orderStatus || "new").toLowerCase();
+                const isCancelled = status === "cancelled";
+                const isConfirmed = !isCancelled && status !== "new";
+                return (
                   <Card
+                    key={order.id}
                     data-testid={`order-card-${order.id}`}
-                    className="p-4 hover:border-primary/30 hover:bg-white/5 transition-all duration-200 cursor-pointer group"
+                    className="p-4 transition-all duration-200"
                   >
                     <div className="flex items-center gap-4">
                       {getProductImage(order.productId) && (
@@ -231,17 +236,60 @@ export default function CustomerAccount() {
                       <div className="flex-1 min-w-0">
                         <p className="font-bold text-white text-sm truncate">{getProductName(order.productId)}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">Qty: {order.quantity} · {formatPayment(order.paymentMethod)}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{order.customerAddress}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">{order.customerAddress}</p>
                       </div>
                       <div className="text-right shrink-0">
                         <p className="font-bold text-primary text-lg">₹{Number(order.totalAmount).toFixed(2)}</p>
                         <p className="text-xs text-muted-foreground">Order #{order.id}</p>
                       </div>
-                      <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-white transition-colors shrink-0" />
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between gap-2 flex-wrap">
+                      {isCancelled ? (
+                        <span
+                          data-testid={`badge-status-${order.id}`}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-red-500/30 bg-red-500/10 text-red-400"
+                        >
+                          Cancelled
+                        </span>
+                      ) : isConfirmed ? (
+                        <span
+                          data-testid={`badge-status-${order.id}`}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                        >
+                          <FileText className="w-3 h-3" /> {status.charAt(0).toUpperCase() + status.slice(1)}
+                        </span>
+                      ) : (
+                        <span
+                          data-testid={`badge-status-${order.id}`}
+                          className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded-full border border-amber-500/30 bg-amber-500/10 text-amber-400"
+                        >
+                          <Clock className="w-3 h-3" /> Awaiting Admin Confirmation
+                        </span>
+                      )}
+
+                      {isConfirmed && !isCancelled ? (
+                        <Link href={`/bill/${order.id}`}>
+                          <Button
+                            data-testid={`button-view-invoice-${order.id}`}
+                            className="h-9 px-4 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                          >
+                            <FileText className="w-3.5 h-3.5" /> View / Download Invoice
+                          </Button>
+                        </Link>
+                      ) : (
+                        <Button
+                          disabled
+                          data-testid={`button-view-invoice-${order.id}`}
+                          className="h-9 px-4 text-xs gap-1.5 bg-white/5 text-muted-foreground border border-white/10 cursor-not-allowed"
+                        >
+                          <FileText className="w-3.5 h-3.5" /> Invoice Locked
+                        </Button>
+                      )}
                     </div>
                   </Card>
-                </Link>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
