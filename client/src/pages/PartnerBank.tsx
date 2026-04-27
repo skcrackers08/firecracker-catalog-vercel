@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft, Building2, Copy, Edit2, Printer, Save, X } from "lucide-react";
+import { ArrowLeft, Building2, Copy, Edit2, Save, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useCustomerAuth } from "@/hooks/use-customer-auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -90,7 +90,6 @@ export default function PartnerBank() {
   });
 
   const b = data?.bank;
-  const printPage = () => window.print();
 
   return (
     <Layout>
@@ -102,11 +101,6 @@ export default function PartnerBank() {
             </Button>
           </Link>
           <div className="flex gap-2">
-            {!editing && (
-              <Button onClick={printPage} variant="outline" className="gap-2 border-white/10" data-testid="button-print">
-                <Printer className="w-4 h-4" /> Print
-              </Button>
-            )}
             {editing ? (
               <>
                 <Button
@@ -172,7 +166,6 @@ export default function PartnerBank() {
         </p>
       </div>
 
-      <style>{`@media print { .no-print { display: none !important; } body { background: white !important; } }`}</style>
     </Layout>
   );
 }

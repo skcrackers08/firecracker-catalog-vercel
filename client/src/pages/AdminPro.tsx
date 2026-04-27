@@ -17,8 +17,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, ShoppingBag, Package, Users, BarChart3, Truck, UserCog, LogOut,
-  TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer, MessageCircle,
-  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check, Mail,
+  TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer,
+  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check,
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, type Order, type Product, type Staff } from "@shared/schema";
@@ -276,35 +276,32 @@ const DEFAULT_TRANSPORT_REMARKS = "Transport/Delivery charges should be paid by 
 
 function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void }) {
   const { toast } = useToast();
-  const [orderStatus, setOrderStatus] = useState(order.orderStatus);
-  const [paymentStatus, setPaymentStatus] = useState(order.paymentStatus);
-  const [paidAmount, setPaidAmount] = useState(order.paidAmount);
-  const [remarks, setRemarks] = useState(order.remarks ?? "");
-  const [showTransport, setShowTransport] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
 
-  const m = useMutation({
-    mutationFn: async () => {
-      const r = await apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
-        orderStatus, paymentStatus, paidAmount, remarks,
-      });
+  const update = useMutation({
+    mutationFn: async (newStatus: "confirmed" | "cancelled") => {
+      const r = await apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, { orderStatus: newStatus });
       return r.json();
     },
-    onSuccess: (data: any) => {
+    onSuccess: (data: any, newStatus) => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] });
       queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/dashboard"] });
       const justConfirmed = !!data?._justConfirmed;
-      toast({
-        title: justConfirmed ? "Order confirmed" : "Order updated",
-        description: justConfirmed
-          ? `Invoice email ${order.customerEmail ? "sent to " + order.customerEmail : "skipped (no email on file)"}. Opening WhatsApp…`
-          : undefined,
-      });
-      // Auto-open WhatsApp with confirmation + invoice link when newly confirmed.
-      if (justConfirmed) {
+      if (newStatus === "cancelled") {
+        toast({ title: "Order cancelled", description: `Order #${order.id} marked as cancelled.` });
+      } else {
+        toast({
+          title: "Order approved",
+          description: order.customerEmail
+            ? (justConfirmed
+                ? `Invoice emailed to ${order.customerEmail}. Opening WhatsApp…`
+                : `Customer can now view & download the invoice in My Requests.`)
+            : `Customer can now view & download the invoice in My Requests. Opening WhatsApp…`,
+        });
         try {
           const phone = order.customerPhone.replace(/\D/g, "");
           const formatted = phone.length === 10 ? "91" + phone : phone;
-          const msg = `Hi ${order.customerName}, your S K Crackers order #SK-${String(order.id).padStart(4, "0")} has been CONFIRMED. Total: ${fmtINR(order.totalAmount)}. Your invoice has been sent to your email. Thank you!`;
+          const msg = `Hi ${order.customerName}, your S K Crackers order #SK-${String(order.id).padStart(4, "0")} has been CONFIRMED. Total: ${fmtINR(order.totalAmount)}. You can view and download your invoice from "My Requests" in our app. Thank you!`;
           openWhatsApp(formatted, msg);
         } catch {}
       }
@@ -313,110 +310,125 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
     onError: (e: any) => toast({ title: "Update failed", description: e?.message, variant: "destructive" }),
   });
 
-  const emailInvoice = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/admin-pro/orders/${order.id}/email-invoice`),
-    onSuccess: () => toast({ title: "Invoice email sent", description: order.customerEmail || "" }),
-    onError: (e: any) => toast({ title: "Email failed", description: e?.message || "Customer email or SMTP not configured", variant: "destructive" }),
-  });
-
   let cartItems: any[] = [];
   try { cartItems = order.cartItems ? JSON.parse(order.cartItems) : []; } catch {}
 
+  const subtotalNum = Number(order.subtotal) || 0;
+  const handlingNum = Number(order.gstAmount) || 0;
+  const totalNum = Number(order.totalAmount) || 0;
+  const handlingPct = subtotalNum > 0 ? Math.round((handlingNum / subtotalNum) * 100) : 0;
+  // Proportionally include handling per line. When subtotal is 0/missing, fall back to
+  // distributing the total evenly across line raw amounts (safe: no divergence vs footer).
+  const linesRawSum = cartItems.reduce(
+    (sum, it) => sum + (Number(it.price) || 0) * (Number(it.quantity) || 0),
+    0,
+  );
+  const inclusiveRatio = subtotalNum > 0
+    ? totalNum / subtotalNum
+    : (linesRawSum > 0 ? totalNum / linesRawSum : 1);
+
   const printInvoice = () => window.open(`/admin-pro/invoice/${order.id}`, "_blank");
-  const sendWhatsApp = () => {
-    const phone = order.customerPhone.replace(/\D/g, "");
-    const formatted = phone.length === 10 ? "91" + phone : phone;
-    const msg = `Hi ${order.customerName}, your S K Crackers order #${order.id} status: ${orderStatus.toUpperCase()}. Total: ${fmtINR(order.totalAmount)}, Paid: ${fmtINR(paidAmount)}. Thank you!`;
-    openWhatsApp(formatted, msg);
-  };
+  const status = order.orderStatus;
+  const isCancelled = status === "cancelled";
+  const isConfirmed = status !== "new" && !isCancelled;
 
   return (
-    <>
-      <Dialog open onOpenChange={onClose}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Order #{order.id} — {order.customerName}</DialogTitle>
-          </DialogHeader>
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Customer</h3>
-              <div className="text-sm space-y-1 bg-muted p-3 rounded">
-                <div><b>Name:</b> {order.customerName}</div>
-                <div><b>Phone:</b> {order.customerPhone}</div>
-                {order.customerEmail && <div><b>Email:</b> {order.customerEmail}</div>}
-                <div><b>Address:</b> {order.customerAddress}</div>
-                <div><b>Payment Method:</b> {order.paymentMethod}</div>
-                <div><b>Date:</b> {fmtDate(order.createdAt)}</div>
-              </div>
+    <Dialog open onOpenChange={onClose}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 flex-wrap">
+            <span>Order #{order.id} — {order.customerName}</span>
+            <Badge className={`${statusColor(status)} text-white`} data-testid="badge-order-status">{status}</Badge>
+          </DialogTitle>
+        </DialogHeader>
 
-              <h3 className="font-semibold text-sm">Items</h3>
-              <div className="border rounded text-sm max-h-48 overflow-y-auto">
-                {cartItems.length > 0 ? cartItems.map((it, i) => (
-                  <div key={i} className="flex justify-between p-2 border-b last:border-0">
-                    <span>{it.name ?? `#${it.id}`} × {it.quantity}</span>
-                    <span>{fmtINR((it.price ?? 0) * (it.quantity ?? 0))}</span>
-                  </div>
-                )) : <div className="p-2">Product #{order.productId} × {order.quantity}</div>}
-                <div className="p-2 bg-muted font-semibold flex justify-between"><span>Total</span><span>{fmtINR(order.totalAmount)}</span></div>
-              </div>
+        <div className="space-y-4">
+          <div>
+            <h3 className="font-semibold text-sm mb-2">Customer</h3>
+            <div className="text-sm space-y-1 bg-muted p-3 rounded">
+              <div><b>Name:</b> {order.customerName}</div>
+              <div><b>Phone:</b> {order.customerPhone}</div>
+              {order.customerEmail && <div><b>Email:</b> {order.customerEmail}</div>}
+              <div><b>Address:</b> {order.customerAddress}</div>
+              <div><b>Payment Method:</b> {order.paymentMethod}</div>
+              <div><b>Date:</b> {fmtDate(order.createdAt)}</div>
             </div>
+          </div>
 
-            <div className="space-y-3">
-              <h3 className="font-semibold text-sm">Status & Payment</h3>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <Label>Order Status</Label>
-                  <Select value={orderStatus} onValueChange={(v) => setOrderStatus(v as any)}>
-                    <SelectTrigger data-testid="select-edit-order-status"><SelectValue /></SelectTrigger>
-                    <SelectContent>{ORDER_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label>Payment Status</Label>
-                  <Select value={paymentStatus} onValueChange={(v) => setPaymentStatus(v as any)}>
-                    <SelectTrigger data-testid="select-edit-payment-status"><SelectValue /></SelectTrigger>
-                    <SelectContent>{PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                  </Select>
-                </div>
+          <div>
+            <h3 className="font-semibold text-sm mb-2">Items <span className="text-xs text-muted-foreground font-normal">(prices include {handlingPct}% handling)</span></h3>
+            <div className="border rounded text-sm overflow-hidden">
+              <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-muted/60 font-semibold text-xs uppercase tracking-wider">
+                <span className="col-span-7">Item</span>
+                <span className="col-span-2 text-center">Qty</span>
+                <span className="col-span-3 text-right">Price (incl.)</span>
               </div>
-              <div>
-                <Label>Paid Amount</Label>
-                <Input data-testid="input-paid-amount" type="number" step="0.01" value={paidAmount} onChange={(e) => setPaidAmount(e.target.value)} />
-              </div>
-              <div>
-                <Label>Remarks</Label>
-                <Textarea data-testid="input-remarks" rows={2} value={remarks} onChange={(e) => setRemarks(e.target.value)} />
-              </div>
-
-              <div className="rounded-lg border border-dashed p-3 space-y-2 bg-muted/40">
-                <h3 className="font-semibold text-sm flex items-center gap-2"><Truck className="w-4 h-4" /> Transport / Dispatch</h3>
-                <p className="text-xs text-muted-foreground">Manage transport details &amp; generate the transport bill PDF.</p>
-                {(order.lrNumber || order.lorryName) && (
-                  <p className="text-xs"><b>Current:</b> {order.lrNumber || "-"} {order.lorryName ? `· ${order.lorryName}` : ""}</p>
+              <div className="max-h-56 overflow-y-auto">
+                {cartItems.length > 0 ? cartItems.map((it, i) => {
+                  const lineRaw = (Number(it.price) || 0) * (Number(it.quantity) || 0);
+                  const lineIncl = lineRaw * inclusiveRatio;
+                  return (
+                    <div key={i} className="grid grid-cols-12 gap-2 px-3 py-2 border-t text-sm" data-testid={`row-item-${i}`}>
+                      <span className="col-span-7 truncate">{it.name ?? `#${it.id}`}</span>
+                      <span className="col-span-2 text-center">{it.quantity}</span>
+                      <span className="col-span-3 text-right font-mono">{fmtINR(lineIncl)}</span>
+                    </div>
+                  );
+                }) : (
+                  <div className="grid grid-cols-12 gap-2 px-3 py-2 border-t text-sm">
+                    <span className="col-span-7 truncate">Product #{order.productId}</span>
+                    <span className="col-span-2 text-center">{order.quantity}</span>
+                    <span className="col-span-3 text-right font-mono">{fmtINR(totalNum)}</span>
+                  </div>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowTransport(true)} data-testid="button-open-transport">
-                  Open Transport / Dispatch
-                </Button>
+              </div>
+              <div className="border-t bg-muted/40 text-sm">
+                <div className="flex justify-between px-3 py-1.5"><span>Subtotal</span><span className="font-mono">{fmtINR(subtotalNum)}</span></div>
+                <div className="flex justify-between px-3 py-1.5"><span>Handling Charges ({handlingPct}%)</span><span className="font-mono">{fmtINR(handlingNum)}</span></div>
+                <div className="flex justify-between px-3 py-2 border-t bg-muted font-bold"><span>Total</span><span className="font-mono" data-testid="text-total-incl">{fmtINR(totalNum)}</span></div>
               </div>
             </div>
           </div>
-          <DialogFooter className="flex-wrap gap-2">
-            <Button variant="outline" onClick={printInvoice} data-testid="button-print-invoice"><Printer className="w-4 h-4 mr-1" /> Print Invoice</Button>
-            {order.customerEmail && (
-              <Button variant="outline" onClick={() => emailInvoice.mutate()} disabled={emailInvoice.isPending} data-testid="button-email-invoice">
-                <Mail className="w-4 h-4 mr-1" /> {emailInvoice.isPending ? "Sending…" : "Email Invoice"}
-              </Button>
-            )}
-            <Button variant="outline" onClick={sendWhatsApp} data-testid="button-whatsapp"><MessageCircle className="w-4 h-4 mr-1" /> Send WhatsApp</Button>
-            <Button onClick={() => m.mutate()} disabled={m.isPending} data-testid="button-save-order">{m.isPending ? "Saving…" : "Save Changes"}</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
 
-      {showTransport && (
-        <TransportDispatchDialog order={order} onClose={() => setShowTransport(false)} />
-      )}
-    </>
+        <DialogFooter className="flex-wrap gap-2">
+          <Button variant="outline" onClick={printInvoice} data-testid="button-print-invoice">
+            <Printer className="w-4 h-4 mr-1" /> Print Invoice
+          </Button>
+          <Button
+            onClick={() => update.mutate("confirmed")}
+            disabled={update.isPending || isConfirmed || isCancelled}
+            className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            data-testid="button-approve-order"
+          >
+            {update.isPending ? "Working…" : isConfirmed ? "Already Approved" : "Order Approve"}
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => setConfirmCancel(true)}
+            disabled={update.isPending || isCancelled}
+            data-testid="button-cancel-order"
+          >
+            {isCancelled ? "Already Cancelled" : "Cancel Order"}
+          </Button>
+        </DialogFooter>
+
+        {confirmCancel && (
+          <Dialog open onOpenChange={() => setConfirmCancel(false)}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Cancel this order?</DialogTitle>
+              </DialogHeader>
+              <p className="text-sm text-muted-foreground">Order #{order.id} for {order.customerName} will be marked as cancelled. The customer will not see an invoice.</p>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => setConfirmCancel(false)} data-testid="button-cancel-no">Keep Order</Button>
+                <Button variant="destructive" onClick={() => { setConfirmCancel(false); update.mutate("cancelled"); }} data-testid="button-cancel-yes">Yes, Cancel</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -820,7 +832,7 @@ function TransportModule() {
           </Table>
         </CardContent>
       </Card>
-      {editing && <OrderEditDialog order={editing} onClose={() => setEditing(null)} />}
+      {editing && <TransportDispatchDialog order={editing} onClose={() => setEditing(null)} />}
     </div>
   );
 }
