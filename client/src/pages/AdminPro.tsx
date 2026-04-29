@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useQuery, useMutation, useIsFetching } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { openWhatsApp } from "@/lib/whatsapp";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -17,13 +18,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import {
   LayoutDashboard, ShoppingBag, Package, Users, BarChart3, Truck, UserCog, LogOut,
-  TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer,
-  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check,
+  TrendingUp, AlertTriangle, IndianRupee, Receipt, Plus, Minus, Printer, Upload,
+  Search, RefreshCcw, Wallet, Megaphone, BadgeCheck, X as XIcon, Edit2, Trash2, Check, Shield,
 } from "lucide-react";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell, Legend } from "recharts";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, type Order, type Product, type Staff } from "@shared/schema";
 
-type StaffMe = { id: number; username: string; fullName: string; role: string; active: boolean };
+type StaffMe = { id: number; username: string; fullName: string; role: string; active: boolean; permissions?: string[] };
 
 function fmtINR(n: number | string) {
   const v = Number(n || 0);
@@ -184,6 +185,39 @@ function Dashboard() {
 }
 
 // ============ ORDERS ============
+function OrdersRefreshButton() {
+  const { toast } = useToast();
+  const fetching = useIsFetching({ queryKey: ["/api/admin-pro/orders"] });
+  const [spinning, setSpinning] = useState(false);
+  const handleRefresh = async () => {
+    setSpinning(true);
+    try {
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/admin-pro/orders"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/admin-pro/dashboard"] }),
+      ]);
+      toast({ title: "Refreshed", description: "Orders list updated." });
+    } catch (e: any) {
+      toast({ title: "Refresh failed", description: e?.message ?? "Try again", variant: "destructive" });
+    } finally {
+      setSpinning(false);
+    }
+  };
+  const isBusy = spinning || fetching > 0;
+  return (
+    <Button
+      variant="outline"
+      size="icon"
+      onClick={handleRefresh}
+      disabled={isBusy}
+      data-testid="button-refresh-orders"
+      title="Refresh orders"
+    >
+      <RefreshCcw className={`w-4 h-4 ${isBusy ? "animate-spin" : ""}`} />
+    </Button>
+  );
+}
+
 function OrdersModule() {
   const [statusF, setStatusF] = useState<string>("all");
   const [paymentF, setPaymentF] = useState<string>("all");
@@ -218,9 +252,7 @@ function OrdersModule() {
             {PAYMENT_STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
-        <Button variant="outline" size="icon" onClick={() => queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] })}>
-          <RefreshCcw className="w-4 h-4" />
-        </Button>
+        <OrdersRefreshButton />
       </div>
 
       <Card>
@@ -432,16 +464,21 @@ function OrderEditDialog({ order, onClose }: { order: Order; onClose: () => void
   );
 }
 
+function transportStatusOf(o: Order): "pending" | "confirmed" {
+  return o.lorryName && o.lrNumber ? "confirmed" : "pending";
+}
+
 function TransportDispatchDialog({ order, onClose }: { order: Order; onClose: () => void }) {
   const { toast } = useToast();
   const [lorryName, setLorryName] = useState(order.lorryName ?? "");
   const [lrNumber, setLrNumber] = useState(order.lrNumber ?? "");
   const [transportContact, setTransportContact] = useState(order.transportContact ?? "");
   const [dispatchDate, setDispatchDate] = useState(order.dispatchDate ?? new Date().toISOString().slice(0, 10));
-  // Auto-fill destination from customer address if not yet set
   const [destination, setDestination] = useState(order.destination || order.customerAddress || "");
-  // Auto-fill remarks with the default policy text if not yet set
   const [transportRemarks, setTransportRemarks] = useState(order.transportRemarks || DEFAULT_TRANSPORT_REMARKS);
+  const [billFile, setBillFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const hasBill = !!((order as any).hasTransportBill ?? (order as any).transportBillUrl);
 
   const save = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/admin-pro/orders/${order.id}`, {
@@ -452,6 +489,46 @@ function TransportDispatchDialog({ order, onClose }: { order: Order; onClose: ()
       toast({ title: "Transport details saved" });
     },
     onError: (e: any) => toast({ title: "Save failed", description: e?.message, variant: "destructive" }),
+  });
+
+  const upload = useMutation({
+    mutationFn: async () => {
+      if (!billFile) throw new Error("Choose a PDF first");
+      if (billFile.type !== "application/pdf") throw new Error("Only PDF files are allowed");
+      if (billFile.size > 5 * 1024 * 1024) throw new Error("File too large (max 5 MB)");
+      const pdfBase64: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const result = reader.result as string;
+          resolve(result.split(",")[1] || "");
+        };
+        reader.onerror = () => reject(new Error("Failed to read file"));
+        reader.readAsDataURL(billFile);
+      });
+      const r = await apiRequest("POST", `/api/admin-pro/orders/${order.id}/transport-bill`, {
+        pdfBase64, filename: billFile.name,
+      });
+      return r.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/orders"] });
+      toast({
+        title: "Transport bill sent",
+        description: order.customerEmail
+          ? `PDF emailed to ${order.customerEmail} and shared in My Requests. Opening WhatsApp…`
+          : `PDF shared in My Requests. Opening WhatsApp…`,
+      });
+      try {
+        const phone = order.customerPhone.replace(/\D/g, "");
+        const formatted = phone.length === 10 ? "91" + phone : phone;
+        const link = `${window.location.origin}/transport-bill/${order.id}`;
+        const msg = `Hi ${order.customerName}, your S K Crackers order #SK-${String(order.id).padStart(4, "0")} has been dispatched. Transport bill: ${link} (also available in "My Requests" in our app). Thank you!`;
+        openWhatsApp(formatted, msg);
+      } catch {}
+      setBillFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    },
+    onError: (e: any) => toast({ title: "Upload failed", description: e?.message, variant: "destructive" }),
   });
 
   const generatePdf = async () => {
@@ -479,6 +556,34 @@ function TransportDispatchDialog({ order, onClose }: { order: Order; onClose: ()
           <div>
             <Label>Remarks <span className="text-xs text-muted-foreground">(default policy auto-filled)</span></Label>
             <Textarea data-testid="input-transport-remarks" rows={3} value={transportRemarks} onChange={(e) => setTransportRemarks(e.target.value)} />
+          </div>
+
+          <div className="border rounded-md p-3 bg-amber-50 dark:bg-zinc-900 space-y-2">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <Label className="text-sm font-semibold">Transport Bill PDF</Label>
+              {hasBill ? <Badge className="bg-green-600 text-white">Already sent</Badge>
+                       : <Badge variant="outline">Not uploaded</Badge>}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Upload the transport bill PDF. It will be saved to the customer's "My Requests", emailed to {order.customerEmail || "the customer"}, and a WhatsApp message will open with the link.
+            </p>
+            <Input
+              ref={fileInputRef}
+              type="file"
+              accept="application/pdf"
+              onChange={(e) => setBillFile(e.target.files?.[0] || null)}
+              data-testid="input-transport-bill-file"
+            />
+            <Button
+              type="button"
+              onClick={() => upload.mutate()}
+              disabled={!billFile || upload.isPending}
+              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+              data-testid="button-upload-transport-bill"
+            >
+              <Upload className="w-4 h-4 mr-1" />
+              {upload.isPending ? "Uploading & sending…" : hasBill ? "Replace & Re-send Transport Bill" : "Upload & Send Transport Bill"}
+            </Button>
           </div>
         </div>
         <DialogFooter className="flex-wrap gap-2">
@@ -812,22 +917,38 @@ function TransportModule() {
             <TableHeader><TableRow>
               <TableHead>Order</TableHead><TableHead>Customer</TableHead><TableHead>Destination</TableHead>
               <TableHead>Lorry</TableHead><TableHead>LR No</TableHead><TableHead>Dispatch Date</TableHead>
-              <TableHead>Status</TableHead><TableHead></TableHead>
+              <TableHead>Status</TableHead><TableHead>Bill</TableHead><TableHead></TableHead>
             </TableRow></TableHeader>
             <TableBody>
-              {dispatchOrders.length === 0 && <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">No orders to dispatch</TableCell></TableRow>}
-              {dispatchOrders.map((o) => (
-                <TableRow key={o.id} data-testid={`row-transport-${o.id}`}>
-                  <TableCell>#{o.id}</TableCell>
-                  <TableCell>{o.customerName}</TableCell>
-                  <TableCell>{o.destination ?? "—"}</TableCell>
-                  <TableCell>{o.lorryName ?? "—"}</TableCell>
-                  <TableCell>{o.lrNumber ?? "—"}</TableCell>
-                  <TableCell>{o.dispatchDate ?? "—"}</TableCell>
-                  <TableCell><Badge className={`${statusColor(o.orderStatus)} text-white`}>{o.orderStatus}</Badge></TableCell>
-                  <TableCell><Button data-testid={`button-transport-${o.id}`} size="sm" variant="outline" onClick={() => setEditing(o)}>Update</Button></TableCell>
-                </TableRow>
-              ))}
+              {dispatchOrders.length === 0 && <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">No orders to dispatch</TableCell></TableRow>}
+              {dispatchOrders.map((o) => {
+                const tStatus = transportStatusOf(o);
+                const billUploaded = !!((o as any).hasTransportBill ?? (o as any).transportBillUrl);
+                return (
+                  <TableRow key={o.id} data-testid={`row-transport-${o.id}`}>
+                    <TableCell>#{o.id}</TableCell>
+                    <TableCell>{o.customerName}</TableCell>
+                    <TableCell>{o.destination ?? "—"}</TableCell>
+                    <TableCell>{o.lorryName ?? "—"}</TableCell>
+                    <TableCell>{o.lrNumber ?? "—"}</TableCell>
+                    <TableCell>{o.dispatchDate ?? "—"}</TableCell>
+                    <TableCell>
+                      <Badge
+                        className={`${tStatus === "confirmed" ? "bg-green-600" : "bg-amber-500"} text-white`}
+                        data-testid={`badge-transport-status-${o.id}`}
+                      >
+                        {tStatus}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {billUploaded
+                        ? <Badge className="bg-blue-600 text-white">Sent</Badge>
+                        : <Badge variant="outline">—</Badge>}
+                    </TableCell>
+                    <TableCell><Button data-testid={`button-transport-${o.id}`} size="sm" variant="outline" onClick={() => setEditing(o)}>Update</Button></TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -855,7 +976,7 @@ function StaffModule({ me }: { me: StaffMe }) {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Username</TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Active</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead>Username</TableHead><TableHead>Name</TableHead><TableHead>Role</TableHead><TableHead>Active</TableHead><TableHead>Access</TableHead><TableHead>Actions</TableHead></TableRow></TableHeader>
             <TableBody>
               {staffList.map((s) => <StaffRow key={s.id} s={s} me={me} />)}
             </TableBody>
@@ -867,10 +988,23 @@ function StaffModule({ me }: { me: StaffMe }) {
   );
 }
 
+function parsePerms(raw: any): string[] {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === "string") {
+    try { const v = JSON.parse(raw); return Array.isArray(v) ? v : []; } catch { return []; }
+  }
+  return [];
+}
+
 function StaffRow({ s, me }: { s: Staff; me: StaffMe }) {
   const { toast } = useToast();
   const [pwd, setPwd] = useState("");
   const [resetOpen, setResetOpen] = useState(false);
+  const [permsOpen, setPermsOpen] = useState(false);
+  const initialPerms = parsePerms((s as any).permissions);
+  const [perms, setPerms] = useState<string[]>(initialPerms);
+  useEffect(() => { setPerms(parsePerms((s as any).permissions)); }, [(s as any).permissions]);
+
   const toggle = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/admin-pro/staff/${s.id}`, { active: !s.active }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/staff"] }); toast({ title: "Updated" }); },
@@ -880,19 +1014,74 @@ function StaffRow({ s, me }: { s: Staff; me: StaffMe }) {
     onSuccess: () => { setPwd(""); setResetOpen(false); toast({ title: "Password reset" }); },
     onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
   });
+  const savePerms = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/admin-pro/staff/${s.id}`, { permissions: perms }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/staff"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/me"] });
+      toast({ title: "Permissions saved", description: `${perms.length} menu(s) enabled for ${s.username}.` });
+      setPermsOpen(false);
+    },
+    onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
+  });
   const del = useMutation({
     mutationFn: () => apiRequest("DELETE", `/api/admin-pro/staff/${s.id}`),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/staff"] }); toast({ title: "Deleted" }); },
     onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
   });
+
+  const togglePerm = (id: string) =>
+    setPerms((cur) => cur.includes(id) ? cur.filter((p) => p !== id) : [...cur, id]);
+
   return (
     <TableRow data-testid={`row-staff-${s.id}`}>
       <TableCell className="font-mono">{s.username}</TableCell>
       <TableCell>{s.fullName}</TableCell>
       <TableCell><Badge>{s.role}</Badge></TableCell>
       <TableCell>{s.active ? <Badge className="bg-green-600">Yes</Badge> : <Badge variant="outline">No</Badge>}</TableCell>
+      <TableCell>
+        {s.role === "superadmin"
+          ? <Badge className="bg-purple-600 text-white">All</Badge>
+          : <Badge variant="outline">{initialPerms.length} menu(s)</Badge>}
+      </TableCell>
       <TableCell className="flex gap-2 flex-wrap">
         <Button size="sm" variant="outline" onClick={() => toggle.mutate()} data-testid={`button-toggle-staff-${s.id}`}>{s.active ? "Disable" : "Enable"}</Button>
+        {s.role !== "superadmin" && (
+          <Dialog open={permsOpen} onOpenChange={setPermsOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" variant="outline" data-testid={`button-perms-${s.id}`}>
+                <Shield className="w-3 h-3 mr-1" /> Menu Access
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Menu access — {s.username}</DialogTitle>
+              </DialogHeader>
+              <p className="text-xs text-muted-foreground">
+                Select which menu options this {s.role} can see. Dashboard is always available.
+              </p>
+              <div className="grid grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto">
+                {PERMISSION_OPTIONS.map((opt) => (
+                  <label key={opt.id} className="flex items-center gap-2 p-2 rounded border hover:bg-muted cursor-pointer">
+                    <Checkbox
+                      checked={perms.includes(opt.id)}
+                      onCheckedChange={() => togglePerm(opt.id)}
+                      data-testid={`checkbox-perm-${s.id}-${opt.id}`}
+                    />
+                    <opt.icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+              <DialogFooter className="gap-2">
+                <Button variant="outline" onClick={() => { setPerms(initialPerms); setPermsOpen(false); }}>Cancel</Button>
+                <Button onClick={() => savePerms.mutate()} disabled={savePerms.isPending} data-testid={`button-save-perms-${s.id}`}>
+                  {savePerms.isPending ? "Saving…" : "Save Permissions"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
         <Dialog open={resetOpen} onOpenChange={setResetOpen}>
           <DialogTrigger asChild><Button size="sm" variant="outline" data-testid={`button-reset-pwd-${s.id}`}>Reset Pwd</Button></DialogTrigger>
           <DialogContent>
@@ -915,14 +1104,21 @@ function CreateStaffDialog({ onClose }: { onClose: () => void }) {
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const [role, setRole] = useState<string>("staff");
+  const [perms, setPerms] = useState<string[]>([]);
   const m = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/admin-pro/staff", { username, password, fullName, role }),
+    mutationFn: () => apiRequest("POST", "/api/admin-pro/staff", {
+      username, password, fullName, role,
+      permissions: role === "superadmin" ? undefined : perms,
+    }),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["/api/admin-pro/staff"] }); toast({ title: "Staff created" }); onClose(); },
     onError: (e: any) => toast({ title: "Failed", description: e?.message, variant: "destructive" }),
   });
+  const togglePerm = (id: string) =>
+    setPerms((cur) => cur.includes(id) ? cur.filter((p) => p !== id) : [...cur, id]);
+
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader><DialogTitle>Add Staff Member</DialogTitle></DialogHeader>
         <div className="space-y-3">
           <div><Label>Username</Label><Input data-testid="input-new-staff-username" value={username} onChange={(e) => setUsername(e.target.value)} /></div>
@@ -935,6 +1131,25 @@ function CreateStaffDialog({ onClose }: { onClose: () => void }) {
               <SelectContent>{STAFF_ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
             </Select>
           </div>
+          {role !== "superadmin" && (
+            <div className="border rounded-md p-3 bg-muted/40 space-y-2">
+              <Label className="font-semibold flex items-center gap-1"><Shield className="w-4 h-4" /> Menu access</Label>
+              <p className="text-xs text-muted-foreground">Select which menus this user can see. Dashboard is always visible.</p>
+              <div className="grid grid-cols-2 gap-2">
+                {PERMISSION_OPTIONS.map((opt) => (
+                  <label key={opt.id} className="flex items-center gap-2 p-2 rounded border bg-background hover:bg-muted cursor-pointer">
+                    <Checkbox
+                      checked={perms.includes(opt.id)}
+                      onCheckedChange={() => togglePerm(opt.id)}
+                      data-testid={`checkbox-new-perm-${opt.id}`}
+                    />
+                    <opt.icon className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm">{opt.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <DialogFooter><Button onClick={() => m.mutate()} disabled={m.isPending} data-testid="button-create-staff">{m.isPending ? "Creating…" : "Create"}</Button></DialogFooter>
       </DialogContent>
@@ -1323,6 +1538,10 @@ const NAV = [
   { id: "staff", label: "Staff", icon: UserCog, role: "superadmin" },
 ];
 
+// Permission options shown in the staff permissions UI
+// Excludes "dashboard" (always available) and "staff" (superadmin-only).
+const PERMISSION_OPTIONS = NAV.filter((n) => n.id !== "dashboard" && n.id !== "staff");
+
 export default function AdminPro() {
   const [, setLocation] = useLocation();
   const { data: meData, isLoading, refetch } = useQuery<{ staff: StaffMe }>({
@@ -1353,7 +1572,13 @@ export default function AdminPro() {
           <p className="text-xs text-zinc-600 dark:text-zinc-400">Admin Pro</p>
         </div>
         <nav className="flex-1 p-2 space-y-1">
-          {NAV.filter((n) => !n.role || n.role === me.role).map((n) => (
+          {NAV.filter((n) => {
+            if (n.role && n.role !== me.role) return false;
+            if (me.role === "superadmin") return true;
+            if (n.id === "dashboard") return true; // always available
+            const perms = me.permissions || [];
+            return perms.includes(n.id);
+          }).map((n) => (
             <button
               key={n.id}
               data-testid={`nav-${n.id}`}

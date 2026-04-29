@@ -62,6 +62,8 @@ export interface IStorage {
   updateOrder(id: number, patch: Partial<Order>): Promise<Order | undefined>;
   claimInvoiceSent(id: number): Promise<boolean>;
   clearInvoiceSent(id: number): Promise<void>;
+  claimTransportBillSent(id: number): Promise<boolean>;
+  clearTransportBillSent(id: number): Promise<void>;
   getOrdersInRange(start: Date, end: Date): Promise<Order[]>;
 
   getCustomers(): Promise<Customer[]>;
@@ -218,6 +220,16 @@ export class DatabaseStorage implements IStorage {
   }
   async clearInvoiceSent(id: number): Promise<void> {
     await db.execute(sql`UPDATE orders SET invoice_sent_at = NULL WHERE id = ${id}`);
+  }
+  async claimTransportBillSent(id: number): Promise<boolean> {
+    const result = await db.execute(
+      sql`UPDATE orders SET transport_bill_sent_at = NOW() WHERE id = ${id} AND transport_bill_sent_at IS NULL RETURNING id`
+    );
+    const rows: any[] = (result as any).rows ?? (result as any);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+  async clearTransportBillSent(id: number): Promise<void> {
+    await db.execute(sql`UPDATE orders SET transport_bill_sent_at = NULL WHERE id = ${id}`);
   }
   async getOrdersInRange(start: Date, end: Date): Promise<Order[]> {
     return await db.select().from(orders).where(and(gte(orders.createdAt, start), lte(orders.createdAt, end))).orderBy(desc(orders.createdAt));

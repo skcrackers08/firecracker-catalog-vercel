@@ -230,6 +230,55 @@ export async function sendWalletTxEmail(opts: {
   console.log(`[Email] Wallet ${opts.type} ${opts.status} email sent to ${opts.customerEmail} (${opts.invoiceNumber})`);
 }
 
+export async function sendTransportBillEmail(
+  order: Order,
+  pdfBase64: string,
+  filename: string,
+): Promise<void> {
+  if (!order.customerEmail) return;
+  const cfg = await getBrevoConfig();
+  if (!cfg) {
+    console.warn("[Email] Brevo SMTP key not configured – skipping transport bill email.");
+    return;
+  }
+  const transporter = nodemailer.createTransport({
+    host: cfg.host, port: cfg.port, secure: false,
+    auth: { user: cfg.login, pass: cfg.key },
+  });
+  const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#fdf6ee;font-family:Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fdf6ee;padding:24px 0;"><tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08);">
+<tr><td style="background:linear-gradient(135deg,#b91c1c 0%,#7f1d1d 100%);padding:24px 32px;text-align:center;">
+<p style="margin:0;font-size:24px;font-weight:800;color:#fff;letter-spacing:1px;">🚚 ${cfg.fromName.toUpperCase()}</p>
+<p style="margin:6px 0 0;font-size:13px;color:rgba(255,255,255,0.85);letter-spacing:1px;text-transform:uppercase;">Transport Bill — Order #SK-${String(order.id).padStart(4, "0")}</p>
+</td></tr>
+<tr><td style="padding:28px 32px;">
+<p style="margin:0 0 14px;font-size:16px;color:#374151;">Dear <strong>${order.customerName}</strong>,</p>
+<p style="margin:0 0 14px;font-size:14px;color:#4b5563;line-height:1.6;">
+Your order has been dispatched. Please find the transport bill attached for your reference.
+</p>
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#fef3c7;border:1px solid #fde68a;border-radius:10px;margin-bottom:18px;">
+<tr><td style="padding:14px 18px;font-size:13px;color:#78350f;">
+<b>Lorry / Transport:</b> ${order.lorryName || "—"}<br>
+<b>LR Number:</b> ${order.lrNumber || "—"}<br>
+<b>Dispatch Date:</b> ${order.dispatchDate || "—"}<br>
+<b>Destination:</b> ${order.destination || order.customerAddress}
+</td></tr></table>
+<p style="margin:0 0 14px;font-size:13px;color:#6b7280;line-height:1.6;">
+You can also view the transport bill any time from <b>My Requests</b> in your S K Crackers account.
+</p>
+<p style="margin:24px 0 0;font-size:13px;color:#9ca3af;text-align:center;">— Team ${cfg.fromName}</p>
+</td></tr></table></td></tr></table></body></html>`;
+  await transporter.sendMail({
+    from: `"${cfg.fromName}" <${cfg.fromEmail}>`,
+    to: order.customerEmail,
+    subject: `🚚 Transport Bill — Order #SK-${String(order.id).padStart(4, "0")}`,
+    html,
+    attachments: [{ filename, content: Buffer.from(pdfBase64, "base64"), contentType: "application/pdf" }],
+  });
+  console.log(`[Email] Transport bill sent for order #${order.id} to ${order.customerEmail}`);
+}
+
 export async function sendInvoiceEmail(order: Order): Promise<void> {
   if (!order.customerEmail) return;
 

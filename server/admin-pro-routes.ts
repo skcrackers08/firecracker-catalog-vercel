@@ -2,7 +2,7 @@ import type { Express, Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { storage } from "./storage";
 import { ORDER_STATUSES, PAYMENT_STATUSES, STAFF_ROLES, insertOfferSchema } from "@shared/schema";
-import { sendWalletTxEmail, sendInvoiceEmail } from "./email";
+import { sendWalletTxEmail, sendInvoiceEmail, sendTransportBillEmail } from "./email";
 
 async function requireStaff(req: Request, res: Response, next: NextFunction) {
   if (!req.session.staffId) {
@@ -30,6 +30,21 @@ function requireRole(...roles: string[]) {
       return res.status(403).json({ message: "Insufficient permissions" });
     }
     next();
+  };
+}
+
+// Enforce per-menu permissions on the server. Superadmin always allowed.
+// Non-superadmins must have the given module id in their `permissions` array.
+function requireStaffPermission(...moduleIds: string[]) {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    if (!req.session.staffId) return res.status(401).json({ message: "Not authenticated" });
+    const s = await storage.getStaffById(req.session.staffId);
+    if (!s || !s.active) return res.status(401).json({ message: "Account disabled" });
+    if (s.role === "superadmin") return next();
+    let perms: string[] = [];
+    try { perms = JSON.parse((s as any).permissions || "[]"); } catch {}
+    if (moduleIds.some((id) => perms.includes(id))) return next();
+    return res.status(403).json({ message: "You do not have access to this module" });
   };
 }
 
@@ -108,7 +123,9 @@ export function registerAdminProRoutes(app: Express) {
   app.get("/api/admin-pro/me", requireStaff, async (req, res) => {
     const s = await storage.getStaffById(req.session.staffId!);
     if (!s) return res.status(404).json({ message: "Not found" });
-    res.json({ staff: safeStaff(s) });
+    let permissions: string[] = [];
+    try { permissions = JSON.parse((s as any).permissions || "[]"); } catch {}
+    res.json({ staff: { ...safeStaff(s), permissions } });
   });
 
   // ============== DASHBOARD ==============
@@ -185,7 +202,13 @@ export function registerAdminProRoutes(app: Express) {
   });
 
   // ============== ORDERS ==============
-  app.get("/api/admin-pro/orders", requireStaff, async (req, res) => {
+  // Strip large blob fields (e.g. base64 transport bill PDFs) from list responses.
+  // The full PDF is fetched on demand via the dedicated endpoints.
+  function stripOrderBlobs<T extends { transportBillUrl?: string | null }>(o: T) {
+    const { transportBillUrl, ...rest } = o as any;
+    return { ...rest, hasTransportBill: !!transportBillUrl };
+  }
+  app.get("/api/admin-pro/orders", requireStaff, requireStaffPermission("orders", "transport"), async (req, res) => {
     const all = await storage.getOrders();
     const { status, payment, q } = req.query as { status?: string; payment?: string; q?: string };
     let filtered = all;
@@ -200,10 +223,10 @@ export function registerAdminProRoutes(app: Express) {
           String(o.id).includes(ql)
       );
     }
-    res.json(filtered);
+    res.json(filtered.map(stripOrderBlobs));
   });
 
-  app.patch("/api/admin-pro/orders/:id", requireStaff, async (req, res) => {
+  app.patch("/api/admin-pro/orders/:id", requireStaff, requireStaffPermission("orders", "transport"), async (req, res) => {
     try {
       const id = Number(req.params.id);
       const patch = z.object({
@@ -268,13 +291,69 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin-pro/orders/:id", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/orders/:id", requireStaff, requireStaffPermission("orders", "transport"), async (req, res) => {
     const order = await storage.getOrder(Number(req.params.id));
     if (!order) return res.status(404).json({ message: "Not found" });
     res.json(order);
   });
 
-  app.post("/api/admin-pro/orders/:id/email-invoice", requireStaff, async (req, res) => {
+  app.post("/api/admin-pro/orders/:id/transport-bill", requireStaff, requireStaffPermission("transport"), async (req, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { pdfBase64, filename } = z.object({
+        pdfBase64: z.string().min(100),
+        filename: z.string().min(1),
+      }).parse(req.body);
+
+      // Strip optional data URL prefix
+      const cleaned = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
+      // Cap at ~7MB encoded (~5MB binary) to keep DB rows reasonable
+      if (cleaned.length > 7_500_000) {
+        return res.status(413).json({ message: "PDF too large (max ~5 MB)" });
+      }
+
+      const order = await storage.getOrder(id);
+      if (!order) return res.status(404).json({ message: "Order not found" });
+
+      const dataUrl = `data:application/pdf;base64,${cleaned}`;
+      const updated = await storage.updateOrder(id, {
+        transportBillUrl: dataUrl as any,
+        transportBillFilename: filename as any,
+        transportBillSentAt: null as any,
+      });
+
+      // Notify the customer
+      if (order.customerId) {
+        try {
+          await storage.createNotification({
+            customerId: order.customerId,
+            type: "transport_bill" as any,
+            title: "Transport bill ready",
+            message: `Your transport bill for order #SK-${String(order.id).padStart(4, "0")} is ready to view.`,
+            orderId: order.id,
+            link: `/transport-bill/${order.id}`,
+          } as any);
+        } catch (e) { console.warn("[TransportBill] notification failed", e); }
+      }
+
+      // Send email (idempotent claim)
+      const claim = await storage.claimTransportBillSent(id);
+      if (claim && order.customerEmail) {
+        try {
+          await sendTransportBillEmail(updated || order, cleaned, filename);
+        } catch (e) {
+          console.warn("[TransportBill] email failed", e);
+          await storage.clearTransportBillSent(id);
+        }
+      }
+
+      res.json({ success: true, order: updated });
+    } catch (err: any) {
+      res.status(400).json({ message: err?.message ?? "Failed" });
+    }
+  });
+
+  app.post("/api/admin-pro/orders/:id/email-invoice", requireStaff, requireStaffPermission("orders"), async (req, res) => {
     try {
       const order = await storage.getOrder(Number(req.params.id));
       if (!order) return res.status(404).json({ message: "Order not found" });
@@ -288,11 +367,11 @@ export function registerAdminProRoutes(app: Express) {
   });
 
   // ============== STOCK ==============
-  app.get("/api/admin-pro/stock/low", requireStaff, async (_req, res) => {
+  app.get("/api/admin-pro/stock/low", requireStaff, requireStaffPermission("stock"), async (_req, res) => {
     res.json(await storage.getLowStockProducts());
   });
 
-  app.post("/api/admin-pro/stock/adjust", requireStaff, async (req, res) => {
+  app.post("/api/admin-pro/stock/adjust", requireStaff, requireStaffPermission("stock"), async (req, res) => {
     try {
       const { productId, changeQty, reason, notes } = z.object({
         productId: z.number(),
@@ -308,7 +387,7 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/admin-pro/stock/:id/settings", requireStaff, async (req, res) => {
+  app.patch("/api/admin-pro/stock/:id/settings", requireStaff, requireStaffPermission("stock"), async (req, res) => {
     try {
       const id = Number(req.params.id);
       const patch = z.object({
@@ -326,13 +405,13 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.get("/api/admin-pro/stock/movements", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/stock/movements", requireStaff, requireStaffPermission("stock"), async (req, res) => {
     const pid = req.query.productId ? Number(req.query.productId) : undefined;
     res.json(await storage.getStockMovements(pid));
   });
 
   // ============== CUSTOMERS ==============
-  app.get("/api/admin-pro/customers", requireStaff, async (_req, res) => {
+  app.get("/api/admin-pro/customers", requireStaff, requireStaffPermission("customers"), async (_req, res) => {
     const customers = await storage.getCustomers();
     const orders = await storage.getOrders();
     const enriched = customers.map((c) => {
@@ -345,18 +424,18 @@ export function registerAdminProRoutes(app: Express) {
     res.json(enriched);
   });
 
-  app.get("/api/admin-pro/customers/:id/orders", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/customers/:id/orders", requireStaff, requireStaffPermission("customers"), async (req, res) => {
     const id = Number(req.params.id);
     const c = await storage.getCustomerById(id);
     if (!c) return res.status(404).json({ message: "Not found" });
     const orders = await storage.getOrders();
     const cOrders = orders.filter((o) => o.customerId === id || o.customerPhone === c.phone);
     const { passwordHash, ...safe } = c;
-    res.json({ customer: safe, orders: cOrders });
+    res.json({ customer: safe, orders: cOrders.map(stripOrderBlobs) });
   });
 
   // ============== REPORTS ==============
-  app.get("/api/admin-pro/reports/sales", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/reports/sales", requireStaff, requireStaffPermission("reports"), async (req, res) => {
     const { from, to } = req.query as { from?: string; to?: string };
     const start = from ? new Date(from) : new Date(Date.now() - 30 * 86400000);
     const end = to ? new Date(to) : new Date();
@@ -378,10 +457,10 @@ export function registerAdminProRoutes(app: Express) {
     }
     const daily = Object.values(dayMap).sort((a, b) => a.date.localeCompare(b.date));
 
-    res.json({ totalRevenue, totalGst, totalCount, paidAmt, dueAmt, daily, orders });
+    res.json({ totalRevenue, totalGst, totalCount, paidAmt, dueAmt, daily, orders: orders.map(stripOrderBlobs) });
   });
 
-  app.get("/api/admin-pro/reports/profit", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/reports/profit", requireStaff, requireStaffPermission("profit"), async (req, res) => {
     const { from, to } = req.query as { from?: string; to?: string };
     const start = from ? new Date(from) : new Date(Date.now() - 30 * 86400000);
     const end = to ? new Date(to) : new Date();
@@ -441,11 +520,17 @@ export function registerAdminProRoutes(app: Express) {
         password: z.string().min(6),
         fullName: z.string().min(1),
         role: z.enum(STAFF_ROLES),
+        permissions: z.array(z.string()).optional(),
       }).parse(req.body);
       const existing = await storage.getStaffByUsername(data.username);
       if (existing) return res.status(400).json({ message: "Username already exists" });
-      const s = await storage.createStaff(data);
-      res.status(201).json(safeStaff(s));
+      const { permissions, ...rest } = data;
+      const s = await storage.createStaff(rest as any);
+      if (permissions && data.role !== "superadmin") {
+        await storage.updateStaff(s.id, { permissions: JSON.stringify(permissions) } as any);
+      }
+      const fresh = await storage.getStaffById(s.id);
+      res.status(201).json(safeStaff(fresh));
     } catch (err: any) {
       res.status(400).json({ message: err?.message ?? "Failed" });
     }
@@ -458,8 +543,11 @@ export function registerAdminProRoutes(app: Express) {
         fullName: z.string().optional(),
         role: z.enum(STAFF_ROLES).optional(),
         active: z.boolean().optional(),
+        permissions: z.array(z.string()).optional(),
       }).parse(req.body);
-      const updated = await storage.updateStaff(id, patch);
+      const dbPatch: any = { ...patch };
+      if (patch.permissions !== undefined) dbPatch.permissions = JSON.stringify(patch.permissions);
+      const updated = await storage.updateStaff(id, dbPatch);
       if (!updated) return res.status(404).json({ message: "Not found" });
       res.json(safeStaff(updated));
     } catch (err: any) {
@@ -486,12 +574,12 @@ export function registerAdminProRoutes(app: Express) {
   });
 
   // ============== OFFERS (Admin) ==============
-  app.get("/api/admin-pro/offers", requireStaff, async (_req, res) => {
+  app.get("/api/admin-pro/offers", requireStaff, requireStaffPermission("offers"), async (_req, res) => {
     const list = await storage.listOffers();
     res.json(list);
   });
 
-  app.post("/api/admin-pro/offers", requireStaff, async (req, res) => {
+  app.post("/api/admin-pro/offers", requireStaff, requireStaffPermission("offers"), async (req, res) => {
     try {
       const data = insertOfferSchema.parse(req.body);
       const o = await storage.createOffer(data);
@@ -501,7 +589,7 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.patch("/api/admin-pro/offers/:id", requireStaff, async (req, res) => {
+  app.patch("/api/admin-pro/offers/:id", requireStaff, requireStaffPermission("offers"), async (req, res) => {
     try {
       const id = Number(req.params.id);
       const patch = insertOfferSchema.partial().parse(req.body);
@@ -513,14 +601,14 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.delete("/api/admin-pro/offers/:id", requireStaff, async (req, res) => {
+  app.delete("/api/admin-pro/offers/:id", requireStaff, requireStaffPermission("offers"), async (req, res) => {
     const id = Number(req.params.id);
     await storage.deleteOffer(id);
     res.json({ success: true });
   });
 
   // ============== WALLET TRANSACTIONS APPROVAL (Admin) ==============
-  app.get("/api/admin-pro/wallet-tx", requireStaff, async (req, res) => {
+  app.get("/api/admin-pro/wallet-tx", requireStaff, requireStaffPermission("wallet-approvals"), async (req, res) => {
     const status = (req.query.status as string) || undefined;
     const type = (req.query.type as string) || undefined;
     const list = await storage.listWalletTransactions({ status, type });
@@ -532,7 +620,7 @@ export function registerAdminProRoutes(app: Express) {
     res.json(enriched);
   });
 
-  app.post("/api/admin-pro/wallet-tx/:id/approve", requireStaff, async (req, res) => {
+  app.post("/api/admin-pro/wallet-tx/:id/approve", requireStaff, requireStaffPermission("wallet-approvals"), async (req, res) => {
     try {
       const id = Number(req.params.id);
       const { transactionRef } = z.object({ transactionRef: z.string().optional() }).parse(req.body || {});
@@ -575,7 +663,7 @@ export function registerAdminProRoutes(app: Express) {
     }
   });
 
-  app.post("/api/admin-pro/wallet-tx/:id/reject", requireStaff, async (req, res) => {
+  app.post("/api/admin-pro/wallet-tx/:id/reject", requireStaff, requireStaffPermission("wallet-approvals"), async (req, res) => {
     try {
       const id = Number(req.params.id);
       // Only allow the two predefined remark options the UI offers (defence-in-depth).

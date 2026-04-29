@@ -12,6 +12,7 @@ import Admin from "@/pages/Admin";
 import AdminPro from "@/pages/AdminPro";
 import AdminProInvoice from "@/pages/AdminProInvoice";
 import AdminProTransportBill from "@/pages/AdminProTransportBill";
+import TransportBillView from "@/pages/TransportBillView";
 import PartnerWalletHistory from "@/pages/PartnerWalletHistory";
 import PartnerReferrals from "@/pages/PartnerReferrals";
 import PartnerBank from "@/pages/PartnerBank";
@@ -41,6 +42,7 @@ function Router() {
       <Route path="/checkout/:id" component={Checkout} />
       <Route path="/checkout" component={Checkout} />
       <Route path="/bill/:id" component={Bill} />
+      <Route path="/transport-bill/:id" component={TransportBillView} />
       <Route path="/wishlist" component={Wishlist} />
       <Route path="/login" component={CustomerLogin} />
       <Route path="/account" component={CustomerAccount} />

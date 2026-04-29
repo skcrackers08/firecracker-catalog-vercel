@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { User, Package, ShoppingBag, Camera, Loader2, FileText, Clock } from "lucide-react";
+import { User, Package, ShoppingBag, Camera, Loader2, FileText, Clock, Truck } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Layout } from "@/components/Layout";
 import { Button, Card } from "@/components/ui-custom";
@@ -45,6 +45,7 @@ interface Order {
   totalAmount: string;
   customerId: number | null;
   orderStatus?: string | null;
+  hasTransportBill?: boolean;
 }
 
 export default function CustomerAccount() {
@@ -268,24 +269,36 @@ export default function CustomerAccount() {
                         </span>
                       )}
 
-                      {isConfirmed && !isCancelled ? (
-                        <Link href={`/bill/${order.id}`}>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {order.hasTransportBill && (
+                          <Link href={`/transport-bill/${order.id}`}>
+                            <Button
+                              data-testid={`button-view-transport-bill-${order.id}`}
+                              className="h-9 px-4 text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                            >
+                              <Truck className="w-3.5 h-3.5" /> Transport Bill
+                            </Button>
+                          </Link>
+                        )}
+                        {isConfirmed && !isCancelled ? (
+                          <Link href={`/bill/${order.id}`}>
+                            <Button
+                              data-testid={`button-view-invoice-${order.id}`}
+                              className="h-9 px-4 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                            >
+                              <FileText className="w-3.5 h-3.5" /> View / Download Invoice
+                            </Button>
+                          </Link>
+                        ) : (
                           <Button
+                            disabled
                             data-testid={`button-view-invoice-${order.id}`}
-                            className="h-9 px-4 text-xs gap-1.5 bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                            className="h-9 px-4 text-xs gap-1.5 bg-white/5 text-muted-foreground border border-white/10 cursor-not-allowed"
                           >
-                            <FileText className="w-3.5 h-3.5" /> View / Download Invoice
+                            <FileText className="w-3.5 h-3.5" /> Invoice Locked
                           </Button>
-                        </Link>
-                      ) : (
-                        <Button
-                          disabled
-                          data-testid={`button-view-invoice-${order.id}`}
-                          className="h-9 px-4 text-xs gap-1.5 bg-white/5 text-muted-foreground border border-white/10 cursor-not-allowed"
-                        >
-                          <FileText className="w-3.5 h-3.5" /> Invoice Locked
-                        </Button>
-                      )}
+                        )}
+                      </div>
                     </div>
                   </Card>
                 );

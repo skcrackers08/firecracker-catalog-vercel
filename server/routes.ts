@@ -794,7 +794,30 @@ export async function registerRoutes(
       return res.status(401).json({ message: "Not logged in" });
     }
     const customerOrders = await storage.getOrdersByCustomer(req.session.customerId);
-    res.json(customerOrders);
+    // Strip large transport bill PDF blobs from list response; expose only metadata.
+    // Full PDF is served on demand at /api/customers/orders/:id/transport-bill
+    res.json(customerOrders.map((o: any) => {
+      const { transportBillUrl, ...rest } = o;
+      return { ...rest, hasTransportBill: !!transportBillUrl };
+    }));
+  });
+
+  // Customer-side: download / view transport bill PDF for an order they own
+  app.get("/api/customers/orders/:id/transport-bill", async (req, res) => {
+    if (!req.session.customerId) return res.status(401).json({ message: "Not logged in" });
+    const id = Number(req.params.id);
+    const order = await storage.getOrder(id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+    if (order.customerId !== req.session.customerId) return res.status(403).json({ message: "Not allowed" });
+    if (!order.transportBillUrl) return res.status(404).json({ message: "Transport bill not available" });
+    const b64 = String(order.transportBillUrl).replace(/^data:application\/pdf;base64,/, "");
+    const buf = Buffer.from(b64, "base64");
+    const fname = order.transportBillFilename || `transport-bill-SK-${String(order.id).padStart(4, "0")}.pdf`;
+    const disposition = req.query.download === "1" ? "attachment" : "inline";
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `${disposition}; filename="${fname}"`);
+    res.setHeader("Content-Length", String(buf.length));
+    res.send(buf);
   });
 
   return httpServer;

@@ -122,6 +122,9 @@ export const orders = pgTable("orders", {
   remarks: text("remarks"),
   transportRemarks: text("transport_remarks"),
   invoiceSentAt: timestamp("invoice_sent_at"),
+  transportBillUrl: text("transport_bill_url"),
+  transportBillFilename: text("transport_bill_filename"),
+  transportBillSentAt: timestamp("transport_bill_sent_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -145,6 +148,7 @@ export const NOTIFICATION_TYPES = [
   "referral_join",
   "offer",
   "broadcast",
+  "transport_bill",
 ] as const;
 export type NotificationType = typeof NOTIFICATION_TYPES[number];
 

@@ -81,6 +81,14 @@ The project uses a TypeScript monorepo structure, separating `client/` (React SP
 - **Customer Accounts:** Session-based authentication using `express-session` and `memorystore`.
     - Passwords hashed with `crypto.scryptSync`.
     - Phone OTP verification: 6-digit code with 10-minute expiry, sent via configurable SMS gateway (StartMessaging or Fast2SMS) or displayed on-screen as a fallback. Normalizes phone numbers to E.164.
+- **Admin Pro (staff portal at `/admin-pro`):** Per-user menu permissions.
+    - `staff.permissions` (JSON-string array) lists which sidebar IDs each non-superadmin can see; the `/api/admin-pro/me` endpoint parses it to `string[]`.
+    - Superadmins always see every menu, including the Staff tab. Non-superadmins always see Dashboard plus only the menus listed in `permissions`.
+    - PATCH `/api/admin-pro/staff/:id` accepts `permissions: []` to clear access.
+- **Transport bills:** Admin uploads a PDF in the Transport / Dispatch dialog → POST `/api/admin-pro/orders/:id/transport-bill { pdfBase64, filename }` (≤5 MB). The PDF is stored as a data URL in `orders.transportBillUrl`, a customer notification is created, an email with the PDF attachment is sent (when `customerEmail` exists), and the admin UI opens WhatsApp with a link.
+    - List endpoints (`/api/admin-pro/orders`, `/api/customers/orders`) strip the large `transportBillUrl` blob and expose only `hasTransportBill: boolean` plus filename/sentAt metadata; the full PDF is served on demand from `/api/customers/orders/:id/transport-bill` (auth + ownership enforced; supports `?download=1`).
+    - Customer route `/transport-bill/:id` (`client/src/pages/TransportBillView.tsx`) iframes the PDF and provides a download button. The "My Requests" page shows a Transport Bill button when `hasTransportBill` is true.
+    - Transport tab status is derived: `confirmed` iff both `lorryName` and `lrNumber` are filled, else `pending`.
 
 ## External Dependencies
 
