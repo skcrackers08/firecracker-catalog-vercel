@@ -7,7 +7,6 @@ import { rm, readFile } from "fs/promises";
 const allowlist = [
   "@google/generative-ai",
   "axios",
-  "connect-pg-simple",
   "cors",
   "date-fns",
   "drizzle-orm",
@@ -46,6 +45,7 @@ async function buildAll() {
   ];
   const externals = allDeps.filter((dep) => !allowlist.includes(dep));
 
+  // 1) Long-lived Node entry — used by Replit deployment / `npm run start`.
   await esbuild({
     entryPoints: ["server/index.ts"],
     platform: "node",
@@ -54,6 +54,28 @@ async function buildAll() {
     outfile: "dist/index.cjs",
     define: {
       "process.env.NODE_ENV": '"production"',
+    },
+    minify: true,
+    external: externals,
+    logLevel: "info",
+  });
+
+  // 2) Serverless entry — used by Vercel (api/[...path].js requires this).
+  // No `define` for NODE_ENV here so the same bundle still runs locally
+  // under `vercel dev`. Vercel itself sets NODE_ENV=production at runtime.
+  console.log("building serverless wrapper...");
+  await esbuild({
+    entryPoints: ["server/serverless.ts"],
+    platform: "node",
+    bundle: true,
+    format: "cjs",
+    outfile: "dist/serverless.cjs",
+    // Pin NODE_ENV so esbuild can dead-code-eliminate the dev/Vite branch
+    // in server/index.ts. Without this, esbuild traces the dynamic
+    // `import("./vite")` and chokes on top-level await in vite.config.ts.
+    define: {
+      "process.env.NODE_ENV": '"production"',
+      "process.env.VERCEL": '"1"',
     },
     minify: true,
     external: externals,

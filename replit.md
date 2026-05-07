@@ -113,3 +113,27 @@ The project uses a TypeScript monorepo structure, separating `client/` (React SP
 
 **Environment Variables Required:**
 - `DATABASE_URL`: PostgreSQL connection string.
+- `SESSION_SECRET` (recommended): signing key for session cookies. Falls back to a hard-coded dev secret if absent — set this in production.
+- `GMAIL_USER`, `GMAIL_APP_PASSWORD`: Gmail SMTP credentials for invoice / wallet / transport-bill emails (optional — Brevo SMTP is also supported via `BREVO_*` vars).
+- `OPENAI_API_KEY`: enables the AI chat / assistant features (optional; the admin can also store a key in Settings).
+- `START_MSG_API_KEY` / `FAST2SMS_API_KEY`: SMS-gateway keys for OTP delivery (either one works; on-screen fallback if neither is set).
+
+## Deployment
+
+The project is set up to deploy to two targets from the same codebase:
+
+### Replit (autoscale)
+- `npm run build` → `script/build.ts` produces:
+  - `dist/index.cjs` — long-lived Node entry (used by Replit's autoscale deployment and `npm run start`).
+  - `dist/serverless.cjs` — Vercel serverless wrapper of the same Express app.
+  - `dist/public/` — Vite build of the React SPA.
+- Runs `NODE_ENV=production node dist/index.cjs`.
+
+### Vercel (serverless via single Express handler)
+- `vercel.json` configures `buildCommand: npm run build`, `outputDirectory: dist/public`, and a catch-all SPA rewrite.
+- `api/[...path].js` is a thin Vercel function that `require()`s `dist/serverless.cjs` (the bundled Express app). All `/api/*` requests land in Express; everything else is served as static SPA assets with `index.html` fallback.
+- `server/index.ts` skips its `app.listen(...)` IIFE when `process.env.VERCEL` is set, so importing `createApp()` from the serverless entry never starts an HTTP listener.
+- **Sessions** use `connect-pg-simple` (table `user_sessions`, auto-created) whenever `NODE_ENV=production` + `DATABASE_URL` are set, so logins survive cold starts and multiple serverless instances. `MemoryStore` is only used in local dev.
+- `app.set("trust proxy", 1)` + `cookie.secure: true` are enabled when `VERCEL` is set, so session cookies work behind Vercel's TLS-terminating proxy.
+- All required keys must be added to the Vercel project as environment variables — the same names listed above.
+- **Known Vercel platform limit:** request bodies are capped at ~4.5 MB (free / Hobby) or ~5 MB (Pro). The transport-bill PDF upload uses base64 over JSON, so the practical PDF size limit on Vercel is ~3 MB. Larger PDFs continue to work fine on the Replit deployment, which has the full 50 MB Express limit. If you need bigger PDFs on Vercel later, switch the upload to a presigned direct-to-object-storage flow.
