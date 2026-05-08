@@ -72,8 +72,12 @@ The project uses a TypeScript monorepo structure, separating `client/` (React SP
 - **Engine & ORM:** PostgreSQL (`pg` / `node-postgres`) with Drizzle ORM.
 - **Schema:** Defined in `shared/schema.ts`.
 - **Migrations:** Managed with Drizzle Kit.
-- **Tables:** `products`, `orders`, `customers`, `notifications`.
+- **Tables:** `products`, `orders`, `customers`, `notifications`, `app_settings`, `offers`, `referral_uses`, `staff`, `stock_movements`, `user_sessions`, `wallet_transactions`.
 - **Zod Schemas:** Auto-generated from Drizzle definitions for client and server validation.
+- **Hosting:**
+    - **Replit deployment** continues to use the Replit-managed Postgres (`DATABASE_URL` provided by Replit).
+    - **Vercel deployment** uses **Neon Postgres**. The schema + data were migrated via `pg_dump --inserts --column-inserts --no-owner --no-acl` (the file lives at `migrations/replit_to_neon_full.sql` for reference). No code changes were needed: `server/db.ts` and the `connect-pg-simple` session store both read `DATABASE_URL`, and Neon's URL ships with `?sslmode=require` so TLS is automatic.
+    - To re-run the migration on a fresh Neon project: `psql "$NEON_URL" -f migrations/replit_to_neon_full.sql`.
 
 ### Authentication
 
