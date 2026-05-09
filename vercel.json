@@ -3,12 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "framework": null,
-  "functions": {
-    "api/[...path].cjs": {
-      "maxDuration": 30,
-      "includeFiles": "dist/**"
-    }
-  },
   "rewrites": [
     {
       "source": "/((?!api/|api$|assets/|.*\\.[a-zA-Z0-9]+$).*)",
